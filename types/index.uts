@@ -1,0 +1,120 @@
+/**
+ * 应用类型定义
+ */
+
+/**
+ * 拍照选项
+ */
+export interface CameraOptions {
+	sourceType?: ('camera' | 'album')[]
+	count?: number
+	sizeType?: ('original' | 'compressed')[]
+}
+
+/**
+ * 图片信息
+ */
+export interface ImageInfo {
+	path: string
+	width?: number
+	height?: number
+	size?: number
+}
+
+/**
+ * 手相分析报告数据
+ */
+export interface PalmistryReport {
+	id: string
+	imagePath: string
+	analyzeTime: string
+	results: ReportResult[]
+	fullData?: PalmistryAnalysisResult // 保存完整的API返回数据，包含详细分析内容
+}
+
+/**
+ * 线条评分摘要
+ */
+export interface LineSummary {
+	dimension: string;
+	score: number;
+	brief: string;
+}
+
+/**
+ * 维度详细分析
+ */
+export interface DimensionDetail {
+	title: string;
+	content: string;
+}
+
+/**
+ * 线条详细解读
+ */
+export interface LineDetail {
+	type: string;
+	typeName: string;
+	description: string;
+	interpretation: {
+		thinking?: string;
+		learning?: string;
+		decision?: string;
+		[key: string]: string | undefined;
+	};
+}
+
+/**
+ * 掌部特征
+ */
+export interface PalmFeatures {
+	palmShape: string;
+	fingerRatio: string;
+	palmMound: string;
+}
+
+/**
+ * 建议内容
+ */
+export interface Suggestions {
+	career: string;
+	life: string;
+	tip: string;
+}
+
+/**
+ * 手相识别结果（新格式）
+ */
+export interface PalmistryAnalysisResult {
+	summary: {
+		lifeLine: LineSummary;
+		wisdomLine: LineSummary;
+		emotionLine: LineSummary;
+		fateLine: LineSummary;
+	};
+	dimensions: {
+		handType: DimensionDetail;
+		palmMounds: DimensionDetail;
+		specialMarks: DimensionDetail;
+		career: DimensionDetail;
+		love: DimensionDetail;
+		health: DimensionDetail;
+	};
+	harshWarning: string;
+	overallAnalysis: string;
+	lineDetails: LineDetail[];
+	palmFeatures: PalmFeatures;
+	suggestions: Suggestions;
+}
+
+/**
+ * 报告结果项
+ */
+export interface ReportResult {
+	type: string
+	title: string
+	description: string
+	score?: number
+	points?: Array<{x: number, y: number}> // 线条坐标点（可选）
+	clarity?: number // 清晰度 0-100（可选）
+}

@@ -1,0 +1,110 @@
+/**
+ * 图片上传工具函数
+ * 将本地图片上传到服务器获取在线URL
+ */
+
+/**
+ * 上传图片到服务器（使用图床服务或后端接口）
+ * 这里提供一个示例，你可以替换为你的后端接口
+ */
+export function uploadImageToServer(imagePath: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		console.log('开始上传图片，路径:', imagePath);
+		
+		// 方案1：使用你的后端接口上传
+		// 如果有后端接口，使用这个
+		/*
+		uni.uploadFile({
+			url: 'https://your-backend.com/api/upload', // 替换为你的上传接口
+			filePath: imagePath,
+			name: 'file',
+			success: (res) => {
+				const data = JSON.parse(res.data);
+				if (data.url) {
+					resolve(data.url);
+				} else {
+					reject(new Error('上传失败：未返回URL'));
+				}
+			},
+			fail: (error) => {
+				reject(new Error(`上传失败: ${error.errMsg || '未知错误'}`));
+			}
+		});
+		*/
+		
+		// 方案2：使用免费的图床服务（示例：sm.ms）
+		// 注意：生产环境建议使用自己的后端接口
+		// #ifdef H5
+		if (imagePath.startsWith('blob:')) {
+			// H5平台：将blob转为File对象上传
+			fetch(imagePath)
+				.then(response => response.blob())
+				.then(blob => {
+					const formData = new FormData();
+					formData.append('smfile', blob, 'hand.jpg');
+					
+					// 使用 sm.ms 免费图床（仅用于测试，生产环境请使用自己的服务器）
+					return fetch('https://sm.ms/api/v2/upload', {
+						method: 'POST',
+						body: formData
+					});
+				})
+				.then(response => response.json())
+				.then((data: any) => {
+					if (data.success && data.data?.url) {
+						console.log('图片上传成功，URL:', data.data.url);
+						resolve(data.data.url);
+					} else {
+						reject(new Error(data.message || '上传失败'));
+					}
+				})
+				.catch((error) => {
+					console.error('上传图片失败:', error);
+					reject(error);
+				});
+		} else {
+			// 非blob URL，尝试使用uni.uploadFile
+			uni.uploadFile({
+				url: 'https://sm.ms/api/v2/upload', // 或你的后端接口
+				filePath: imagePath,
+				name: 'smfile',
+				success: (res) => {
+					try {
+						const data = JSON.parse(res.data);
+						if (data.success && data.data?.url) {
+							resolve(data.data.url);
+						} else {
+							reject(new Error(data.message || '上传失败'));
+						}
+					} catch (error) {
+						reject(new Error('解析上传响应失败'));
+					}
+				},
+				fail: (error) => {
+					reject(new Error(`上传失败: ${error.errMsg || '未知错误'}`));
+				}
+			});
+		}
+		// #endif
+		
+		// #ifndef H5
+		// 非H5平台使用uni.uploadFile
+		uni.uploadFile({
+			url: 'https://your-backend.com/api/upload', // 替换为你的上传接口
+			filePath: imagePath,
+			name: 'file',
+			success: (res) => {
+				const data = JSON.parse(res.data);
+				if (data.url) {
+					resolve(data.url);
+				} else {
+					reject(new Error('上传失败：未返回URL'));
+				}
+			},
+			fail: (error) => {
+				reject(new Error(`上传失败: ${error.errMsg || '未知错误'}`));
+			}
+		});
+		// #endif
+	});
+}

@@ -1,0 +1,62 @@
+<script lang="uts">
+	let firstBackTime: number = 0;
+	const BACK_PRESS_INTERVAL: number = 2000;
+
+	export default {
+		onLaunch(options: Record<string, any>): void {
+			console.log('App Launch', options);
+		},
+		onShow(): void {
+			console.log('App Show');
+		},
+		onHide(): void {
+			console.log('App Hide');
+		},
+		// #ifdef APP-ANDROID
+		onLastPageBackPress(): void {
+			console.log('App LastPageBackPress');
+			const currentTime: number = Date.now();
+			
+			if (firstBackTime === 0) {
+				uni.showToast({
+					title: '再按一次退出应用',
+					position: 'bottom',
+					icon: 'none'
+				});
+				firstBackTime = currentTime;
+				setTimeout(() => {
+					firstBackTime = 0;
+				}, BACK_PRESS_INTERVAL);
+			} else if (currentTime - firstBackTime < BACK_PRESS_INTERVAL) {
+				firstBackTime = currentTime;
+				uni.exit();
+			} else {
+				firstBackTime = currentTime;
+			}
+		},
+		// #endif
+		onExit(): void {
+			console.log('App Exit');
+		}
+	};
+</script>
+
+<style>
+	/* 全局移动端样式 */
+	page {
+		width: 750rpx;
+		max-width: 100vw;
+		min-height: 100vh;
+		box-sizing: border-box;
+		overflow-x: hidden;
+	}
+
+	/*每个页面公共css */
+	.uni-row {
+		flex-direction: row;
+	}
+
+	.uni-column {
+		flex-direction: column;
+	}
+</style>

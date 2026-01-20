@@ -1,0 +1,556 @@
+/**
+ * 通义千问API封装
+ */
+
+import { QWEN_CONFIG } from './config';
+
+/**
+ * Qwen API 消息内容
+ */
+interface QwenMessage {
+	role: 'user' | 'assistant' | 'system';
+	content: Array<{
+		type: 'text' | 'image';
+		text?: string;
+		image?: string; // 直接是在线URL字符串
+	}>;
+}
+
+/**
+ * Qwen API 请求参数
+ */
+interface QwenRequest {
+	model: string;
+	input: {
+		messages: QwenMessage[];
+	};
+	parameters?: {
+		temperature?: number;
+		max_tokens?: number;
+		top_p?: number;
+	};
+}
+
+/**
+ * Qwen API 响应
+ */
+interface QwenResponse {
+	output: {
+		choices: Array<{
+			message: {
+				role: string;
+				content: string;
+			};
+		}>;
+	};
+	usage?: {
+		total_tokens: number;
+	};
+}
+
+/**
+ * 线条评分摘要
+ */
+export interface LineSummary {
+	dimension: string; // 维度名称，如"健康维度"、"思维维度"
+	score: number; // 评分，0-10之间的小数
+	brief: string; // 简短描述
+}
+
+/**
+ * 维度详细分析
+ */
+export interface DimensionDetail {
+	title: string; // 维度标题
+	content: string; // 详细分析内容
+}
+
+/**
+ * 线条详细解读
+ */
+export interface LineDetail {
+	type: string; // 线条类型：life, wisdom, emotion, career
+	typeName: string; // 线条中文名称
+	description: string; // 纹路描述
+	interpretation: {
+		thinking?: string; // 思维方式
+		learning?: string; // 学习能力
+		decision?: string; // 决策特点
+		[key: string]: string | undefined; // 其他解读字段
+	};
+}
+
+/**
+ * 掌部特征
+ */
+export interface PalmFeatures {
+	palmShape: string; // 手掌形态
+	fingerRatio: string; // 手指比例
+	palmMound: string; // 掌丘状态
+}
+
+/**
+ * 建议内容
+ */
+export interface Suggestions {
+	career: string; // 事业建议
+	life: string; // 生活建议
+	tip: string; // 温馨提示
+}
+
+/**
+ * 手相识别结果（新格式）
+ */
+export interface PalmistryAnalysisResult {
+	summary: {
+		lifeLine: LineSummary;
+		wisdomLine: LineSummary;
+		emotionLine: LineSummary;
+		fateLine: LineSummary;
+	};
+	dimensions: {
+		handType: DimensionDetail;
+		palmMounds: DimensionDetail;
+		specialMarks: DimensionDetail;
+		career: DimensionDetail;
+		love: DimensionDetail;
+		health: DimensionDetail;
+	};
+	harshWarning: string;
+	overallAnalysis: string;
+	lineDetails: LineDetail[];
+	palmFeatures: PalmFeatures;
+	suggestions: Suggestions;
+}
+
+/**
+ * 手相识别请求参数
+ */
+interface PalmistryAnalyzeRequest {
+	imagePath: string;
+	gender: 'male' | 'female'; // 男左女右
+}
+
+/**
+ * 调用通义千问API分析手相
+ */
+export async function analyzePalmistry(
+	request: PalmistryAnalyzeRequest
+): Promise<PalmistryAnalysisResult> {
+	try {
+		// 1. 直接使用传入的图片数据（支持在线URL或base64格式）
+		const imageData = request.imagePath;
+		const isBase64 = imageData.startsWith('data:image/');
+		console.log('使用图片数据:', imageData.substring(0, 50) + '...');
+		console.log('图片数据类型:', isBase64 ? 'base64' : 'URL');
+
+		// 2. 构建提示词
+		const handSide = request.gender === 'male' ? '左手' : '右手';
+		const prompt = `🪬 你是一位经验丰富的专业手相命理师，擅长通过手相分析一个人的性格、婚姻、事业、财运、健康与人生轨迹。
+请仔细分析这张${handSide}的手掌图片，进行全面、激进且真实的深度剖析。
+
+🔍 分析要求：
+1. 整体手型分析：判断火、风、水、土型，分析其核心个性和命格缺陷。
+2. 四大主线解析：
+   - 生命线（能量）：体质、健康、生活能量
+   - 智慧线（思维/事业）：思维模式、判断力、学业/工作倾向、事业发展运程（智慧线即事业线）
+   - 感情线（情感/婚姻）：情感表达、恋爱婚姻模式、婚姻稳定性（感情线即婚姻线）
+   - 命运线（天命）：职业方向、人生轨迹、命运转折点
+3. 掌丘分析：木星丘、土星丘、太阳丘等隆起情况及潜在运势压制。
+4. 特殊纹路：十字纹、岛纹（危机）、三角纹等及其利弊。
+5. 事业财运：财库、贵人、成功点及破财风险。
+6. 感情婚姻：桃花运、婚姻稳定性、是否存在二婚或情感劫难风险。
+7. 性格与健康：必须指明致命缺点、性格阴暗面及未来的健康危机建议。
+
+✨ 语气要求：真实客观，禁止纯恭维。语气需激进、犀利，毫不留情地指出命格中的弱点和潜在危机，给予用户适当的压力感。
+
+请返回JSON格式，严格按照以下结构：
+
+{
+  "summary": {
+    "lifeLine": { "dimension": "生命能", "score": 8.5, "brief": "描述简短" },
+    "wisdomLine": { "dimension": "智谋度（事业）", "score": 7.0, "brief": "描述简短" },
+    "emotionLine": { "dimension": "情缘力（婚姻）", "score": 6.0, "brief": "描述简短" },
+    "fateLine": { "dimension": "天命轨迹", "score": 7.5, "brief": "描述简短" }
+  },
+  "dimensions": {
+    "handType": { "title": "五行命格", "content": "详细内容..." },
+    "palmMounds": { "title": "星丘压制", "content": "详细内容..." },
+    "specialMarks": { "title": "凶吉征兆", "content": "详细内容..." },
+    "career": { "title": "财官利禄", "content": "详细内容..." },
+    "love": { "title": "红尘情孽", "content": "详细内容..." },
+    "health": { "title": "命元警示", "content": "详细内容..." }
+  },
+  "harshWarning": "【致命命理警示】此处用最犀利、激进的语言指出其性格或运势中最致命的一个问题，字数约100字。",
+  "overallAnalysis": "综合命定结论：从宏观命理看...",
+  "lineDetails": [
+    {
+      "type": "wisdom",
+      "typeName": "智慧线",
+      "description": "...",
+      "interpretation": {
+        "thinking": "...",
+        "learning": "...",
+        "decision": "..."
+      }
+    }
+  ],
+  "palmFeatures": {
+    "palmShape": "...",
+    "fingerRatio": "...",
+    "palmMound": "..."
+  },
+  "suggestions": {
+    "career": "...",
+    "life": "...",
+    "tip": "..."
+  }
+}
+
+重要要求：
+1. 必须严格按照上述JSON结构返回，所有字段都必须存在
+2. 分数使用小数（如8.5、7.5），范围在0-10之间
+3. brief字段是简短的一句话描述，不超过100字
+4. content字段是详细分析，要具体、实用、有针对性
+5. 必须只返回纯JSON格式，不要包含任何markdown标记、代码块、或其他文字说明
+6. 返回的JSON必须是有效的JSON格式，可以直接解析`;
+
+		// 3. 构建API请求
+		const apiRequest: QwenRequest = {
+			model: QWEN_CONFIG.model,
+			input: {
+				messages: [
+					{
+						role: 'user',
+						content: [
+							{
+								type: 'text',
+								text: prompt
+							},
+							{
+								type: 'image',
+								image: imageData // 支持 data:image/jpeg;base64,xxxxx 格式或在线URL
+							}
+						]
+					}
+				]
+			},
+			parameters: {
+				temperature: 0.1, // 低温度，更稳定的输出
+				max_tokens: 4000, // 增加token数量以支持详细的分析内容
+				top_p: 0.8
+			}
+		};
+
+		console.log('=== 平台检测 ===');
+		console.log('当前endpoint:', QWEN_CONFIG.endpoint);
+		console.log('是否为代理路径:', QWEN_CONFIG.endpoint.startsWith('/api/'));
+		console.log('完整配置:', {
+			endpoint: QWEN_CONFIG.endpoint,
+			model: QWEN_CONFIG.model,
+			apiKey: QWEN_CONFIG.apiKey ? `${QWEN_CONFIG.apiKey.substring(0, 10)}...` : '未设置',
+			imageDataType: isBase64 ? 'base64' : 'URL',
+			requestSize: JSON.stringify(apiRequest).length
+		});
+		
+		// 4. 调用API
+		return new Promise<PalmistryAnalysisResult>((resolve, reject) => {
+			console.log('发送API请求，请求数据大小:', JSON.stringify(apiRequest).length);
+			
+			uni.request({
+				url: QWEN_CONFIG.endpoint,
+				method: 'POST',
+				header: {
+					'Authorization': `Bearer ${QWEN_CONFIG.apiKey}`,
+					'Content-Type': 'application/json',
+					'X-DashScope-SSE': 'disable'
+				},
+				data: apiRequest,
+				timeout: QWEN_CONFIG.timeout,
+				success: (res: any) => {
+					console.log('API调用成功，状态码:', res.statusCode);
+					console.log('API响应数据类型:', typeof res.data);
+					console.log('API响应数据:', res.data);
+					
+					// 5. 解析响应
+					if (res.statusCode !== 200) {
+						let errorMsg = '未知错误';
+						// 尝试从不同位置提取错误信息
+						if (res.data) {
+							if (typeof res.data === 'string') {
+								errorMsg = res.data;
+							} else if (res.data.message) {
+								errorMsg = res.data.message;
+							} else if (res.data.error) {
+								errorMsg = res.data.error;
+							} else {
+								errorMsg = JSON.stringify(res.data);
+							}
+						} else if (res.errMsg) {
+							errorMsg = res.errMsg;
+						}
+						reject(new Error(`API调用失败: HTTP ${res.statusCode}, ${errorMsg}`));
+						return;
+					}
+
+					// 检查响应数据是否为空或无效
+					if (!res.data) {
+						reject(new Error('API返回数据为空'));
+						return;
+					}
+
+					// 如果响应是字符串，尝试解析
+					let responseData = res.data;
+					if (typeof res.data === 'string') {
+						try {
+							responseData = JSON.parse(res.data);
+						} catch (e) {
+							reject(new Error(`API返回数据格式错误: 无法解析JSON字符串 - ${res.data.substring(0, 100)}`));
+							return;
+						}
+					}
+
+					const qwenResponse = responseData as QwenResponse;
+					
+					if (!qwenResponse || !qwenResponse.output || !qwenResponse.output.choices || qwenResponse.output.choices.length === 0) {
+						reject(new Error('API返回数据格式错误：缺少output.choices'));
+						return;
+					}
+
+					const content = qwenResponse.output.choices[0].message.content;
+					console.log('API返回内容类型:', typeof content);
+					console.log('API返回内容:', content);
+
+					// 6. 处理返回内容（支持多种格式）
+					try {
+						let result: PalmistryAnalysisResult;
+						let jsonString: string = '';
+						
+						if (typeof content === 'string') {
+							// 如果是字符串，先检查是否是数组格式
+							console.log('content 是字符串类型，检查格式...');
+							
+							// 尝试解析为数组（API可能返回数组格式）
+							try {
+								const contentArray = JSON.parse(content);
+								if (Array.isArray(contentArray) && contentArray.length > 0) {
+									// 如果是数组，取第一个元素的 text 字段
+									if (contentArray[0].text) {
+										console.log('检测到数组格式，提取 text 字段...');
+										jsonString = contentArray[0].text;
+									} else {
+										// 如果数组元素直接是对象，尝试使用
+										if (contentArray[0].lines && Array.isArray(contentArray[0].lines)) {
+											result = contentArray[0] as PalmistryAnalysisResult;
+											console.log('数组元素格式正确，直接使用');
+											resolve(result);
+											return;
+										} else {
+											jsonString = content;
+										}
+									}
+								} else {
+									// 不是数组，直接使用字符串
+									jsonString = content;
+								}
+							} catch (e) {
+								// 解析失败，说明不是JSON数组，直接使用原字符串
+								console.log('不是JSON数组格式，直接使用字符串...');
+								jsonString = content;
+							}
+							
+							// 解析提取的字符串
+							result = parseQwenResponse(jsonString);
+						} else if (typeof content === 'object' && content !== null) {
+							// 如果已经是对象，检查格式并直接使用
+							console.log('content 是对象类型，检查格式...');
+							
+							// 检查是否是数组
+							if (Array.isArray(content) && content.length > 0) {
+								// 如果是数组，取第一个元素
+								const firstItem = content[0];
+								if (firstItem.text) {
+									// 有 text 字段，提取并解析
+									console.log('检测到数组格式，提取 text 字段...');
+									result = parseQwenResponse(firstItem.text);
+								} else if (firstItem.lines && Array.isArray(firstItem.lines)) {
+									// 直接是正确格式
+									result = firstItem as PalmistryAnalysisResult;
+									console.log('数组元素格式正确，直接使用');
+								} else {
+									// 转换为字符串后解析
+									jsonString = JSON.stringify(content);
+									result = parseQwenResponse(jsonString);
+								}
+							} else if (content.lines && Array.isArray(content.lines)) {
+								// 已经是正确的格式，直接使用
+								result = content as PalmistryAnalysisResult;
+								console.log('对象格式正确，直接使用');
+							} else {
+								// 尝试转换为字符串再解析
+								console.log('对象格式不符合预期，转换为字符串后解析...');
+								jsonString = JSON.stringify(content);
+								result = parseQwenResponse(jsonString);
+							}
+						} else {
+							throw new Error(`content 类型不正确: ${typeof content}`);
+						}
+						
+						console.log('解析后的结果:', result);
+						resolve(result);
+					} catch (error: any) {
+						console.error('解析JSON失败:', error);
+						console.error('错误堆栈:', error.stack);
+						reject(new Error(`解析返回结果失败: ${error.message || 'JSON格式错误'}`));
+					}
+				},
+				fail: (error: any) => {
+					console.error('API调用失败', error);
+					const errorMsg = error.errMsg || '网络错误';
+					// 检查是否是超时错误
+					if (errorMsg.includes('timeout') || errorMsg.includes('超时')) {
+						reject(new Error(`API调用超时：分析时间过长，请检查网络连接或稍后重试`));
+					} else {
+						reject(new Error(`API调用失败: ${errorMsg}`));
+					}
+				}
+			});
+		});
+
+	} catch (error) {
+		console.error('手相识别失败:', error);
+		throw error;
+	}
+}
+
+/**
+ * 解析Qwen API返回的JSON内容
+ * 支持字符串和对象两种格式
+ */
+function parseQwenResponse(content: string | any): PalmistryAnalysisResult {
+	try {
+		// 确保 content 是字符串
+		let jsonString: string;
+		
+		if (typeof content === 'string') {
+			jsonString = content;
+		} else if (typeof content === 'object' && content !== null) {
+			// 如果是对象，先转换为字符串
+			jsonString = JSON.stringify(content);
+		} else {
+			throw new Error(`content 类型不正确: ${typeof content}`);
+		}
+		
+		// 尝试提取JSON部分（可能包含markdown代码块）
+		console.log('parseQwenResponse: 原始 jsonString:', jsonString.substring(0, 100) + '...');
+		jsonString = jsonString.trim();
+		
+		// 移除可能的markdown代码块标记
+		jsonString = jsonString.replace(/```json\s*/g, '');
+		jsonString = jsonString.replace(/```\s*/g, '');
+		jsonString = jsonString.trim();
+		console.log('parseQwenResponse: 移除markdown标记后:', jsonString.substring(0, 100) + '...');
+		
+		// 如果内容以{开头，{结尾，尝试直接解析
+		const startIndex = jsonString.indexOf('{');
+		const endIndex = jsonString.lastIndexOf('}');
+		
+		if (startIndex >= 0 && endIndex > startIndex) {
+			jsonString = jsonString.substring(startIndex, endIndex + 1);
+			console.log('parseQwenResponse: 提取JSON部分后:', jsonString.substring(0, 100) + '...');
+		}
+		
+		const result = JSON.parse(jsonString) as PalmistryAnalysisResult;
+		console.log('parseQwenResponse: 解析后的对象:', {
+			hasSummary: !!result.summary,
+			hasDimensions: !!result.dimensions,
+			hasLineDetails: !!result.lineDetails,
+			hasPalmFeatures: !!result.palmFeatures,
+			hasSuggestions: !!result.suggestions
+		});
+		
+		// 验证结果格式
+		if (!result.summary || !result.dimensions || !result.lineDetails || !result.palmFeatures || !result.suggestions || !result.harshWarning || !result.overallAnalysis) {
+			console.error('parseQwenResponse: 结果格式验证失败，result:', result);
+			throw new Error('返回结果格式不正确：缺少必要字段');
+		}
+		
+		// 验证 summary 字段
+		if (!result.summary.lifeLine || !result.summary.wisdomLine || !result.summary.emotionLine || !result.summary.fateLine) {
+			console.error('parseQwenResponse: summary字段不完整');
+			throw new Error('返回结果格式不正确：summary字段不完整');
+		}
+		
+		return result;
+		
+	} catch (error) {
+		console.error('JSON解析失败:', error);
+		console.error('原始内容类型:', typeof content);
+		console.error('原始内容:', content);
+		
+		// 如果解析失败，返回默认结果
+		return {
+			summary: {
+				lifeLine: {
+					dimension: '健康维度',
+					score: 0,
+					brief: '识别失败，请重试或检查图片质量'
+				},
+				wisdomLine: {
+					dimension: '思维维度',
+					score: 0,
+					brief: '识别失败，请重试或检查图片质量'
+				},
+				emotionLine: {
+					dimension: '情感维度',
+					score: 0,
+					brief: '识别失败，请重试或检查图片质量'
+				},
+				fateLine: {
+					dimension: '命运维度',
+					score: 0,
+					brief: '识别失败，请重试或检查图片质量'
+				}
+			},
+			dimensions: {
+				handType: {
+					title: '五行命格',
+					content: '识别失败，请重试或检查图片质量'
+				},
+				palmMounds: {
+					title: '星丘压制',
+					content: '识别失败，请重试或检查图片质量'
+				},
+				specialMarks: {
+					title: '凶吉征兆',
+					content: '识别失败，请重试或检查图片质量'
+				},
+				career: {
+					title: '事业维度',
+					content: '识别失败，请重试或检查图片质量'
+				},
+				love: {
+					title: '爱情维度',
+					content: '识别失败，请重试或检查图片质量'
+				},
+				health: {
+					title: '健康维度',
+					content: '识别失败，请重试或检查图片质量'
+				}
+			},
+			harshWarning: '识别失败，请重试或检查图片质量',
+			overallAnalysis: '识别失败，请重试或检查图片质量',
+			lineDetails: [],
+			palmFeatures: {
+				palmShape: '识别失败，请重试或检查图片质量',
+				fingerRatio: '识别失败，请重试或检查图片质量',
+				palmMound: '识别失败，请重试或检查图片质量'
+			},
+			suggestions: {
+				career: '请重新拍照或检查图片质量',
+				life: '请重新拍照或检查图片质量',
+				tip: '本报告仅为传统掌纹文化的娱乐化呈现，不具备科学参考价值'
+			}
+		};
+	}
+}

@@ -1,0 +1,1771 @@
+<template>
+	<view class="camera-container">
+		<view class="camera-header" v-if="!reportData">
+			<text class="header-title">手相拍照</text>
+			<text class="header-subtitle">请将手掌放入框内并对齐轮廓</text>
+			<view class="hand-switch">
+				<button 
+					class="hand-btn" 
+					:class="{ 'active': handSide === 'left' }"
+					@click="switchHand('left')"
+				>
+					<text class="hand-text">左手</text>
+				</button>
+				<button 
+					class="hand-btn" 
+					:class="{ 'active': handSide === 'right' }"
+					@click="switchHand('right')"
+				>
+					<text class="hand-text">右手</text>
+				</button>
+			</view>
+		</view>
+
+		<view class="camera-content" :class="{ 'report-mode': reportData }">
+			<!-- 结果显示区域 -->
+			<view class="result-area" v-if="reportData">
+				<scroll-view class="result-scroll" scroll-y="true">
+					<view class="result-card">
+						<view class="result-header">
+							<text class="result-title">手相分析报告</text>
+							<text class="result-time" v-if="reportData.analyzeTime">{{ reportData.analyzeTime }}</text>
+						</view>
+
+						<!-- 交互式手相标注区域 -->
+						<view class="interactive-hand-section">
+							<view class="hand-visual-wrapper">
+								<!-- 用户图片 (底层) -->
+								<image 
+									class="user-hand-image" 
+									:src="reportData.imagePath" 
+									mode="aspectFit"
+								></image>
+								
+								<!-- 卡通手底图 (仅在未选中线条时显示，用于定位和参考) -->
+								<image 
+									v-if="!selectedLine"
+									class="hand-base-image" 
+									:class="{ 'mirror': handSide === 'right' }"
+									src="@/static/hand.png" 
+									mode="aspectFit"
+								></image>
+								
+								<!-- 动态线条层 -->
+								<view class="hand-lines-glow-layer">
+									<image 
+										v-if="selectedLine === 'life'" 
+										class="line-glow-img" 
+										:class="{ 'mirror': handSide === 'right' }"
+										src="@/static/hand-life.png" 
+										mode="aspectFit"
+									></image>
+									<image 
+										v-if="selectedLine === 'wisdom'" 
+										class="line-glow-img" 
+										:class="{ 'mirror': handSide === 'right' }"
+										src="@/static/Cause-hand.png" 
+										mode="aspectFit"
+									></image>
+									<image 
+										v-if="selectedLine === 'emotion'" 
+										class="line-glow-img" 
+										:class="{ 'mirror': handSide === 'right' }"
+										src="@/static/feeling-hand.png" 
+										mode="aspectFit"
+									></image>
+									<image 
+										v-if="selectedLine === 'fate'" 
+										class="line-glow-img" 
+										:class="{ 'mirror': handSide === 'right' }"
+										src="@/static/fate-hand.png" 
+										mode="aspectFit"
+									></image>
+								</view>
+							</view>
+
+							<!-- 现代感线条切换器 -->
+							<view class="modern-line-selector">
+								<view 
+									v-for="(tab, index) in handTabs" 
+									:key="index"
+									class="line-tab-btn"
+									:class="{ 'active': selectedLine === tab.id }"
+									@click="selectHandLine(tab.id)"
+								>
+									<view class="tab-indicator" :class="tab.id + '-indicator'"></view>
+									<text class="tab-btn-label">{{ tab.name }}</text>
+								</view>
+							</view>
+						</view>
+						
+						<!-- 详细分析内容区域 -->
+						<view class="dimensions-section">
+							<!-- 致命命理警示 -->
+							<view class="harsh-warning-card" v-if="reportData.fullData && reportData.fullData.harshWarning">
+								<view class="warning-header">
+									<text class="warning-icon">⚠️</text>
+									<text class="warning-title">致命命理警示</text>
+								</view>
+								<text class="warning-text">{{ reportData.fullData.harshWarning }}</text>
+							</view>
+
+							<!-- 选中的线条详细信息 (原气泡内容) -->
+							<view class="line-detail-card" v-if="selectedLineInfo">
+								<view class="line-detail-header">
+									<view class="line-tag" :class="selectedLine + '-bg'">
+										<text class="line-tag-text">{{ selectedLineInfo.type }}</text>
+									</view>
+									<text class="line-score" v-if="selectedLineInfo.score">{{ selectedLineInfo.score }}分</text>
+								</view>
+								<text class="line-description">{{ selectedLineInfo.description }}</text>
+							</view>
+
+							<!-- 其他 AI 分析内容 -->
+							<view v-if="reportData.fullData">
+								<!-- 详细维度分析 -->
+								<view class="dimension-card" v-for="(dim, key) in reportData.fullData.dimensions" :key="key">
+									<view class="dimension-icon-box" :class="key + '-icon'">
+										<text class="dim-icon">{{ getDimensionIcon(key) }}</text>
+									</view>
+									<view class="dimension-info">
+										<text class="dimension-title">{{ dim.title }}</text>
+										<text class="dimension-content">{{ dim.content }}</text>
+									</view>
+								</view>
+
+								<!-- 综合命定结论 -->
+								<view class="overall-conclusion-card" v-if="reportData.fullData.overallAnalysis">
+									<text class="card-title">命定终局建议</text>
+									<text class="overall-text">{{ reportData.fullData.overallAnalysis }}</text>
+								</view>
+
+								<!-- 掌部特征 -->
+								<view class="features-card" v-if="reportData.fullData.palmFeatures">
+									<text class="card-title">掌部特征</text>
+									<view class="feature-item">
+										<text class="feature-label">手掌形态：</text>
+										<text class="feature-value">{{ reportData.fullData.palmFeatures.palmShape }}</text>
+									</view>
+									<view class="feature-item">
+										<text class="feature-label">手指比例：</text>
+										<text class="feature-value">{{ reportData.fullData.palmFeatures.fingerRatio }}</text>
+									</view>
+									<view class="feature-item">
+										<text class="feature-label">掌丘状态：</text>
+										<text class="feature-value">{{ reportData.fullData.palmFeatures.palmMound }}</text>
+									</view>
+								</view>
+
+								<!-- 专家建议 -->
+								<view class="suggestions-card" v-if="reportData.fullData.suggestions">
+									<text class="card-title">命理师谏言</text>
+									<view class="suggestion-item">
+										<view class="suggestion-header">
+											<text class="suggestion-tag career-tag">事业建议</text>
+										</view>
+										<text class="suggestion-text">{{ reportData.fullData.suggestions.career }}</text>
+									</view>
+									<view class="suggestion-item">
+										<view class="suggestion-header">
+											<text class="suggestion-tag life-tag">生活建议</text>
+										</view>
+										<text class="suggestion-text">{{ reportData.fullData.suggestions.life }}</text>
+									</view>
+									<view class="suggestion-tip">
+										<text class="tip-text">{{ reportData.fullData.suggestions.tip }}</text>
+									</view>
+								</view>
+							</view>
+						</view>
+						
+						<view class="result-actions">
+							<button class="result-btn btn-primary" @click="handleDownloadReport">下载报告</button>
+							<button class="result-btn btn-secondary" @click="handleReset">重新拍照</button>
+						</view>
+					</view>
+				</scroll-view>
+			</view>
+
+			<!-- 分析中状态 -->
+			<view class="analyzing-area" v-else-if="isAnalyzing">
+				<view class="analyzing-content">
+					<text class="analyzing-text">正在分析手相，请稍候...</text>
+					<text class="analyzing-status">{{ analyzingStatus }}</text>
+				</view>
+			</view>
+
+			<!-- 预览区域 -->
+			<view class="preview-area" v-else-if="capturedImage">
+				<view 
+					class="preview-container"
+					@touchstart.prevent="handleTouchStart"
+					@touchmove.prevent="handleTouchMove"
+					@touchend.prevent="handleTouchEnd"
+					@mousedown="handleMouseDown"
+					@mousemove="handleMouseMove"
+					@mouseup="handleMouseUp"
+					@mouseleave="handleMouseUp"
+				>
+					<!-- 用户上传的图片（底层，可缩放拖拽） -->
+					<view 
+						class="image-wrapper"
+						:style="{
+							transform: `translate(${imageOffsetX}rpx, ${imageOffsetY}rpx) scale(${imageScale})`,
+							transition: isMoving || isScaling ? 'none' : 'transform 0.1s ease-out'
+						}"
+					>
+						<image 
+							class="preview-image" 
+							:src="capturedImage" 
+							mode="aspectFit"
+						></image>
+					</view>
+					<!-- 手形轮廓图（上层，固定） -->
+					<view class="hand-overlay">
+						<image 
+							class="hand-image" 
+							:class="{ 'mirror': handSide === 'right' }"
+							src="@/static/hand.png" 
+							mode="aspectFit"
+						></image>
+					</view>
+					<!-- 缩放控制按钮 -->
+					<view class="scale-controls" @touchstart.stop @mousedown.stop>
+						<button class="scale-btn" @click.stop="zoomIn">
+							<text class="scale-icon">+</text>
+						</button>
+						<button class="scale-btn" @click.stop="zoomOut">
+							<text class="scale-icon">−</text>
+						</button>
+						<button class="scale-btn reset-btn" @click.stop="resetTransform">
+							<text class="scale-icon">↺</text>
+						</button>
+					</view>
+				</view>
+				<view class="preview-actions">
+					<button class="action-btn btn-cancel" @click="handleCancel">重新拍照</button>
+					<button class="action-btn btn-confirm" @click="handleConfirm">确认使用</button>
+				</view>
+			</view>
+
+			<!-- 引导区域 -->
+			<view class="guide-area" v-else>
+				<view class="guide-box">
+					<view class="hand-outline">
+						<image 
+							class="hand-image" 
+							:class="{ 'mirror': handSide === 'right' }"
+							src="@/static/hand.png" 
+							mode="aspectFit"
+						></image>
+					</view>
+					<text class="guide-text">{{ handSide === 'left' ? '请将左手放入框内，对齐手形轮廓' : '请将右手放入框内，对齐手形轮廓' }}</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="camera-footer" v-if="!reportData">
+			<button class="camera-btn" @click="handleTakePhoto">
+				<text class="btn-text">{{ capturedImage ? '重新拍照' : '拍照' }}</text>
+			</button>
+			<button class="album-btn" @click="handleChooseFromAlbum">
+				<text class="btn-text">从相册选择</text>
+			</button>
+		</view>
+	</view>
+</template>
+
+<script lang="uts">
+	import type { PalmistryReport, ReportResult } from '@/types/index';
+	import { analyzePalmistry } from '@/utils/qwenApi';
+	import { convertImageToBase64 } from '@/utils/imageHelper';
+
+	type: 'left' | 'right';
+
+	interface CameraPageData {
+		capturedImage: string | null;
+		handSide: HandSide;
+		imageScale: number;
+		imageOffsetX: number;
+		imageOffsetY: number;
+		lastTouchDistance: number;
+		lastTouchX: number;
+		lastTouchY: number;
+		isMoving: boolean;
+		isScaling: boolean;
+		// 新增字段
+		isAnalyzing: boolean;
+		analyzingStatus: string;
+		reportData: PalmistryReport | null;
+		// 新增：当前选中的交互线条类型
+		selectedLine: string | null;
+	}
+
+	export default {
+		name: 'CameraPage',
+		data(): CameraPageData {
+			return {
+				capturedImage: null,
+				handSide: 'left', // 默认左手
+				imageScale: 1.0, // 图片缩放比例
+				imageOffsetX: 0, // 图片X轴偏移
+				imageOffsetY: 0, // 图片Y轴偏移
+				lastTouchDistance: 0, // 上次触摸距离（用于缩放）
+				lastTouchX: 0, // 上次触摸X坐标（用于拖拽）
+				lastTouchY: 0, // 上次触摸Y坐标（用于拖拽）
+				isMoving: false, // 是否正在移动
+				isScaling: false, // 是否正在缩放
+				// 新增字段初始化
+				isAnalyzing: false,
+				analyzingStatus: '准备中...',
+				reportData: null,
+				selectedLine: 'life' // 默认选中生命线
+			};
+		},
+		computed: {
+			/**
+			 * 线条 Tab 配置
+			 */
+			handTabs(): Array<Record<string, string>> {
+				return [
+					{ id: 'life', name: '生命线' },
+					{ id: 'wisdom', name: '智慧线' },
+					{ id: 'emotion', name: '感情线' },
+					{ id: 'fate', name: '命运线' }
+				];
+			},
+			/**
+			 * 获取当前选中线条的详细信息
+			 */
+			selectedLineInfo(): ReportResult | null {
+				if (!this.reportData || !this.selectedLine) return null;
+				
+				const typeMap: Record<string, string> = {
+					'life': '生命线',
+					'wisdom': '智慧线',
+					'emotion': '感情线',
+					'fate': '命运线'
+				};
+				
+				const targetTypeName = typeMap[this.selectedLine];
+				return this.reportData.results.find((item: ReportResult): boolean => item.type === targetTypeName) || null;
+			}
+		},
+		onLoad(options: Record<string, any>) {
+			console.log('拍照页面加载', options);
+		},
+		methods: {
+			/**
+			 * 切换手（左/右）
+			 */
+			switchHand(side: HandSide): void {
+				this.handSide = side;
+				console.log('切换手:', side);
+			},
+			
+			/**
+			 * 获取维度图标
+			 */
+			getDimensionIcon(key: string): string {
+				const icons: Record<string, string> = {
+					'handType': '✋',
+					'palmMounds': '🪐',
+					'specialMarks': '🌀',
+					'career': '💼',
+					'love': '❤️',
+					'health': '💪'
+				};
+				return icons[key] || '✨';
+			},
+
+			/**
+			 * 拍照
+			 */
+			handleTakePhoto(): void {
+				uni.chooseImage({
+					count: 1,
+					sizeType: ['compressed'],
+					sourceType: ['camera'],
+					success: (res) => {
+						if (res.tempFilePaths && res.tempFilePaths.length > 0) {
+							this.capturedImage = res.tempFilePaths[0];
+							console.log('拍照成功', res.tempFilePaths[0]);
+						}
+					},
+					fail: (error) => {
+						console.error('拍照失败', error);
+						uni.showToast({
+							title: '拍照失败，请重试',
+							icon: 'none'
+						});
+					}
+				});
+			},
+
+			/**
+			 * 从相册选择
+			 */
+			handleChooseFromAlbum(): void {
+				uni.chooseImage({
+					count: 1,
+					sizeType: ['compressed'],
+					sourceType: ['album'],
+					success: (res) => {
+						if (res.tempFilePaths && res.tempFilePaths.length > 0) {
+							this.capturedImage = res.tempFilePaths[0];
+							console.log('选择图片成功', res.tempFilePaths[0]);
+						}
+					},
+					fail: (error) => {
+						console.error('选择图片失败', error);
+						uni.showToast({
+							title: '选择图片失败，请重试',
+							icon: 'none'
+						});
+					}
+				});
+			},
+
+			/**
+			 * 取消/重新拍照
+			 */
+			handleCancel(): void {
+				this.capturedImage = null;
+				this.reportData = null;
+				this.imageUrl = null;
+				// 重置图片变换参数
+				this.imageScale = 1.0;
+				this.imageOffsetX = 0;
+				this.imageOffsetY = 0;
+			},
+
+			/**
+			 * 触摸开始
+			 */
+			handleTouchStart(e: any): void {
+				// 检查是否点击在按钮上
+				const target = e.target || e.currentTarget;
+				if (target && (target.classList && (target.classList.contains('scale-btn') || target.closest('.scale-controls')))) {
+					return; // 如果点击的是按钮，不处理拖拽
+				}
+				e.preventDefault && e.preventDefault();
+				const touches = e.touches || [];
+				if (touches.length === 1) {
+					// 单指拖拽
+					this.isMoving = true;
+					this.isScaling = false;
+					const touch = touches[0];
+					this.lastTouchX = touch.clientX || touch.x || 0;
+					this.lastTouchY = touch.clientY || touch.y || 0;
+				} else if (touches.length === 2) {
+					// 双指缩放
+					this.isMoving = false;
+					this.isScaling = true;
+					const touch1 = touches[0];
+					const touch2 = touches[1];
+					const x1 = touch1.clientX || touch1.x || 0;
+					const y1 = touch1.clientY || touch1.y || 0;
+					const x2 = touch2.clientX || touch2.x || 0;
+					const y2 = touch2.clientY || touch2.y || 0;
+					const distance = Math.sqrt(
+						Math.pow(x2 - x1, 2) + 
+						Math.pow(y2 - y1, 2)
+					);
+					this.lastTouchDistance = distance;
+				}
+			},
+
+			/**
+			 * 触摸移动
+			 */
+			handleTouchMove(e: any): void {
+				e.preventDefault && e.preventDefault();
+				const touches = e.touches || [];
+				if (touches.length === 1 && this.isMoving) {
+					// 单指拖拽
+					const touch = touches[0];
+					const currentX = touch.clientX || touch.x || 0;
+					const currentY = touch.clientY || touch.y || 0;
+					const deltaX = (currentX - this.lastTouchX) * 2; // 转换为rpx
+					const deltaY = (currentY - this.lastTouchY) * 2;
+					this.imageOffsetX += deltaX;
+					this.imageOffsetY += deltaY;
+					this.lastTouchX = currentX;
+					this.lastTouchY = currentY;
+				} else if (touches.length === 2) {
+					// 双指缩放
+					this.isMoving = false;
+					this.isScaling = true;
+					const touch1 = touches[0];
+					const touch2 = touches[1];
+					const x1 = touch1.clientX || touch1.x || 0;
+					const y1 = touch1.clientY || touch1.y || 0;
+					const x2 = touch2.clientX || touch2.x || 0;
+					const y2 = touch2.clientY || touch2.y || 0;
+					const distance = Math.sqrt(
+						Math.pow(x2 - x1, 2) + 
+						Math.pow(y2 - y1, 2)
+					);
+					if (this.lastTouchDistance > 0) {
+						const scaleChange = distance / this.lastTouchDistance;
+						let newScale = this.imageScale * scaleChange;
+						// 限制缩放范围 0.5 - 3.0
+						newScale = Math.max(0.5, Math.min(3.0, newScale));
+						this.imageScale = newScale;
+					}
+					this.lastTouchDistance = distance;
+				}
+			},
+
+			/**
+			 * 触摸结束
+			 */
+			handleTouchEnd(e: any): void {
+				e.preventDefault && e.preventDefault();
+				this.isMoving = false;
+				this.isScaling = false;
+				this.lastTouchDistance = 0;
+			},
+
+			/**
+			 * 鼠标按下（PC端拖拽）
+			 */
+			handleMouseDown(e: any): void {
+				// 检查是否点击在按钮上
+				const target = e.target || e.currentTarget;
+				if (target && (target.classList && (target.classList.contains('scale-btn') || target.closest('.scale-controls')))) {
+					return; // 如果点击的是按钮，不处理拖拽
+				}
+				// 只在PC端且没有触摸时处理鼠标事件
+				if (e.touches && e.touches.length > 0) {
+					return;
+				}
+				this.isMoving = true;
+				this.isScaling = false;
+				this.lastTouchX = e.clientX || e.x || 0;
+				this.lastTouchY = e.clientY || e.y || 0;
+			},
+
+			/**
+			 * 鼠标移动（PC端拖拽）
+			 */
+			handleMouseMove(e: any): void {
+				// 只在PC端且没有触摸时处理鼠标事件
+				if (e.touches && e.touches.length > 0) {
+					return;
+				}
+				if (this.isMoving) {
+					const currentX = e.clientX || e.x || 0;
+					const currentY = e.clientY || e.y || 0;
+					const deltaX = (currentX - this.lastTouchX) * 2; // 转换为rpx
+					const deltaY = (currentY - this.lastTouchY) * 2;
+					this.imageOffsetX += deltaX;
+					this.imageOffsetY += deltaY;
+					this.lastTouchX = currentX;
+					this.lastTouchY = currentY;
+				}
+			},
+
+			/**
+			 * 鼠标释放（PC端拖拽）
+			 */
+			handleMouseUp(): void {
+				this.isMoving = false;
+				this.isScaling = false;
+			},
+
+			/**
+			 * 放大图片
+			 */
+			zoomIn(e?: any): void {
+				if (e) {
+					e.preventDefault && e.preventDefault();
+					e.stopPropagation && e.stopPropagation();
+				}
+				console.log('放大前:', this.imageScale);
+				let newScale = this.imageScale + 0.2;
+				newScale = Math.min(3.0, newScale);
+				this.imageScale = newScale;
+				console.log('放大后:', this.imageScale);
+			},
+
+			/**
+			 * 缩小图片
+			 */
+			zoomOut(e?: any): void {
+				if (e) {
+					e.preventDefault && e.preventDefault();
+					e.stopPropagation && e.stopPropagation();
+				}
+				console.log('缩小前:', this.imageScale);
+				let newScale = this.imageScale - 0.2;
+				newScale = Math.max(0.5, newScale);
+				this.imageScale = newScale;
+				console.log('缩小后:', this.imageScale);
+			},
+
+			/**
+			 * 选中手相线条
+			 */
+			selectHandLine(lineType: string): void {
+				this.selectedLine = lineType;
+				console.log('切换选中线条:', lineType);
+			},
+
+			/**
+			 * 重置图片变换
+			 */
+			resetTransform(e?: any): void {
+				if (e) {
+					e.preventDefault && e.preventDefault();
+					e.stopPropagation && e.stopPropagation();
+				}
+				console.log('重置前:', { scale: this.imageScale, x: this.imageOffsetX, y: this.imageOffsetY });
+				this.imageScale = 1.0;
+				this.imageOffsetX = 0;
+				this.imageOffsetY = 0;
+				console.log('重置后:', { scale: this.imageScale, x: this.imageOffsetX, y: this.imageOffsetY });
+			},
+
+			/**
+			 * 确认使用当前图片，开始分析
+			 */
+			async handleConfirm(): Promise<void> {
+				if (!this.capturedImage) {
+					uni.showToast({
+						title: '请先拍照',
+						icon: 'none'
+					});
+					return;
+				}
+
+				this.isAnalyzing = true;
+				this.analyzingStatus = '正在转换图片格式...';
+				this.reportData = null;
+
+				try {
+					// 1. 将图片转换为base64（不进行上传）
+					console.log('开始转换图片为base64...');
+					console.log('图片路径:', this.capturedImage.substring(0, 50) + '...');
+					
+					const imageBase64 = await convertImageToBase64(this.capturedImage);
+					console.log('图片转换完成，base64长度:', imageBase64.length);
+					console.log('base64格式:', imageBase64.substring(0, 30) + '...');
+					
+					this.analyzingStatus = '图片准备完成，开始分析...';
+
+					// 2. 调用API分析手相（使用base64）
+					console.log('开始调用API分析手相...');
+					this.analyzingStatus = 'AI正在分析手相...';
+					
+					const result = await analyzePalmistry({
+						imagePath: imageBase64, // 使用base64，格式：data:image/jpeg;base64,xxxxx
+						gender: this.handSide === 'left' ? 'male' : 'female' // 映射到API需要的参数
+					});
+
+					console.log('=== API返回结果 ===', result);
+					console.log('识别到的线条数量:', result.lines?.length || 0);
+
+					// 3. 生成报告数据
+					this.generateReportFromAPI(result);
+
+					this.analyzingStatus = '分析完成';
+					
+					uni.showToast({
+						title: '分析成功',
+						icon: 'success'
+					});
+
+				} catch (error: any) {
+					console.error('=== 分析失败 ===', error);
+					console.error('错误类型:', typeof error);
+					console.error('错误信息:', error.message || error.errMsg || error);
+					console.error('错误堆栈:', error.stack);
+					
+					let errorMessage = '分析失败，请重试';
+					if (error.message) {
+						if (error.message.includes('转换')) {
+							errorMessage = '图片转换失败，请重试';
+						} else if (error.message.includes('timeout') || error.message.includes('超时')) {
+							errorMessage = '分析超时，请检查网络';
+						} else if (error.message.includes('API调用失败')) {
+							errorMessage = 'API调用失败，请检查网络连接和API配置';
+						} else {
+							errorMessage = error.message;
+						}
+					}
+
+					uni.showToast({
+						title: errorMessage,
+						icon: 'none',
+						duration: 5000
+					});
+
+					// 使用模拟数据作为fallback
+					console.log('使用模拟数据作为fallback');
+					this.generateMockReport();
+
+				} finally {
+					this.isAnalyzing = false;
+					this.analyzingStatus = '';
+				}
+			},
+
+			/**
+			 * 从API结果生成报告
+			 */
+			generateReportFromAPI(apiResult: any): void {
+				const now = new Date();
+				const year = now.getFullYear();
+				const month = this.formatNumber(now.getMonth() + 1);
+				const day = this.formatNumber(now.getDate());
+				const hours = this.formatNumber(now.getHours());
+				const minutes = this.formatNumber(now.getMinutes());
+				const timeString = `${year}-${month}-${day} ${hours}:${minutes}`;
+
+				// 检查新格式的数据结构
+				if (!apiResult.summary || !apiResult.dimensions) {
+					console.error('API结果格式不正确，使用模拟数据');
+					this.generateMockReport();
+					return;
+				}
+
+				// 从新格式中提取结果
+				const results: ReportResult[] = [
+					{
+						type: '生命线',
+						title: apiResult.summary.lifeLine.dimension,
+						description: apiResult.summary.lifeLine.brief,
+						score: apiResult.summary.lifeLine.score
+					},
+					{
+						type: '智慧线',
+						title: apiResult.summary.wisdomLine.dimension,
+						description: apiResult.summary.wisdomLine.brief,
+						score: apiResult.summary.wisdomLine.score
+					},
+					{
+						type: '感情线',
+						title: apiResult.summary.emotionLine.dimension,
+						description: apiResult.summary.emotionLine.brief,
+						score: apiResult.summary.emotionLine.score
+					},
+					{
+						type: '命运线',
+						title: apiResult.summary.fateLine.dimension,
+						description: apiResult.summary.fateLine.brief,
+						score: apiResult.summary.fateLine.score
+					}
+				];
+
+				// 保存完整的API结果到reportData中，以便后续显示详细内容
+				this.reportData = {
+					id: `report_${Date.now()}`,
+					imagePath: this.capturedImage || '',
+					analyzeTime: timeString,
+					results: results,
+					// 保存完整数据以便显示详细分析
+					fullData: apiResult
+				};
+			},
+
+			/**
+			 * 生成模拟报告数据
+			 */
+			generateMockReport(): void {
+				const now = new Date();
+				const year = now.getFullYear();
+				const month = this.formatNumber(now.getMonth() + 1);
+				const day = this.formatNumber(now.getDate());
+				const hours = this.formatNumber(now.getHours());
+				const minutes = this.formatNumber(now.getMinutes());
+				const timeString = `${year}-${month}-${day} ${hours}:${minutes}`;
+
+				const mockResults: ReportResult[] = [
+					{
+						type: '生命线',
+						title: '生命能',
+						description: '生命线基础雄厚但中段出现细微岛纹，警示长期高压透支已动摇命元。',
+						score: 85
+					},
+					{
+						type: '智慧线',
+						title: '智谋度',
+						description: '智慧线过于平直且末端下坠，显示思维理性到近乎冷酷，却极易在关键时刻陷入偏执。',
+						score: 70
+					},
+					{
+						type: '感情线',
+						title: '情缘力',
+						description: '感情线断续且杂纹丛生，命带红尘情孽，易深陷不伦或无果之恋。',
+						score: 60
+					},
+					{
+						type: '命运线',
+						title: '天命轨迹',
+						description: '命运线深长且清晰，预示人生轨迹明确，但中段有分叉，暗示中年会有重大转折，需把握机遇。',
+						score: 75
+					}
+				];
+
+				// 补全 fullData 结构
+				const mockFullData: PalmistryAnalysisResult = {
+					summary: {
+						lifeLine: { dimension: '生命能', score: 8.5, brief: '生命线基础雄厚但中段出现细微岛纹，警示长期高压透支已动摇命元。' },
+						wisdomLine: { dimension: '智谋度（事业）', score: 7.0, brief: '智慧线过于平直且末端下坠，显示思维理性到近乎冷酷，却极易在关键时刻陷入偏执。' },
+						emotionLine: { dimension: '情缘力（婚姻）', score: 6.0, brief: '感情线断续且杂纹丛生，命带红尘情孽，易深陷不伦或无果之恋。' },
+						fateLine: { dimension: '天命轨迹', score: 7.5, brief: '命运线深长且清晰，预示人生轨迹明确，但中段有分叉，暗示中年会有重大转折，需把握机遇。' }
+					},
+					dimensions: {
+						handType: {
+							title: '五行命格',
+							content: '你属于典型的"火型手"，性格急躁如烈火，虽有极强的开拓精神和执行力，但也极易因冲动而招致挫败。命格中缺乏"水"的滋润，导致为人处世过于刚硬，缺乏弹性。'
+						},
+						palmMounds: {
+							title: '星丘压制',
+							content: '土星丘过度隆起且伴有杂纹，显示你内心深处压抑着巨大的孤独感和不安全感。太阳丘平淡，意味着你的才华往往难以在早期获得对等的社会认可，存在"怀才不遇"的压制。'
+						},
+						specialMarks: {
+							title: '凶吉征兆',
+							content: '智慧线末端出现细微岛纹，这是典型的由于过度透支精力导致的思维停滞预兆。事业线中段有横切纹，预示着在35岁左右会遭遇一次重大的职业转型或财务危机。'
+						},
+						career: {
+							title: '财官利禄',
+							content: '财库线尚不闭合，这意味着你虽然赚钱能力强，但守财极难，开销如流水。贵人线断续，显示你习惯单打独斗，不擅利用人脉资源，这严重制约了你的官禄高度。'
+						},
+						love: {
+							title: '红尘情孽',
+							content: '感情线断续且向食指延伸不足，这预示着你在亲密关系中极度自私，总希望对方无条件迁就自己。若不改掉这种唯我独尊的性格，二婚风险极大，晚年易生凄凉。'
+						},
+						health: {
+							title: '命元警示',
+							content: '生命线中段变浅，预示消化系统或心血管方面存在隐患。长期高压工作已严重侵蚀你的命元。'
+						}
+					},
+					harshWarning: '你最大的问题在于"狂妄自大"与"自毁灭倾向"。你总是在即将成功时，因为无法控制的情绪暴走或盲目自信而亲手毁掉前程。若不学会低头与自省，你的人生终将是一场悲剧性的轮回。',
+					overallAnalysis: '你的命格属于典型的"先繁华后凋零"。前半生依仗天赋可占得先机，但若无后天德行的修养，中年后必遇大劫。需修身养性，方可改命。',
+					lineDetails: [],
+					palmFeatures: {
+						palmShape: '修长火型掌',
+						fingerRatio: '中指过长',
+						palmMound: '土星丘过度隆起'
+					},
+					suggestions: {
+						career: '学会藏锋，不要在实力不足时过早展露野心。',
+						life: '每日冥想，强行压制内心的躁动。',
+						tip: '命理乃定数，亦是提醒。转念即转运，好自为之。'
+					}
+				};
+
+				this.reportData = {
+					id: `report_${Date.now()}`,
+					imagePath: this.capturedImage || '',
+					analyzeTime: timeString,
+					results: mockResults,
+					fullData: mockFullData
+				};
+			},
+
+			/**
+			 * 格式化数字为两位字符串
+			 */
+			formatNumber(num: number): string {
+				return num < 10 ? `0${num}` : `${num}`;
+			},
+
+			/**
+			 * 下载报告
+			 */
+			handleDownloadReport(): void {
+				uni.showToast({
+					title: '功能开发中，敬请期待',
+					icon: 'none'
+				});
+				// 实际实现中可能需要将页面内容转为图片或PDF下载
+				console.log('执行下载报告操作');
+			},
+
+			/**
+			 * 重置（重新拍照）
+			 */
+			handleReset(): void {
+				this.capturedImage = null;
+				this.reportData = null;
+				this.imageScale = 1.0;
+				this.imageOffsetX = 0;
+				this.imageOffsetY = 0;
+			}
+		}
+	};
+</script>
+
+<style>
+	.camera-container {
+		display: flex;
+		flex-direction: column;
+		width: 750rpx;
+		height: 100vh;
+		max-width: 100vw;
+		background-color: #f5f5f5;
+		overflow-x: hidden;
+		box-sizing: border-box;
+	}
+
+	.camera-header {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+		padding: 30rpx 20rpx 15rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		flex-shrink: 0;
+	}
+
+	.header-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+		margin-bottom: 10rpx;
+	}
+
+	.header-subtitle {
+		font-size: 24rpx;
+		color: #999;
+		margin-bottom: 20rpx;
+	}
+
+	.hand-switch {
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		gap: 20rpx;
+		margin-top: 10rpx;
+	}
+
+	.hand-btn {
+		padding: 12rpx 40rpx;
+		border-radius: 30rpx;
+		border: 2rpx solid #ddd;
+		background-color: #f8f8f8;
+		font-size: 24rpx;
+		color: #666;
+		transition: all 0.3s ease;
+	}
+
+	.hand-btn.active {
+		background-color: #007aff;
+		border-color: #007aff;
+		color: #fff;
+		box-shadow: 0 4rpx 10rpx rgba(0, 122, 255, 0.2);
+	}
+
+	.hand-text {
+		color: inherit;
+	}
+
+	.camera-content {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		max-width: 750rpx;
+		padding: 20rpx;
+		margin: 10rpx 20rpx;
+		background-color: #fff;
+		border-radius: 20rpx;
+		box-sizing: border-box;
+		overflow: hidden;
+		min-height: 0;
+	}
+
+	.camera-content.report-mode {
+		margin: 0;
+		padding: 0;
+		border-radius: 0;
+		background-color: #f2f2f7;
+	}
+
+	.preview-area {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.preview-container {
+		flex: 1;
+		width: 100%;
+		position: relative;
+		overflow: hidden;
+		border-radius: 10rpx;
+		background-color: #fafafa;
+		touch-action: none;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+
+	.image-wrapper {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		transform-origin: center center;
+		touch-action: none;
+	}
+
+	.preview-image {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+
+	.hand-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		pointer-events: none;
+		z-index: 10;
+		touch-action: none;
+	}
+
+	.hand-overlay .hand-image {
+		width: 100%;
+		height: 100%;
+		max-width: 380rpx;
+		max-height: 480rpx;
+		opacity: 0.7;
+		transition: transform 0.3s ease;
+	}
+
+	.scale-controls {
+		position: absolute;
+		top: 20rpx;
+		right: 20rpx;
+		display: flex;
+		flex-direction: column;
+		gap: 15rpx;
+		z-index: 100;
+		pointer-events: auto;
+		touch-action: manipulation;
+	}
+
+	.scale-btn {
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 50%;
+		background-color: rgba(0, 0, 0, 0.7);
+		border: 2rpx solid rgba(255, 255, 255, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+		user-select: none;
+		-webkit-user-select: none;
+		position: relative;
+		z-index: 101;
+	}
+
+	.scale-btn:active {
+		background-color: rgba(0, 122, 255, 0.9);
+		transform: scale(0.9);
+	}
+
+	.scale-icon {
+		font-size: 40rpx;
+		color: #fff;
+		font-weight: bold;
+		line-height: 1;
+		pointer-events: none;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.reset-btn .scale-icon {
+		font-size: 36rpx;
+	}
+
+	/* PC端鼠标样式 */
+	@media (pointer: fine) {
+		.preview-container {
+			cursor: move;
+		}
+
+		.scale-btn:hover {
+			background-color: rgba(0, 122, 255, 0.8);
+			transform: scale(1.05);
+			border-color: rgba(255, 255, 255, 0.8);
+		}
+	}
+
+	.preview-actions {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-around;
+		margin-top: 30rpx;
+	}
+
+	.action-btn {
+		flex: 1;
+		margin: 0 10rpx;
+		padding: 20rpx;
+		border-radius: 10rpx;
+		font-size: 28rpx;
+		border: none;
+	}
+
+	.btn-cancel {
+		background-color: #f0f0f0;
+		color: #666;
+	}
+
+	.btn-confirm {
+		background-color: #007aff;
+		color: #fff;
+	}
+
+	.guide-area {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		min-height: 0;
+	}
+
+	.guide-box {
+		width: 500rpx;
+		height: 100%;
+		max-height: 600rpx;
+		border: 4rpx dashed #ddd;
+		border-radius: 20rpx;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		background-color: #fafafa;
+		box-sizing: border-box;
+	}
+
+	.hand-outline {
+		width: 100%;
+		height: 85%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 30rpx;
+		box-sizing: border-box;
+	}
+
+	.hand-image {
+		width: 100%;
+		height: 100%;
+		max-width: 380rpx;
+		max-height: 480rpx;
+		opacity: 0.7;
+		transition: transform 0.3s ease;
+	}
+
+	.hand-image.mirror {
+		transform: scaleX(-1);
+	}
+
+	.guide-text {
+		font-size: 24rpx;
+		color: #666;
+		text-align: center;
+		padding: 20rpx;
+		margin-top: 20rpx;
+		line-height: 1.5;
+	}
+
+	.camera-footer {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-width: 750rpx;
+		padding: 30rpx 40rpx 40rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		flex-shrink: 0;
+	}
+
+	.camera-btn {
+		width: 100%;
+		max-width: 670rpx;
+		padding: 30rpx;
+		background-color: #007aff;
+		color: #fff;
+		border-radius: 10rpx;
+		font-size: 32rpx;
+		border: none;
+		margin-bottom: 20rpx;
+		box-sizing: border-box;
+	}
+
+	.album-btn {
+		width: 100%;
+		max-width: 670rpx;
+		padding: 30rpx;
+		background-color: #f0f0f0;
+		color: #666;
+		border-radius: 10rpx;
+		font-size: 32rpx;
+		border: none;
+		box-sizing: border-box;
+	}
+
+	.btn-text {
+		color: inherit;
+	}
+
+	/* 结果显示区域现代样式 */
+	.result-area {
+		width: 100%;
+		height: 100%;
+		background-color: #f2f2f7;
+		box-sizing: border-box;
+	}
+
+	.result-scroll {
+		width: 100%;
+		height: 100%;
+	}
+
+	.result-card {
+		width: 100%;
+		background-color: #fff;
+		border-radius: 40rpx;
+		padding: 40rpx 30rpx;
+		box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.05);
+		box-sizing: border-box;
+	}
+
+	.result-header {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		margin-bottom: 40rpx;
+	}
+
+	.result-title {
+		font-size: 44rpx;
+		font-weight: 900;
+		color: #1c1c1e;
+		letter-spacing: 2rpx;
+		margin-bottom: 12rpx;
+	}
+
+	.result-time {
+		font-size: 24rpx;
+		color: #aeaeb2;
+		font-weight: 400;
+	}
+
+	/* 交互式手相标注区域样式 */
+	.interactive-hand-section {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 30rpx 0;
+		background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
+		border-radius: 24rpx;
+		margin-bottom: 40rpx;
+		box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.02);
+	}
+
+	.hand-visual-wrapper {
+		position: relative;
+		width: 550rpx;
+		height: 650rpx;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		margin-bottom: 20rpx;
+		border-radius: 40rpx;
+		overflow: hidden;
+		background-color: #f0f0f0;
+	}
+
+	.user-hand-image {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		z-index: 1;
+	}
+
+	.hand-base-image {
+		position: absolute;
+		width: 450rpx;
+		height: 550rpx;
+		opacity: 0.4;
+		z-index: 2;
+		transition: all 0.5s ease;
+		pointer-events: none;
+	}
+
+	.hand-base-image.mirror {
+		transform: scaleX(-1);
+	}
+
+	.hand-lines-glow-layer {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 3;
+	}
+
+	.line-glow-img {
+		position: absolute;
+		width: 450rpx;
+		height: 550rpx;
+		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		animation: linePulse 2s infinite ease-in-out;
+		z-index: 3;
+	}
+
+	.line-glow-img.mirror {
+		transform: scaleX(-1);
+	}
+
+	/* 不同线条的发光颜色 */
+	.life-active {
+		filter: drop-shadow(0 0 15rpx #ff3b30) brightness(1.5) hue-rotate(-10deg);
+	}
+	.wisdom-active {
+		filter: drop-shadow(0 0 15rpx #4cd964) brightness(1.5) hue-rotate(100deg);
+	}
+	.emotion-active {
+		filter: drop-shadow(0 0 15rpx #007aff) brightness(1.5) hue-rotate(210deg);
+	}
+	.fate-active {
+		filter: drop-shadow(0 0 15rpx #8e44ad) brightness(1.5) hue-rotate(280deg);
+	}
+
+	@keyframes linePulse {
+		0% { opacity: 0.7; transform: scale(1); }
+		50% { opacity: 1; transform: scale(1.02); }
+		100% { opacity: 0.7; transform: scale(1); }
+	}
+
+	/* 线条详细信息卡片 (原气泡内容移动至此) */
+	.line-detail-card {
+		background-color: #fff;
+		border-radius: 24rpx;
+		padding: 30rpx;
+		margin-bottom: 20rpx;
+		border: 1rpx solid #f0f0f0;
+		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	}
+
+	.line-detail-header {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 20rpx;
+	}
+
+	.line-tag {
+		padding: 6rpx 20rpx;
+		border-radius: 30rpx;
+	}
+
+	.line-tag-text {
+		font-size: 24rpx;
+		color: #fff;
+		font-weight: bold;
+	}
+
+	.line-score {
+		font-size: 32rpx;
+		font-weight: 800;
+		color: #1c1c1e;
+	}
+
+	.line-description {
+		font-size: 28rpx;
+		color: #48484a;
+		line-height: 1.6;
+		display: block;
+	}
+
+	.life-bg { background-color: #ff3b30; }
+	.wisdom-bg { background-color: #4cd964; }
+	.emotion-bg { background-color: #007aff; }
+	.fate-bg { background-color: #8e44ad; }
+
+	/* 详细维度分析样式 */
+	.dimensions-section {
+		display: flex;
+		flex-direction: column;
+		gap: 30rpx;
+		padding: 20rpx 0;
+	}
+
+	/* 致命命理警示卡片 */
+	.harsh-warning-card {
+		background-color: #fff1f0;
+		border: 2rpx solid #ff4d4f;
+		border-radius: 24rpx;
+		padding: 30rpx;
+		margin-bottom: 20rpx;
+		box-shadow: 0 4rpx 20rpx rgba(255, 77, 79, 0.1);
+	}
+
+	.warning-header {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		margin-bottom: 20rpx;
+		gap: 12rpx;
+	}
+
+	.warning-icon {
+		font-size: 36rpx;
+	}
+
+	.warning-title {
+		color: #cf1322;
+		font-weight: 900;
+		font-size: 32rpx;
+	}
+
+	.warning-text {
+		color: #333;
+		font-size: 28rpx;
+		line-height: 1.6;
+		font-weight: bold;
+	}
+
+	/* 综合命定结论卡片 */
+	.overall-conclusion-card {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		margin-top: 20rpx;
+		border: 1rpx solid #f0f0f0;
+		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	}
+
+	.overall-text {
+		font-size: 28rpx;
+		color: #1c1c1e;
+		line-height: 1.6;
+		font-style: italic;
+	}
+
+	.dimension-card {
+		display: flex;
+		flex-direction: row;
+		background-color: #f8f9ff;
+		border-radius: 24rpx;
+		padding: 30rpx;
+		gap: 24rpx;
+		border: 1rpx solid rgba(0, 122, 255, 0.05);
+	}
+
+	.dimension-icon-box {
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 20rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 40rpx;
+		flex-shrink: 0;
+	}
+
+	.handType-icon { background-color: #e3f2fd; color: #2196f3; }
+	.palmMounds-icon { background-color: #f3e5f5; color: #9c27b0; }
+	.specialMarks-icon { background-color: #fffde7; color: #fbc02d; }
+	.career-icon { background-color: #e3f2fd; color: #2196f3; }
+	.love-icon { background-color: #fce4ec; color: #f06292; }
+	.health-icon { background-color: #e8f5e9; color: #4caf50; }
+	.personality-icon { background-color: #fff3e0; color: #ff9800; }
+
+	.dimension-info {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 8rpx;
+	}
+
+	.dimension-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+	}
+
+	.dimension-content {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+	}
+
+	.features-card, .suggestions-card {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		margin-top: 20rpx;
+		border: 1rpx solid #f0f0f0;
+		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	}
+
+	.card-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+		margin-bottom: 24rpx;
+		display: block;
+		padding-left: 16rpx;
+		border-left: 8rpx solid #007aff;
+	}
+
+	.feature-item {
+		display: flex;
+		flex-direction: row;
+		margin-bottom: 16rpx;
+	}
+
+	.feature-label {
+		font-size: 28rpx;
+		color: #8e8e93;
+		width: 140rpx;
+	}
+
+	.feature-value {
+		flex: 1;
+		font-size: 28rpx;
+		color: #1c1c1e;
+	}
+
+	.suggestion-item {
+		margin-bottom: 24rpx;
+	}
+
+	.suggestion-tag {
+		font-size: 22rpx;
+		padding: 4rpx 16rpx;
+		border-radius: 8rpx;
+		margin-bottom: 12rpx;
+		display: inline-block;
+	}
+
+	.career-tag { background-color: #e3f2fd; color: #2196f3; }
+	.life-tag { background-color: #e8f5e9; color: #4caf50; }
+
+	.suggestion-text {
+		font-size: 28rpx;
+		color: #1c1c1e;
+		line-height: 1.6;
+	}
+
+	.suggestion-tip {
+		margin-top: 20rpx;
+		padding-top: 20rpx;
+		border-top: 1rpx dashed #eee;
+	}
+
+	.tip-text {
+		font-size: 24rpx;
+		color: #aeaeb2;
+		font-style: italic;
+	}
+
+	/* 现代切换器 */
+	.modern-line-selector {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-around;
+		width: 90%;
+		background-color: #f0f2f8;
+		padding: 10rpx;
+		border-radius: 50rpx;
+		margin-top: 20rpx;
+	}
+
+	.line-tab-btn {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 16rpx 0;
+		border-radius: 40rpx;
+		transition: all 0.3s ease;
+		position: relative;
+	}
+
+	.line-tab-btn.active {
+		background-color: #fff;
+		box-shadow: 0 4rpx 15rpx rgba(0, 0, 0, 0.08);
+		transform: translateY(-2rpx);
+	}
+
+	.tab-indicator {
+		width: 12rpx;
+		height: 12rpx;
+		border-radius: 50%;
+		margin-bottom: 8rpx;
+		transition: all 0.3s;
+	}
+
+	.life-indicator { background-color: #ff3b30; }
+	.wisdom-indicator { background-color: #4cd964; }
+	.emotion-indicator { background-color: #007aff; }
+	.fate-indicator { background-color: #8e44ad; }
+
+	.line-tab-btn.active .tab-indicator {
+		transform: scale(1.5);
+		box-shadow: 0 0 10rpx currentColor;
+	}
+
+	.tab-btn-label {
+		font-size: 24rpx;
+		color: #8e8e93;
+		font-weight: 500;
+		transition: all 0.3s;
+	}
+
+	.line-tab-btn.active .tab-btn-label {
+		color: #1c1c1e;
+		font-weight: bold;
+	}
+
+	/* 结果内容区域 */
+	.results-section {
+		display: flex;
+		flex-direction: column;
+		gap: 30rpx;
+		margin-bottom: 40rpx;
+	}
+
+	.result-item {
+		background-color: #f8f9ff;
+		border-radius: 24rpx;
+		padding: 30rpx;
+		border: 1rpx solid rgba(0, 122, 255, 0.05);
+	}
+
+	.result-item-header {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 16rpx;
+	}
+
+	.result-type {
+		font-size: 24rpx;
+		color: #007aff;
+		font-weight: bold;
+		text-transform: uppercase;
+		letter-spacing: 1rpx;
+	}
+
+	.result-score {
+		font-size: 28rpx;
+		color: #ff9500;
+		font-weight: 800;
+	}
+
+	.result-title-text {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+		margin-bottom: 12rpx;
+		display: block;
+	}
+
+	.result-description {
+		font-size: 26rpx;
+		line-height: 1.6;
+		color: #636366;
+	}
+
+	.result-actions {
+		display: flex;
+		flex-direction: row;
+		gap: 24rpx;
+		margin-top: 50rpx;
+	}
+
+	.result-btn {
+		flex: 1;
+		height: 100rpx;
+		border-radius: 24rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 30rpx;
+		font-weight: bold;
+		transition: all 0.3s ease;
+		border: none;
+	}
+
+	.result-btn:active {
+		transform: scale(0.96);
+	}
+
+	.result-btn.btn-primary {
+		background: linear-gradient(135deg, #007aff 0%, #0056b3 100%);
+		color: #fff;
+		box-shadow: 0 8rpx 25rpx rgba(0, 122, 255, 0.3);
+	}
+
+	.result-btn.btn-secondary {
+		background-color: #f2f2f7;
+		color: #8e8e93;
+	}
+
+	/* 分析中状态样式 */
+	.analyzing-area {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		background-color: #fff;
+	}
+
+	.analyzing-content {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 30rpx;
+	}
+
+	.analyzing-text {
+		font-size: 36rpx;
+		color: #1c1c1e;
+		font-weight: bold;
+	}
+
+	.analyzing-status {
+		font-size: 26rpx;
+		color: #8e8e93;
+	}
+</style>

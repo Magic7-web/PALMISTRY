@@ -1,0 +1,114 @@
+/**
+ * 图片处理工具函数
+ */
+
+/**
+ * 将图片路径转为base64
+ * 注意：uni-app x中需要先获取图片信息，然后读取文件
+ * 支持blob URL、网络URL和本地路径
+ */
+export function convertImageToBase64(imagePath: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		console.log('开始转换图片为base64，图片路径:', imagePath);
+		
+		// #ifdef H5
+		// H5平台处理blob URL
+		if (imagePath.startsWith('blob:')) {
+			console.log('检测到blob URL，开始转换为base64...');
+			try {
+				if (typeof fetch !== 'undefined') {
+					// 使用fetch获取blob
+					fetch(imagePath)
+						.then(response => response.blob())
+						.then(blob => {
+							const reader = new FileReader();
+							reader.onloadend = () => {
+								const base64 = reader.result as string;
+								console.log('blob转base64成功，长度:', base64.length);
+								resolve(base64);
+							};
+							reader.onerror = (error) => {
+								console.error('FileReader读取失败:', error);
+								reject(new Error('blob转base64失败'));
+							};
+							reader.readAsDataURL(blob);
+						})
+						.catch((error) => {
+							console.error('fetch blob失败:', error);
+							reject(error);
+						});
+				} else {
+					// 如果没有fetch，尝试直接使用路径
+					console.warn('H5平台不支持fetch，直接使用blob URL');
+					resolve(imagePath);
+				}
+			} catch (error) {
+				console.error('处理blob URL失败:', error);
+				reject(error);
+			}
+			return;
+		}
+		// #endif
+		
+		// 网络图片
+		if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+			console.log('检测到网络URL，直接使用');
+			resolve(imagePath);
+			return;
+		}
+		
+		// 本地图片，尝试读取文件
+		console.log('检测到本地路径，使用文件系统API读取...');
+		try {
+			const fs = uni.getFileSystemManager();
+			if (fs) {
+				fs.readFile({
+					filePath: imagePath,
+					encoding: 'base64',
+					success: (res) => {
+						const base64 = res.data as string;
+						// 添加data URI前缀
+						const dataUri = `data:image/jpeg;base64,${base64}`;
+						console.log('本地文件转base64成功，长度:', dataUri.length);
+						resolve(dataUri);
+					},
+					fail: (error) => {
+						console.error('图片转base64失败', error);
+						// 如果读取失败，尝试直接使用路径（让API自己处理）
+						console.warn('文件读取失败，直接使用路径');
+						resolve(imagePath);
+					}
+				});
+			} else {
+				// 如果没有文件系统API，直接返回路径
+				console.warn('文件系统API不可用，直接使用路径');
+				resolve(imagePath);
+			}
+		} catch (error) {
+			console.error('读取图片文件失败', error);
+			// 如果出错，直接返回路径
+			resolve(imagePath);
+		}
+	});
+}
+
+/**
+ * 获取图片信息
+ */
+export function getImageInfo(imagePath: string): Promise<{width: number, height: number}> {
+	return new Promise((resolve, reject) => {
+		uni.getImageInfo({
+			src: imagePath,
+			success: (res) => {
+				resolve({
+					width: res.width,
+					height: res.height
+				});
+			},
+			fail: (error) => {
+				console.error('获取图片信息失败', error);
+				reject(error);
+			}
+		});
+	});
+}

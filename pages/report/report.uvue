@@ -1,0 +1,1067 @@
+<template>
+	<view class="report-container">
+		<view class="report-header">
+			<text class="header-title">手相分析报告</text>
+			<text class="header-time" v-if="reportData">{{ reportData.analyzeTime }}</text>
+		</view>
+
+		<!-- 占位内容（分析中） -->
+...
+		<!-- 报告内容 -->
+		<view class="report-content" v-if="reportData">
+			<!-- 综合评价区 -->
+			<view class="summary-section">
+				<view class="section-header">
+					<text class="section-title">综合分析</text>
+				</view>
+				<view class="summary-grid" v-if="reportData.fullData">
+					<view class="summary-item" v-for="(item, key) in reportData.fullData.summary" :key="key">
+						<view class="summary-score-circle" :class="key + '-border'">
+							<text class="summary-score">{{ item.score }}</text>
+							<text class="summary-score-unit">分</text>
+						</view>
+						<text class="summary-dim-name">{{ item.dimension }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 交互式手相图解 -->
+			<view class="interactive-section">
+				<view class="section-header">
+					<text class="section-title">手相纹路解析</text>
+					<text class="section-tips">点击下方按钮查看对应纹路位置</text>
+				</view>
+				
+				<view class="hand-visual-container">
+					<view class="hand-visual-wrapper">
+						<!-- 用户图片 (底层) -->
+						<image 
+							class="user-hand-image" 
+							:src="reportData.imagePath" 
+							mode="aspectFit"
+						></image>
+						
+						<!-- 卡通手底图 (上层，用于定位和参考) -->
+						<image 
+							class="hand-base-image" 
+							:class="{ 'mirror': gender === 'female' }"
+							src="/static/hand.png" 
+							mode="aspectFit"
+						></image>
+
+						<!-- 标注文字 -->
+						<view class="line-label-overlay" v-if="activeLineType">
+							<text class="label-text">{{ activeLineType }}</text>
+						</view>
+					</view>
+					
+					<!-- 纹路简要说明 -->
+					<view class="line-brief-info" v-if="activeLineType && activeLineData">
+						<text class="brief-title">{{ activeLineData.type }} - {{ activeLineData.title }}</text>
+						<text class="brief-desc">{{ activeLineData.description }}</text>
+					</view>
+				</view>
+				
+				<!-- 纹路选择器 -->
+				<view class="line-selector">
+					<view 
+						v-for="(item, index) in reportData.results" 
+						:key="index"
+						:class="['selector-item', activeLineType === item.type ? 'active' : '']"
+						@click="setActiveLine(item.type)"
+					>
+						<text class="selector-text">{{ item.type }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 详细维度分析 -->
+			<view class="dimensions-section" v-if="reportData.fullData">
+				<view class="section-header">
+					<text class="section-title">深度解读</text>
+				</view>
+				<view class="dimension-card" v-for="(dim, key) in reportData.fullData.dimensions" :key="key">
+					<view class="dimension-header">
+						<view class="dim-icon-box" :class="key + '-icon'">
+							<text class="dim-icon">{{ getDimensionIcon(key) }}</text>
+						</view>
+						<text class="dimension-title">{{ dim.title }}</text>
+					</view>
+					<text class="dimension-content">{{ dim.content }}</text>
+				</view>
+			</view>
+
+			<!-- 掌部特征 -->
+			<view class="features-section" v-if="reportData.fullData && reportData.fullData.palmFeatures">
+				<view class="section-header">
+					<text class="section-title">掌部特征</text>
+				</view>
+				<view class="features-card">
+					<view class="feature-item">
+						<text class="feature-label">手掌形态</text>
+						<text class="feature-value">{{ reportData.fullData.palmFeatures.palmShape }}</text>
+					</view>
+					<view class="feature-item">
+						<text class="feature-label">手指比例</text>
+						<text class="feature-value">{{ reportData.fullData.palmFeatures.fingerRatio }}</text>
+					</view>
+					<view class="feature-item">
+						<text class="feature-label">掌丘状态</text>
+						<text class="feature-value">{{ reportData.fullData.palmFeatures.palmMound }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 专家建议 -->
+			<view class="suggestions-section" v-if="reportData.fullData && reportData.fullData.suggestions">
+				<view class="section-header">
+					<text class="section-title">专家建议</text>
+				</view>
+				<view class="suggestions-card">
+					<view class="suggestion-group">
+						<view class="suggestion-header">
+							<text class="suggestion-dot career-dot"></text>
+							<text class="suggestion-type">事业建议</text>
+						</view>
+						<text class="suggestion-text">{{ reportData.fullData.suggestions.career }}</text>
+					</view>
+					<view class="suggestion-group">
+						<view class="suggestion-header">
+							<text class="suggestion-dot life-dot"></text>
+							<text class="suggestion-type">生活建议</text>
+						</view>
+						<text class="suggestion-text">{{ reportData.fullData.suggestions.life }}</text>
+					</view>
+					<view class="suggestion-footer">
+						<text class="tip-icon">💡</text>
+						<text class="tip-text">{{ reportData.fullData.suggestions.tip }}</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 空状态（无数据且不在分析中） -->
+		<view class="report-content" v-if="!isAnalyzing && !reportData">
+			<view class="analyzing-placeholder">
+				<text class="analyzing-text">暂无分析结果</text>
+			</view>
+		</view>
+
+		<view class="report-footer">
+			<button class="footer-btn btn-primary" @click="handleAnalyze">
+				<text class="btn-text">重新分析</text>
+			</button>
+			<button class="footer-btn btn-secondary" @click="handleBack">
+				<text class="btn-text">返回拍照</text>
+			</button>
+		</view>
+	</view>
+</template>
+
+<script lang="uts">
+	import type { PalmistryReport, ReportResult } from '@/types/index';
+	import { analyzePalmistry, type DetectedLine } from '@/utils/qwenApi';
+
+	type Gender = 'male' | 'female';
+
+	interface ReportPageData {
+		imagePath: string | null;
+		gender: Gender | null;
+		reportData: PalmistryReport | null;
+		isAnalyzing: boolean;
+		activeLineType: string | null;
+	}
+
+	export default {
+		name: 'ReportPage',
+		data(): ReportPageData {
+			return {
+				imagePath: null,
+				gender: null,
+				reportData: null,
+				isAnalyzing: false,
+				activeLineType: null
+			};
+		},
+		computed: {
+			/**
+			 * 获取当前选中的纹路数据
+			 */
+			activeLineData(): ReportResult | null {
+				if (!this.activeLineType || !this.reportData) return null;
+				return this.reportData.results.find((item: ReportResult): boolean => item.type === this.activeLineType) || null;
+			}
+		},
+		onLoad(options: Record<string, any>) {
+			console.log('=== onLoad 被调用 ===');
+			console.log('onLoad参数:', options);
+			this.initPage(options);
+		},
+		onShow() {
+			console.log('=== onShow 被调用 ===');
+			// H5平台可能在onLoad时没有参数，在onShow时从URL解析
+			// #ifdef H5
+			if (!this.imagePath) {
+				console.log('onShow: 检测到imagePath为空，尝试从URL解析...');
+				this.initPageFromURL();
+			}
+			// #endif
+		},
+		mounted() {
+			console.log('=== mounted 被调用 ===');
+			// H5平台在mounted时也尝试解析参数
+			// #ifdef H5
+			if (!this.imagePath) {
+				console.log('mounted: 检测到imagePath为空，尝试从URL解析...');
+				setTimeout(() => {
+					this.initPageFromURL();
+				}, 100);
+			}
+			// #endif
+		},
+		methods: {
+			/**
+			 * 获取维度图标
+			 */
+			getDimensionIcon(key: string): string {
+				const icons: Record<string, string> = {
+					'career': '💼',
+					'love': '❤️',
+					'health': '💪',
+					'personality': '👤'
+				};
+				return icons[key] || '✨';
+			},
+
+			/**
+			 * 从URL解析参数并初始化页面
+			 */
+			initPageFromURL(): void {
+				try {
+					if (typeof window !== 'undefined' && window.location) {
+						const hash = window.location.hash;
+						console.log('当前hash:', hash);
+						
+						if (hash && hash.includes('?')) {
+							const queryString = hash.split('?')[1];
+							console.log('查询字符串:', queryString);
+							
+							const params: Record<string, string> = {};
+							queryString.split('&').forEach((pair: string) => {
+								const [key, value] = pair.split('=');
+								if (key && value) {
+									params[decodeURIComponent(key)] = decodeURIComponent(value);
+								}
+							});
+							
+							console.log('从URL解析出的参数:', params);
+							
+							if (params.imagePath) {
+								// 直接设置参数并启动分析，避免递归调用
+								this.imagePath = decodeURIComponent(params.imagePath);
+								this.gender = (params.gender as Gender) || 'male';
+								console.log('从URL解析后的参数:', {
+									imagePath: this.imagePath ? this.imagePath.substring(0, 50) + '...' : 'null',
+									gender: this.gender
+								});
+								console.log('开始调用startAnalysis...');
+								this.startAnalysis();
+							} else {
+								console.error('从URL中未找到imagePath参数');
+							}
+						} else {
+							console.error('URL中没有查询参数');
+						}
+					} else {
+						console.error('window对象不可用');
+					}
+				} catch (error) {
+					console.error('从URL解析参数失败:', error);
+				}
+			},
+
+			/**
+			 * 初始化页面（统一处理参数解析和启动分析）
+			 */
+			initPage(options: Record<string, any>): void {
+				console.log('=== 初始化页面 ===');
+				console.log('initPage参数:', options);
+				console.log('参数类型:', typeof options);
+				console.log('所有参数键:', Object.keys(options || {}));
+				
+				// 如果已经有imagePath，说明已经初始化过，避免重复调用
+				if (this.imagePath) {
+					console.log('页面已经初始化过，跳过');
+					return;
+				}
+				
+				let imagePath: string | null = null;
+				let gender: Gender = 'male';
+				
+				// 1. 优先从URL参数获取（用于兼容其他平台或手动输入URL的情况）
+				if (options && options.imagePath) {
+					imagePath = decodeURIComponent(options.imagePath);
+					gender = (options.gender as Gender) || 'male';
+					console.log('从URL参数获取成功');
+				} 
+				// 2. 从全局存储获取（主要方案）
+				else {
+					try {
+						const storageData = uni.getStorageSync('cameraParams');
+						console.log('从存储读取的数据:', storageData);
+						
+						if (storageData && storageData.imagePath) {
+							imagePath = storageData.imagePath;
+							gender = storageData.gender || 'male';
+							console.log('从全局存储获取成功');
+							
+							// 清除存储，避免重复使用
+							uni.removeStorageSync('cameraParams');
+							console.log('已清除全局存储');
+						}
+					} catch (error) {
+						console.error('从全局存储读取失败:', error);
+					}
+				}
+				
+				if (imagePath) {
+					this.imagePath = imagePath;
+					this.gender = gender;
+					console.log('解析后的参数:', {
+						imagePath: this.imagePath.substring(0, 50) + '...',
+						gender: this.gender
+					});
+					console.log('开始调用startAnalysis...');
+					this.startAnalysis();
+				} else {
+					console.error('缺少图片参数');
+					uni.showToast({
+						title: '缺少图片参数，请先拍照',
+						icon: 'none'
+					});
+				}
+			},
+
+			/**
+			 * 开始分析手相
+			 */
+			async startAnalysis(): Promise<void> {
+				if (!this.imagePath || !this.gender) {
+					console.error('缺少必要参数:', {
+						imagePath: this.imagePath,
+						gender: this.gender
+					});
+					uni.showToast({
+						title: '缺少必要参数',
+						icon: 'none'
+					});
+					return;
+				}
+
+				this.isAnalyzing = true;
+				console.log('开始手相分析，参数:', {
+					imagePath: this.imagePath.substring(0, 50) + '...',
+					gender: this.gender
+				});
+
+				try {
+					console.log('=== 开始调用Qwen API进行手相识别 ===');
+					
+					uni.showLoading({
+						title: '正在分析中...',
+						mask: true
+					});
+					
+					// 调用真实API
+					const result = await analyzePalmistry({
+						imagePath: this.imagePath,
+						gender: this.gender
+					});
+
+					console.log('=== API返回结果 ===', result);
+					console.log('识别到的线条数量:', result.lines?.length || 0);
+
+					// 将识别结果转换为报告格式
+					this.generateReportFromAPI(result);
+
+					uni.hideLoading();
+					uni.showToast({
+						title: '识别成功',
+						icon: 'success'
+					});
+
+				} catch (error: any) {
+					console.error('=== 手相识别失败 ===', error);
+					console.error('错误类型:', typeof error);
+					console.error('错误信息:', error.message || error.errMsg || error);
+					console.error('错误堆栈:', error.stack);
+					
+					uni.hideLoading();
+					
+					let errorMessage = '识别失败，请重试';
+					if (error.message) {
+						if (error.message.includes('timeout') || error.message.includes('超时')) {
+							errorMessage = '识别超时，请检查网络';
+						} else if (error.message.includes('API调用失败')) {
+							errorMessage = 'API调用失败，请检查网络连接和API配置';
+						} else if (error.message.includes('解析')) {
+							errorMessage = '解析结果失败，请重试';
+						} else {
+							errorMessage = error.message;
+						}
+					} else if (error.errMsg) {
+						if (error.errMsg.includes('timeout')) {
+							errorMessage = '识别超时，请检查网络';
+						} else if (error.errMsg.includes('fail')) {
+							errorMessage = '识别失败，请重试';
+						}
+					}
+
+					console.log('显示错误提示:', errorMessage);
+					uni.showToast({
+						title: errorMessage,
+						icon: 'none',
+						duration: 3000
+					});
+
+					// 如果API调用失败，使用模拟数据作为fallback
+					console.log('API调用失败，使用模拟数据作为fallback');
+					this.generateMockReport();
+
+				} finally {
+					this.isAnalyzing = false;
+					console.log('分析流程结束');
+				}
+			},
+
+			/**
+			 * 从API结果生成报告
+			 */
+			generateReportFromAPI(apiResult: any): void {
+				const now = new Date();
+				const year = now.getFullYear();
+				const month = this.formatNumber(now.getMonth() + 1);
+				const day = this.formatNumber(now.getDate());
+				const hours = this.formatNumber(now.getHours());
+				const minutes = this.formatNumber(now.getMinutes());
+				const timeString = `${year}-${month}-${day} ${hours}:${minutes}`;
+
+				// 将API返回的线条转换为报告格式
+				const results: ReportResult[] = apiResult.lines.map((line: DetectedLine) => {
+					let title = '';
+					
+					switch(line.type) {
+						case 'life':
+							title = '健康运势';
+							break;
+						case 'wisdom':
+							title = '智力与思考';
+							break;
+						case 'emotion':
+							title = '情感与关系';
+							break;
+						default:
+							title = '运势分析';
+					}
+
+					return {
+						type: line.typeName,
+						title: title,
+						description: line.description || `${line.typeName}分析结果`,
+						score: line.clarity || Math.floor((line.length || 0) / 2),
+						points: line.points,
+						clarity: line.clarity
+					};
+				});
+
+				// 如果API返回了overall信息，添加到结果中
+				if (apiResult.overall) {
+					const overall = apiResult.overall;
+					
+					// 确保有健康、智慧、情感三项
+					const existingTypes = results.map(r => r.type);
+					
+					if (!existingTypes.includes('生命线') && overall.healthScore) {
+						results.unshift({
+							type: '生命线',
+							title: '健康运势',
+							description: overall.summary || '生命线分析',
+							score: overall.healthScore
+						});
+					}
+					
+					if (!existingTypes.includes('智慧线') && overall.wisdomScore) {
+						const wisdomIndex = existingTypes.indexOf('智慧线') === -1 ? 1 : existingTypes.indexOf('智慧线');
+						results.splice(wisdomIndex, 0, {
+							type: '智慧线',
+							title: '智力与思考',
+							description: overall.summary || '智慧线分析',
+							score: overall.wisdomScore
+						});
+					}
+					
+					if (!existingTypes.includes('感情线') && overall.emotionScore) {
+						results.push({
+							type: '感情线',
+							title: '情感与关系',
+							description: overall.summary || '感情线分析',
+							score: overall.emotionScore
+						});
+					}
+				}
+
+				// 如果没有任何结果，使用模拟数据
+				if (results.length === 0) {
+					console.warn('API未返回有效结果，使用模拟数据');
+					this.generateMockReport();
+					return;
+				}
+
+				this.reportData = {
+					id: `report_${Date.now()}`,
+					imagePath: this.imagePath!,
+					analyzeTime: timeString,
+					results: results
+				};
+				
+				// 默认选中第一条纹路
+				if (results.length > 0) {
+					this.activeLineType = (results[0] as ReportResult).type;
+				}
+
+				console.log('报告生成完成', this.reportData);
+			},
+
+			/**
+			 * 设置当前激活的纹路
+			 */
+			setActiveLine(type: string): void {
+				this.activeLineType = type;
+			},
+
+			/**
+			 * 格式化数字为两位字符串
+			 */
+			formatNumber(num: number): string {
+				return num < 10 ? `0${num}` : `${num}`;
+			},
+
+			/**
+			 * 生成模拟报告数据（待替换为真实 API 调用）
+			 */
+			generateMockReport(): void {
+				const now = new Date();
+				const year = now.getFullYear();
+				const month = this.formatNumber(now.getMonth() + 1);
+				const day = this.formatNumber(now.getDate());
+				const hours = this.formatNumber(now.getHours());
+				const minutes = this.formatNumber(now.getMinutes());
+				const timeString = `${year}-${month}-${day} ${hours}:${minutes}`;
+
+				const mockResults: ReportResult[] = [
+					{
+						type: '生命线',
+						title: '健康运势',
+						description: '生命线较长且清晰，表明身体健康状况良好，有较强的生命力和抵抗力。建议保持良好的作息习惯，适度运动。',
+						score: 85
+					},
+					{
+						type: '智慧线',
+						title: '智力与思考',
+						description: '智慧线清晰深邃，显示思维敏捷，学习能力强。在工作和生活中能够灵活应对各种挑战。',
+						score: 90
+					},
+					{
+						type: '感情线',
+						title: '情感与关系',
+						description: '感情线平滑延伸，预示着情感生活相对稳定。在人际关系中表现良好，容易获得他人的信任和好感。',
+						score: 80
+					}
+				];
+
+				this.reportData = {
+					id: `report_${Date.now()}`,
+					imagePath: this.imagePath!,
+					analyzeTime: timeString,
+					results: mockResults
+				};
+				
+				// 默认选中生命线
+				this.activeLineType = '生命线';
+
+				console.log('报告生成完成', this.reportData);
+			},
+
+			/**
+			 * 重新分析
+			 */
+			handleAnalyze(): void {
+				if (!this.imagePath) {
+					uni.showToast({
+						title: '缺少图片',
+						icon: 'none'
+					});
+					return;
+				}
+				this.startAnalysis();
+			},
+
+			/**
+			 * 返回拍照页
+			 */
+			handleBack(): void {
+				uni.navigateBack({
+					success: () => {
+						console.log('返回成功');
+					},
+					fail: (error) => {
+						console.error('返回失败', error);
+						// 如果返回失败，直接跳转到拍照页
+						uni.reLaunch({
+							url: '/pages/camera/camera'
+						});
+					}
+				});
+			}
+		}
+	};
+</script>
+
+<style>
+	.report-container {
+		display: flex;
+		flex-direction: column;
+		width: 750rpx;
+		min-height: 100vh;
+		max-width: 100vw;
+		background-color: #f5f5f5;
+		overflow-x: hidden;
+		box-sizing: border-box;
+	}
+
+	.report-header {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+		padding: 40rpx 20rpx 30rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+	}
+
+	.header-title {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+		margin-bottom: 12rpx;
+	}
+
+	.header-time {
+		font-size: 24rpx;
+		color: #8e8e93;
+	}
+
+	.report-content {
+		flex: 1;
+		width: 100%;
+		padding: 20rpx;
+		box-sizing: border-box;
+	}
+
+	/* 综合分析样式 */
+	.summary-section {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		margin-bottom: 24rpx;
+		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	}
+
+	.summary-grid {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-around;
+		margin-top: 20rpx;
+	}
+
+	.summary-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 12rpx;
+	}
+
+	.summary-score-circle {
+		width: 100rpx;
+		height: 100rpx;
+		border-radius: 50%;
+		border: 6rpx solid #eee;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+	}
+
+	.summary-score {
+		font-size: 32rpx;
+		font-weight: 800;
+		color: #1c1c1e;
+	}
+
+	.summary-score-unit {
+		font-size: 18rpx;
+		color: #8e8e93;
+		margin-left: 2rpx;
+		margin-bottom: -6rpx;
+	}
+
+	.summary-dim-name {
+		font-size: 24rpx;
+		color: #636366;
+	}
+
+	.lifeLine-border { border-color: #ff3b30; }
+	.wisdomLine-border { border-color: #4cd964; }
+	.emotionLine-border { border-color: #007aff; }
+	.careerLine-border { border-color: #ff9500; }
+
+	/* 交互式图解样式 */
+	.interactive-section {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		margin-bottom: 24rpx;
+		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	}
+
+	.section-header {
+		margin-bottom: 24rpx;
+	}
+
+	.section-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+		display: block;
+		margin-bottom: 8rpx;
+	}
+
+	.section-tips {
+		font-size: 22rpx;
+		color: #aeaeb2;
+	}
+
+	.hand-visual-container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		background-color: #f8f8f8;
+		border-radius: 24rpx;
+		padding: 20rpx;
+		margin-bottom: 24rpx;
+	}
+
+	.hand-visual-wrapper {
+		position: relative;
+		width: 450rpx;
+		height: 550rpx;
+		border-radius: 20rpx;
+		overflow: hidden;
+		background-color: #eee;
+	}
+
+	.user-hand-image {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		z-index: 1;
+	}
+
+	.hand-base-image {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		z-index: 2;
+		opacity: 0.5;
+		pointer-events: none;
+	}
+
+	.hand-base-image.mirror {
+		transform: scaleX(-1);
+	}
+
+	.line-label-overlay {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background-color: rgba(0, 122, 255, 0.9);
+		padding: 8rpx 20rpx;
+		border-radius: 30rpx;
+		z-index: 10;
+	}
+
+	.label-text {
+		color: #fff;
+		font-size: 22rpx;
+		font-weight: bold;
+	}
+
+	.line-brief-info {
+		width: 100%;
+		margin-top: 20rpx;
+		padding: 20rpx;
+		background-color: #fff;
+		border-radius: 16rpx;
+		border-left: 8rpx solid #007aff;
+	}
+
+	.brief-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+		margin-bottom: 8rpx;
+		display: block;
+	}
+
+	.brief-desc {
+		font-size: 24rpx;
+		color: #636366;
+		line-height: 1.5;
+	}
+
+	.line-selector {
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+		gap: 16rpx;
+		flex-wrap: wrap;
+	}
+
+	.selector-item {
+		padding: 12rpx 24rpx;
+		background-color: #f2f2f7;
+		border-radius: 30rpx;
+		transition: all 0.3s ease;
+	}
+
+	.selector-item.active {
+		background-color: #007aff;
+		box-shadow: 0 4rpx 12rpx rgba(0, 122, 255, 0.2);
+	}
+
+	.selector-text {
+		font-size: 24rpx;
+		color: #8e8e93;
+	}
+
+	.selector-item.active .selector-text {
+		color: #fff;
+		font-weight: bold;
+	}
+
+	/* 深度解读样式 */
+	.dimensions-section {
+		margin-bottom: 24rpx;
+	}
+
+	.dimension-card {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		margin-bottom: 20rpx;
+		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	}
+
+	.dimension-header {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 16rpx;
+		margin-bottom: 16rpx;
+	}
+
+	.dim-icon-box {
+		width: 64rpx;
+		height: 64rpx;
+		border-radius: 16rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 32rpx;
+	}
+
+	.career-icon { background-color: #e3f2fd; }
+	.love-icon { background-color: #fce4ec; }
+	.health-icon { background-color: #e8f5e9; }
+	.personality-icon { background-color: #fff3e0; }
+
+	.dimension-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+	}
+
+	.dimension-content {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+	}
+
+	/* 掌部特征样式 */
+	.features-section {
+		margin-bottom: 24rpx;
+	}
+
+	.features-card {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		display: flex;
+		flex-direction: column;
+		gap: 20rpx;
+	}
+
+	.feature-item {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		padding-bottom: 16rpx;
+		border-bottom: 1rpx solid #f2f2f7;
+	}
+
+	.feature-item:last-child {
+		border-bottom: none;
+		padding-bottom: 0;
+	}
+
+	.feature-label {
+		font-size: 26rpx;
+		color: #8e8e93;
+	}
+
+	.feature-value {
+		font-size: 26rpx;
+		color: #1c1c1e;
+		font-weight: 500;
+	}
+
+	/* 专家建议样式 */
+	.suggestions-section {
+		margin-bottom: 40rpx;
+	}
+
+	.suggestions-card {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		display: flex;
+		flex-direction: column;
+		gap: 30rpx;
+	}
+
+	.suggestion-group {
+		display: flex;
+		flex-direction: column;
+		gap: 12rpx;
+	}
+
+	.suggestion-header {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 12rpx;
+	}
+
+	.suggestion-dot {
+		width: 12rpx;
+		height: 12rpx;
+		border-radius: 50%;
+	}
+
+	.career-dot { background-color: #007aff; }
+	.life-dot { background-color: #4cd964; }
+
+	.suggestion-type {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #1c1c1e;
+	}
+
+	.suggestion-text {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.5;
+	}
+
+	.suggestion-footer {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 12rpx;
+		background-color: #f2f2f7;
+		padding: 20rpx;
+		border-radius: 16rpx;
+	}
+
+	.tip-icon { font-size: 24rpx; }
+
+	.tip-text {
+		font-size: 22rpx;
+		color: #8e8e93;
+		line-height: 1.4;
+	}
+
+	/* 通用底部 */
+	.report-footer {
+		display: flex;
+		flex-direction: row;
+		width: 100%;
+		padding: 30rpx 40rpx 50rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		gap: 20rpx;
+	}
+
+	.footer-btn {
+		flex: 1;
+		height: 90rpx;
+		border-radius: 45rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 28rpx;
+		font-weight: bold;
+		border: none;
+	}
+
+	.btn-primary {
+		background-color: #007aff;
+		color: #fff;
+		box-shadow: 0 8rpx 20rpx rgba(0, 122, 255, 0.2);
+	}
+
+	.btn-secondary {
+		background-color: #f2f2f7;
+		color: #8e8e93;
+	}
+
+	.analyzing-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 400rpx;
+		background-color: #fff;
+		border-radius: 30rpx;
+	}
+
+	.analyzing-text {
+		font-size: 28rpx;
+		color: #8e8e93;
+	}
+
+	.btn-text {
+		color: inherit;
+	}
+</style>

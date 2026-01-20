@@ -1,0 +1,23 @@
+/**
+ * API 配置
+ * 注意：生产环境建议使用环境变量或后端代理，避免API Key暴露在前端
+ */
+
+// 运行时判断平台
+// #ifdef H5
+const isH5 = true;
+// #endif
+
+// #ifndef H5
+const isH5 = false;
+// #endif
+
+export const QWEN_CONFIG = {
+	apiKey: 'sk-d91b0f8074d242b7ab8d16bd12823731',
+	// H5平台使用代理路径，其他平台使用直接API地址
+	endpoint: isH5 
+		? '/api/qwen' // H5平台：代理路径，会被vite代理到实际API地址
+		: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', // 非H5平台：直接API地址
+	model: 'qwen-vl-plus', // 使用视觉模型：qwen-vl-plus 或 qwen-vl-max
+	timeout: 60000 // 60秒超时（AI分析可能需要更长时间）
+};
