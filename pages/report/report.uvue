@@ -1,122 +1,132 @@
 <template>
 	<view class="report-container">
-		<view class="report-header">
-			<text class="header-title">手相分析报告</text>
-			<text class="header-time" v-if="reportData">{{ reportData.analyzeTime }}</text>
-		</view>
-
-		<!-- 占位内容（分析中） -->
-...
-		<!-- 报告内容 -->
-		<view class="report-content" v-if="reportData">
-			<!-- 综合评价区 -->
-			<view class="summary-section">
-				<view class="section-header">
-					<text class="section-title">综合分析</text>
+		<view class="report-content-wrapper">
+			<view class="report-header">
+				<view class="header-main">
+					<text class="header-title">手相深度分析报告 - 林公测算</text>
+					<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
 				</view>
-				<view class="summary-grid" v-if="reportData.fullData">
-					<view class="summary-item" v-for="(item, key) in reportData.fullData.summary" :key="key">
-						<view class="summary-score-circle" :class="key + '-border'">
-							<text class="summary-score">{{ item.score }}</text>
-							<text class="summary-score-unit">分</text>
-						</view>
-						<text class="summary-dim-name">{{ item.dimension }}</text>
-					</view>
+				<view class="header-deco"></view>
+				<text class="header-time" v-if="reportData">{{ reportData.analyzeTime }}</text>
+			</view>
+
+			<!-- 占位内容（分析中） -->
+			<view class="analyzing-area" v-if="isAnalyzing">
+				<view class="analyzing-content">
+					<text class="analyzing-text">正在推演命理，请稍候...</text>
 				</view>
 			</view>
 
-			<!-- 交互式手相图解 -->
-			<view class="interactive-section">
-				<view class="section-header">
-					<text class="section-title">手相纹路解析</text>
-					<text class="section-tips">点击下方按钮查看对应纹路位置</text>
+			<!-- 报告内容 -->
+			<view class="report-content" v-if="reportData">
+				<!-- 综合评价区 -->
+				<view class="summary-section">
+					<view class="section-header">
+						<text class="section-title">第一章 · 综合命格</text>
+					</view>
+					<view class="summary-grid" v-if="reportData.fullData">
+						<view class="summary-item" v-for="(item, key) in reportData.fullData.summary" :key="key">
+							<view class="summary-score-circle" :class="key + '-border'">
+								<text class="summary-score">{{ item.score }}</text>
+								<text class="summary-score-unit">分</text>
+							</view>
+							<text class="summary-dim-name">{{ item.dimension }}</text>
+						</view>
+					</view>
 				</view>
-				
-				<view class="hand-visual-container">
-					<view class="hand-visual-wrapper">
-						<!-- 用户图片 (底层) -->
-						<image 
-							class="user-hand-image" 
-							:src="reportData.imagePath" 
-							mode="aspectFit"
-						></image>
-						
-						<!-- 卡通手底图 (上层，用于定位和参考) -->
-						<image 
-							class="hand-base-image" 
-							:class="{ 'mirror': gender === 'female' }"
-							src="/static/hand.png" 
-							mode="aspectFit"
-						></image>
 
-						<!-- 标注文字 -->
-						<view class="line-label-overlay" v-if="activeLineType">
-							<text class="label-text">{{ activeLineType }}</text>
+				<!-- 交互式手相图解 -->
+				<view class="interactive-section">
+					<view class="section-header">
+						<text class="section-title">第二章 · 手相纹路解析</text>
+						<text class="section-tips">点击下方按钮查看对应纹路位置</text>
+					</view>
+					
+					<view class="hand-visual-container">
+						<view class="hand-visual-wrapper">
+							<!-- 用户图片 (底层) -->
+							<image 
+								class="user-hand-image" 
+								:src="reportData.imagePath" 
+								mode="aspectFit"
+							></image>
+							
+							<!-- 卡通手底图 (上层，用于定位和参考) -->
+							<image 
+								class="hand-base-image" 
+								:class="{ 'mirror': gender === 'female' }"
+								src="/static/hand.png" 
+								mode="aspectFit"
+							></image>
+
+							<!-- 标注文字 -->
+							<view class="line-label-overlay" v-if="activeLineType">
+								<text class="label-text">{{ activeLineType }}</text>
+							</view>
+						</view>
+						
+						<!-- 纹路简要说明 -->
+						<view class="line-brief-info" v-if="activeLineType && activeLineData">
+							<text class="brief-title">{{ activeLineData.type }} - {{ activeLineData.title }}</text>
+							<text class="brief-desc">{{ activeLineData.description }}</text>
 						</view>
 					</view>
 					
-					<!-- 纹路简要说明 -->
-					<view class="line-brief-info" v-if="activeLineType && activeLineData">
-						<text class="brief-title">{{ activeLineData.type }} - {{ activeLineData.title }}</text>
-						<text class="brief-desc">{{ activeLineData.description }}</text>
-					</view>
-				</view>
-				
-				<!-- 纹路选择器 -->
-				<view class="line-selector">
-					<view 
-						v-for="(item, index) in reportData.results" 
-						:key="index"
-						:class="['selector-item', activeLineType === item.type ? 'active' : '']"
-						@click="setActiveLine(item.type)"
-					>
-						<text class="selector-text">{{ item.type }}</text>
-					</view>
-				</view>
-			</view>
-
-			<!-- 详细维度分析 -->
-			<view class="dimensions-section" v-if="reportData.fullData">
-				<view class="section-header">
-					<text class="section-title">深度解读</text>
-				</view>
-				<view class="dimension-card" v-for="(dim, key) in reportData.fullData.dimensions" :key="key">
-					<view class="dimension-header">
-						<view class="dim-icon-box" :class="key + '-icon'">
-							<text class="dim-icon">{{ getDimensionIcon(key) }}</text>
+					<!-- 纹路选择器 -->
+					<view class="line-selector">
+						<view 
+							v-for="(item, index) in reportData.results" 
+							:key="index"
+							:class="['selector-item', activeLineType === item.type ? 'active' : '']"
+							@click="setActiveLine(item.type)"
+						>
+							<text class="selector-text">{{ item.type }}</text>
 						</view>
-						<text class="dimension-title">{{ dim.title }}</text>
 					</view>
-					<text class="dimension-content">{{ dim.content }}</text>
 				</view>
-			</view>
 
-			<!-- 掌部特征 -->
-			<view class="features-section" v-if="reportData.fullData && reportData.fullData.palmFeatures">
-				<view class="section-header">
-					<text class="section-title">掌部特征</text>
-				</view>
-				<view class="features-card">
-					<view class="feature-item">
-						<text class="feature-label">手掌形态</text>
-						<text class="feature-value">{{ reportData.fullData.palmFeatures.palmShape }}</text>
+				<!-- 详细维度分析 -->
+				<view class="dimensions-section" v-if="reportData.fullData">
+					<view class="section-header">
+						<text class="section-title">第三章 · 深度解读</text>
 					</view>
-					<view class="feature-item">
-						<text class="feature-label">手指比例</text>
-						<text class="feature-value">{{ reportData.fullData.palmFeatures.fingerRatio }}</text>
-					</view>
-					<view class="feature-item">
-						<text class="feature-label">掌丘状态</text>
-						<text class="feature-value">{{ reportData.fullData.palmFeatures.palmMound }}</text>
+					<view class="dimension-card" v-for="(dim, key) in reportData.fullData.dimensions" :key="key">
+						<view class="dimension-header">
+							<view class="dim-icon-box" :class="key + '-icon'">
+								<image class="dim-custom-icon" :src="getDimensionIcon(key)" mode="aspectFit"></image>
+							</view>
+							<text class="dimension-title">{{ dim.title }}</text>
+						</view>
+						<text class="dimension-content">{{ dim.content }}</text>
 					</view>
 				</view>
-			</view>
 
-			<!-- 专家建议 -->
-			<view class="suggestions-section" v-if="reportData.fullData && reportData.fullData.suggestions">
-				<view class="section-header">
-					<text class="section-title">专家建议</text>
+				<!-- 掌部特征 -->
+				<view class="features-section" v-if="reportData.fullData && reportData.fullData.palmFeatures">
+					<view class="section-header">
+						<text class="section-title">第四章 · 掌部特征</text>
+					</view>
+					<view class="features-card">
+						<view class="feature-item">
+							<text class="feature-label">手掌形态</text>
+							<text class="feature-value">{{ reportData.fullData.palmFeatures.palmShape }}</text>
+						</view>
+						<view class="feature-item">
+							<text class="feature-label">手指比例</text>
+							<text class="feature-value">{{ reportData.fullData.palmFeatures.fingerRatio }}</text>
+						</view>
+						<view class="feature-item">
+							<text class="feature-label">掌丘状态</text>
+							<text class="feature-value">{{ reportData.fullData.palmFeatures.palmMound }}</text>
+						</view>
+					</view>
 				</view>
+
+				<!-- 专家建议 -->
+				<view class="suggestions-section" v-if="reportData.fullData && reportData.fullData.suggestions">
+					<view class="section-header">
+						<text class="section-title">第五章 · 命理谏言</text>
+					</view>
 				<view class="suggestions-card">
 					<view class="suggestion-group">
 						<view class="suggestion-header">
@@ -148,12 +158,27 @@
 		</view>
 
 		<view class="report-footer">
-			<button class="footer-btn btn-primary" @click="handleAnalyze">
-				<text class="btn-text">重新分析</text>
+			<button class="footer-btn btn-primary" @click="handleShowWechat">
+				<text class="btn-text">下载报告</text>
 			</button>
 			<button class="footer-btn btn-secondary" @click="handleBack">
 				<text class="btn-text">返回拍照</text>
 			</button>
+		</view>
+
+		<!-- 微信引流弹窗：玄学大师版文案 -->
+		<view class="wechat-mask" v-if="showWechatDialog">
+			<view class="wechat-dialog">
+				<text class="wechat-title">获取完整手相命理推演</text>
+				<image class="wechat-qrcode" src="/static/wechact.jpg" mode="widthFix" />
+				<text class="wechat-desc">
+					你现在看到的只是手相命理的一角。若想进一步洞察姻缘、财运、事业走向，以及关键年份的福祸转折，请添加小助手微信。小助手会帮你对接资深命理老师，从手相、八字等多维度为你推演全局运势。
+				</text>
+				<button class="wechat-close-btn" @click="showWechatDialog = false">
+					<text class="btn-text">我知道了</text>
+				</button>
+			</view>
+		</view>
 		</view>
 	</view>
 </template>
@@ -170,6 +195,7 @@
 		reportData: PalmistryReport | null;
 		isAnalyzing: boolean;
 		activeLineType: string | null;
+		showWechatDialog: boolean;
 	}
 
 	export default {
@@ -180,7 +206,8 @@
 				gender: null,
 				reportData: null,
 				isAnalyzing: false,
-				activeLineType: null
+				activeLineType: null,
+				showWechatDialog: false
 			};
 		},
 		computed: {
@@ -221,16 +248,17 @@
 		},
 		methods: {
 			/**
-			 * 获取维度图标
+			 * 获取维度图标路径
 			 */
 			getDimensionIcon(key: string): string {
 				const icons: Record<string, string> = {
-					'career': '💼',
-					'love': '❤️',
-					'health': '💪',
-					'personality': '👤'
+					'career': '/static/事业.png',
+					'love': '/static/感情.png',
+					'health': '/static/健康.png',
+					'wealth': '/static/财富.png',
+					'personality': '/static/命格.png'
 				};
-				return icons[key] || '✨';
+				return icons[key] || '/static/命格.png';
 			},
 
 			/**
@@ -607,6 +635,13 @@
 			},
 
 			/**
+			 * 显示微信引流弹窗（下载报告）
+			 */
+			handleShowWechat(): void {
+				this.showWechatDialog = true;
+			},
+
+			/**
 			 * 返回拍照页
 			 */
 			handleBack(): void {
@@ -631,12 +666,25 @@
 	.report-container {
 		display: flex;
 		flex-direction: column;
-		width: 750rpx;
+		width: 100%;
 		min-height: 100vh;
-		max-width: 100vw;
-		background-color: #f5f5f5;
+		background-color: #fdf7ee;
 		overflow-x: hidden;
 		box-sizing: border-box;
+		align-items: center;
+		font-family: "STKaiti", "Kaiti", "SimKai", serif;
+	}
+
+	.report-content-wrapper {
+		width: 100%;
+		max-width: 600px;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		min-height: 100vh;
+		box-shadow: 0 0 60rpx rgba(90, 62, 43, 0.1);
+		background-color: #fdf7ee;
 	}
 
 	.report-header {
@@ -644,36 +692,78 @@
 		flex-direction: column;
 		align-items: center;
 		width: 100%;
-		padding: 40rpx 20rpx 30rpx;
-		background-color: #fff;
+		padding: 60rpx 20rpx 35rpx;
+		background-color: #fdf7ee;
 		box-sizing: border-box;
 	}
 
+	.header-main {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 15rpx;
+		margin-bottom: 15rpx;
+	}
+
+	.header-stamp {
+		width: 80rpx;
+		height: 80rpx;
+		opacity: 0.9;
+	}
+
+	.header-deco {
+		width: 300rpx;
+		height: 4rpx;
+		background-color: #5a3e2b;
+		margin-bottom: 20rpx;
+		position: relative;
+	}
+
+	.header-deco::before, .header-deco::after {
+		content: "";
+		position: absolute;
+		width: 10rpx;
+		height: 10rpx;
+		border: 2rpx solid #5a3e2b;
+		transform: rotate(45deg);
+		top: -5rpx;
+	}
+
+	.header-deco::before { left: -15rpx; }
+	.header-deco::after { right: -15rpx; }
+
 	.header-title {
-		font-size: 40rpx;
+		font-size: 46rpx;
 		font-weight: bold;
-		color: #1c1c1e;
-		margin-bottom: 12rpx;
+		color: #5a3e2b;
+		margin-bottom: 15rpx;
+		letter-spacing: 6rpx;
 	}
 
 	.header-time {
-		font-size: 24rpx;
-		color: #8e8e93;
+		font-size: 26rpx;
+		color: #8c7662;
+		font-style: italic;
 	}
 
 	.report-content {
 		flex: 1;
 		width: 100%;
-		padding: 20rpx;
+		padding: 30rpx 25rpx;
 		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
 
 	/* 综合分析样式 */
 	.summary-section {
 		background-color: #fff;
-		border-radius: 30rpx;
-		padding: 30rpx;
-		margin-bottom: 24rpx;
+		border-radius: 12rpx;
+		padding: 40rpx 30rpx;
+		margin-bottom: 30rpx;
+		border: 1rpx solid #e8e0cc;
 		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
 	}
 
@@ -681,93 +771,98 @@
 		display: flex;
 		flex-direction: row;
 		justify-content: space-around;
-		margin-top: 20rpx;
+		margin-top: 30rpx;
 	}
 
 	.summary-item {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 12rpx;
+		gap: 15rpx;
 	}
 
 	.summary-score-circle {
-		width: 100rpx;
-		height: 100rpx;
+		width: 110rpx;
+		height: 110rpx;
 		border-radius: 50%;
-		border: 6rpx solid #eee;
+		border: 4rpx solid #eee;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		position: relative;
+		background-color: #fdfaf5;
 	}
 
 	.summary-score {
-		font-size: 32rpx;
-		font-weight: 800;
-		color: #1c1c1e;
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
 	}
 
 	.summary-score-unit {
-		font-size: 18rpx;
-		color: #8e8e93;
+		font-size: 20rpx;
+		color: #8c7662;
 		margin-left: 2rpx;
-		margin-bottom: -6rpx;
 	}
 
 	.summary-dim-name {
-		font-size: 24rpx;
-		color: #636366;
+		font-size: 26rpx;
+		color: #5a3e2b;
+		font-weight: 500;
 	}
 
-	.lifeLine-border { border-color: #ff3b30; }
-	.wisdomLine-border { border-color: #4cd964; }
-	.emotionLine-border { border-color: #007aff; }
-	.careerLine-border { border-color: #ff9500; }
+	.lifeLine-border { border-color: #b76e4a; }
+	.wisdomLine-border { border-color: #6b8e23; }
+	.emotionLine-border { border-color: #4a7ab7; }
+	.careerLine-border { border-color: #b7a04a; }
 
 	/* 交互式图解样式 */
 	.interactive-section {
 		background-color: #fff;
-		border-radius: 30rpx;
-		padding: 30rpx;
-		margin-bottom: 24rpx;
-		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+		border-radius: 12rpx;
+		padding: 40rpx 30rpx;
+		margin-bottom: 30rpx;
+		border: 1rpx solid #e8e0cc;
 	}
 
 	.section-header {
-		margin-bottom: 24rpx;
+		margin-bottom: 30rpx;
+		border-left: 8rpx solid #5a3e2b;
+		padding-left: 20rpx;
 	}
 
 	.section-title {
-		font-size: 32rpx;
+		font-size: 34rpx;
 		font-weight: bold;
-		color: #1c1c1e;
+		color: #5a3e2b;
 		display: block;
-		margin-bottom: 8rpx;
+		margin-bottom: 10rpx;
 	}
 
 	.section-tips {
-		font-size: 22rpx;
-		color: #aeaeb2;
+		font-size: 24rpx;
+		color: #8c7662;
 	}
 
 	.hand-visual-container {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		background-color: #f8f8f8;
-		border-radius: 24rpx;
-		padding: 20rpx;
-		margin-bottom: 24rpx;
+		background-color: #fdfaf5;
+		border-radius: 12rpx;
+		padding: 25rpx;
+		margin-bottom: 30rpx;
+		border: 1rpx solid #f0eadd;
 	}
 
 	.hand-visual-wrapper {
 		position: relative;
-		width: 450rpx;
-		height: 550rpx;
-		border-radius: 20rpx;
+		width: 480rpx;
+		height: 580rpx;
+		border-radius: 12rpx;
 		overflow: hidden;
 		background-color: #eee;
+		border: 4rpx solid #5a3e2b;
 	}
 
 	.user-hand-image {
@@ -782,7 +877,7 @@
 		width: 100%;
 		height: 100%;
 		z-index: 2;
-		opacity: 0.5;
+		opacity: 0.4;
 		pointer-events: none;
 	}
 
@@ -795,64 +890,67 @@
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
-		background-color: rgba(0, 122, 255, 0.9);
-		padding: 8rpx 20rpx;
-		border-radius: 30rpx;
+		background-color: rgba(90, 62, 43, 0.85);
+		padding: 10rpx 25rpx;
+		border-radius: 40rpx;
 		z-index: 10;
 	}
 
 	.label-text {
 		color: #fff;
-		font-size: 22rpx;
+		font-size: 24rpx;
 		font-weight: bold;
 	}
 
 	.line-brief-info {
 		width: 100%;
-		margin-top: 20rpx;
-		padding: 20rpx;
+		margin-top: 25rpx;
+		padding: 25rpx;
 		background-color: #fff;
-		border-radius: 16rpx;
-		border-left: 8rpx solid #007aff;
+		border-radius: 8rpx;
+		border-left: 10rpx solid #5a3e2b;
+		box-shadow: 0 4rpx 15rpx rgba(0,0,0,0.02);
 	}
 
 	.brief-title {
-		font-size: 28rpx;
+		font-size: 30rpx;
 		font-weight: bold;
-		color: #1c1c1e;
-		margin-bottom: 8rpx;
+		color: #5a3e2b;
+		margin-bottom: 10rpx;
 		display: block;
 	}
 
 	.brief-desc {
-		font-size: 24rpx;
+		font-size: 26rpx;
 		color: #636366;
-		line-height: 1.5;
+		line-height: 1.6;
 	}
 
 	.line-selector {
 		display: flex;
 		flex-direction: row;
 		justify-content: center;
-		gap: 16rpx;
+		gap: 20rpx;
 		flex-wrap: wrap;
 	}
 
 	.selector-item {
-		padding: 12rpx 24rpx;
-		background-color: #f2f2f7;
-		border-radius: 30rpx;
+		padding: 14rpx 30rpx;
+		background-color: #fff;
+		border-radius: 40rpx;
+		border: 1rpx solid #c8b99b;
 		transition: all 0.3s ease;
 	}
 
 	.selector-item.active {
-		background-color: #007aff;
-		box-shadow: 0 4rpx 12rpx rgba(0, 122, 255, 0.2);
+		background-color: #5a3e2b;
+		border-color: #5a3e2b;
+		box-shadow: 0 4rpx 15rpx rgba(90, 62, 43, 0.2);
 	}
 
 	.selector-text {
-		font-size: 24rpx;
-		color: #8e8e93;
+		font-size: 26rpx;
+		color: #8c7662;
 	}
 
 	.selector-item.active .selector-text {
@@ -862,14 +960,15 @@
 
 	/* 深度解读样式 */
 	.dimensions-section {
-		margin-bottom: 24rpx;
+		margin-bottom: 30rpx;
 	}
 
 	.dimension-card {
 		background-color: #fff;
-		border-radius: 30rpx;
-		padding: 30rpx;
-		margin-bottom: 20rpx;
+		border-radius: 12rpx;
+		padding: 40rpx 30rpx;
+		margin-bottom: 25rpx;
+		border: 1rpx solid #e8e0cc;
 		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
 	}
 
@@ -877,49 +976,59 @@
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		gap: 16rpx;
-		margin-bottom: 16rpx;
+		gap: 20rpx;
+		margin-bottom: 20rpx;
+		border-bottom: 1rpx dashed #f0eadd;
+		padding-bottom: 15rpx;
 	}
 
 	.dim-icon-box {
-		width: 64rpx;
-		height: 64rpx;
-		border-radius: 16rpx;
+		width: 90rpx;
+		height: 90rpx;
+		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 32rpx;
+		flex-shrink: 0;
+		background-color: #fdfaf5;
+		border: 1rpx solid #e8e0cc;
 	}
 
-	.career-icon { background-color: #e3f2fd; }
-	.love-icon { background-color: #fce4ec; }
-	.health-icon { background-color: #e8f5e9; }
-	.personality-icon { background-color: #fff3e0; }
+	.dim-custom-icon {
+		width: 60rpx;
+		height: 60rpx;
+	}
+
+	.career-icon { color: #b7a04a; }
+	.love-icon { color: #b76e4a; }
+	.health-icon { color: #6b8e23; }
+	.personality-icon { color: #4a7ab7; }
 
 	.dimension-title {
-		font-size: 30rpx;
+		font-size: 32rpx;
 		font-weight: bold;
-		color: #1c1c1e;
+		color: #5a3e2b;
 	}
 
 	.dimension-content {
-		font-size: 26rpx;
+		font-size: 28rpx;
 		color: #636366;
-		line-height: 1.6;
+		line-height: 1.7;
 	}
 
 	/* 掌部特征样式 */
 	.features-section {
-		margin-bottom: 24rpx;
+		margin-bottom: 30rpx;
 	}
 
 	.features-card {
 		background-color: #fff;
-		border-radius: 30rpx;
-		padding: 30rpx;
+		border-radius: 12rpx;
+		padding: 40rpx 30rpx;
 		display: flex;
 		flex-direction: column;
-		gap: 20rpx;
+		gap: 25rpx;
+		border: 1rpx solid #e8e0cc;
 	}
 
 	.feature-item {
@@ -927,8 +1036,8 @@
 		flex-direction: row;
 		justify-content: space-between;
 		align-items: center;
-		padding-bottom: 16rpx;
-		border-bottom: 1rpx solid #f2f2f7;
+		padding-bottom: 20rpx;
+		border-bottom: 1rpx dashed #f0eadd;
 	}
 
 	.feature-item:last-child {
@@ -937,80 +1046,82 @@
 	}
 
 	.feature-label {
-		font-size: 26rpx;
-		color: #8e8e93;
+		font-size: 28rpx;
+		color: #8c7662;
 	}
 
 	.feature-value {
-		font-size: 26rpx;
-		color: #1c1c1e;
-		font-weight: 500;
+		font-size: 28rpx;
+		color: #5a3e2b;
+		font-weight: bold;
 	}
 
 	/* 专家建议样式 */
 	.suggestions-section {
-		margin-bottom: 40rpx;
+		margin-bottom: 50rpx;
 	}
 
 	.suggestions-card {
 		background-color: #fff;
-		border-radius: 30rpx;
-		padding: 30rpx;
+		border-radius: 12rpx;
+		padding: 40rpx 30rpx;
 		display: flex;
 		flex-direction: column;
-		gap: 30rpx;
+		gap: 35rpx;
+		border: 1rpx solid #e8e0cc;
 	}
 
 	.suggestion-group {
 		display: flex;
 		flex-direction: column;
-		gap: 12rpx;
+		gap: 15rpx;
 	}
 
 	.suggestion-header {
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		gap: 12rpx;
+		gap: 15rpx;
 	}
 
 	.suggestion-dot {
-		width: 12rpx;
-		height: 12rpx;
+		width: 14rpx;
+		height: 14rpx;
 		border-radius: 50%;
 	}
 
-	.career-dot { background-color: #007aff; }
-	.life-dot { background-color: #4cd964; }
+	.career-dot { background-color: #b7a04a; }
+	.life-dot { background-color: #6b8e23; }
 
 	.suggestion-type {
-		font-size: 26rpx;
+		font-size: 30rpx;
 		font-weight: bold;
-		color: #1c1c1e;
+		color: #5a3e2b;
 	}
 
 	.suggestion-text {
-		font-size: 26rpx;
+		font-size: 28rpx;
 		color: #636366;
-		line-height: 1.5;
+		line-height: 1.6;
 	}
 
 	.suggestion-footer {
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		gap: 12rpx;
-		background-color: #f2f2f7;
-		padding: 20rpx;
-		border-radius: 16rpx;
+		gap: 15rpx;
+		background-color: #fdfaf5;
+		padding: 25rpx;
+		border-radius: 8rpx;
+		border: 1rpx solid #f0eadd;
 	}
 
-	.tip-icon { font-size: 24rpx; }
+	.tip-icon { font-size: 28rpx; }
 
 	.tip-text {
-		font-size: 22rpx;
-		color: #8e8e93;
-		line-height: 1.4;
+		font-size: 24rpx;
+		color: #8c7662;
+		line-height: 1.5;
 	}
 
 	/* 通用底部 */
@@ -1018,33 +1129,36 @@
 		display: flex;
 		flex-direction: row;
 		width: 100%;
-		padding: 30rpx 40rpx 50rpx;
-		background-color: #fff;
+		padding: 40rpx 40rpx 60rpx;
+		background-color: #fdf7ee;
 		box-sizing: border-box;
-		gap: 20rpx;
+		gap: 25rpx;
+		justify-content: center;
 	}
 
 	.footer-btn {
 		flex: 1;
-		height: 90rpx;
-		border-radius: 45rpx;
+		max-width: 320rpx;
+		height: 100rpx;
+		border-radius: 50rpx;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 28rpx;
+		font-size: 30rpx;
 		font-weight: bold;
 		border: none;
 	}
 
 	.btn-primary {
-		background-color: #007aff;
+		background-color: #5a3e2b;
 		color: #fff;
-		box-shadow: 0 8rpx 20rpx rgba(0, 122, 255, 0.2);
+		box-shadow: 0 8rpx 20rpx rgba(90, 62, 43, 0.2);
 	}
 
 	.btn-secondary {
-		background-color: #f2f2f7;
-		color: #8e8e93;
+		background-color: #fff;
+		color: #5a3e2b;
+		border: 1rpx solid #5a3e2b;
 	}
 
 	.analyzing-placeholder {
@@ -1053,15 +1167,80 @@
 		justify-content: center;
 		height: 400rpx;
 		background-color: #fff;
-		border-radius: 30rpx;
+		border-radius: 12rpx;
+		border: 1rpx solid #e8e0cc;
 	}
 
 	.analyzing-text {
-		font-size: 28rpx;
-		color: #8e8e93;
+		font-size: 30rpx;
+		color: #8c7662;
 	}
 
 	.btn-text {
 		color: inherit;
+		font-weight: bold;
+	}
+
+	/* 微信引流弹窗样式 */
+	.wechat-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 999;
+	}
+
+	.wechat-dialog {
+		width: 620rpx;
+		padding: 50rpx 40rpx 40rpx;
+		border-radius: 12rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		border: 4rpx solid #5a3e2b;
+	}
+
+	.wechat-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 30rpx;
+		letter-spacing: 2rpx;
+	}
+
+	.wechat-qrcode {
+		width: 400rpx;
+		margin-bottom: 30rpx;
+		border: 1rpx solid #eee;
+	}
+
+	.wechat-desc {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+		text-align: center;
+		margin-bottom: 40rpx;
+	}
+
+	.wechat-close-btn {
+		width: 100%;
+		height: 90rpx;
+		border-radius: 45rpx;
+		background-color: #5a3e2b;
+		color: #fff;
+		font-size: 30rpx;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		box-shadow: 0 4rpx 15rpx rgba(90, 62, 43, 0.2);
 	}
 </style>

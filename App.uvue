@@ -44,12 +44,28 @@
 <style>
 	/* 全局移动端样式 */
 	page {
-		width: 750rpx;
-		max-width: 100vw;
+		width: 100%;
 		min-height: 100vh;
 		box-sizing: border-box;
-		overflow-x: hidden;
+		background-color: #fdf7ee;
+		display: flex;
+		justify-content: center;
 	}
+
+	/* #ifdef H5 */
+	/* 强制 H5 端导航栏颜色与主题对齐 */
+	uni-page-head {
+		background-color: #fdf7ee !important;
+	}
+	uni-page-head .uni-page-head {
+		background-color: #fdf7ee !important;
+	}
+	uni-page-body {
+		background-color: #fdf7ee !important;
+		display: flex;
+		justify-content: center;
+	}
+	/* #endif */
 
 	/*每个页面公共css */
 	.uni-row {
