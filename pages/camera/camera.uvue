@@ -714,6 +714,17 @@
 						handSide: this.handSide
 					});
 
+					// 新增：判断图片是否合法
+					if (result.isInvalid === true) {
+						uni.showToast({
+							title: result.errorMsg || '识别失败，请确保上传手掌图片',
+							icon: 'none',
+							duration: 5000
+						});
+						this.isAnalyzing = false;
+						return;
+					}
+
 					this.analyzingStatus = '命理推演完成，正在生成报告...';
 					await new Promise(resolve => setTimeout(resolve, 800)); // 增加一点停顿
 

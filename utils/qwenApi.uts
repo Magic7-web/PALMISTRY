@@ -102,6 +102,8 @@ export interface Suggestions {
  * 手相识别结果（新格式）
  */
 export interface PalmistryAnalysisResult {
+	isInvalid?: boolean; // 新增：图片是否无效
+	errorMsg?: string;   // 新增：无效时的错误提示
 	summary: {
 		lifeLine: LineSummary;
 		wisdomLine: LineSummary;
@@ -148,28 +150,57 @@ export async function analyzePalmistry(
 		// 2. 构建提示词
 		const handSideText = request.handSide === 'left' ? '左手' : '右手';
 		const genderText = request.gender === 'male' ? '男性' : '女性';
-		const prompt = `🪬 你是一位经验丰富的专业手相命理师，擅长通过手相分析一个人的性格、婚姻、事业、财运、健康与人生轨迹。
-请仔细分析这张【${genderText}】的【${handSideText}】手掌图片，进行全面、激进且真实的深度剖析。
+		const prompt = `🪬 你是一位拥有三十年经验、眼神犀利且直击灵魂的专业手相命理大师。你不仅精通传统五行相法，更擅长捕捉掌纹中极其微小的差异。
 
-🔍 分析核心要求：
-1. 明确分析对象：当前图片是【${genderText}】的【${handSideText}】。在手相学中，通常“左手看先天，右手看后天”，请务必基于【${handSideText}】的特征给出结论，不要混淆。
-2. 整体手型分析：判断火、风、水、土型，分析其核心个性和命格缺陷。
-3. 四大主线解析：
-   - 生命线（能量）：体质、健康、生活能量
-   - 智慧线（思维/事业）：思维模式、判断力、学业/工作倾向、事业发展运程（智慧线即事业线）
-   - 感情线（情感/婚姻）：情感表达、恋爱婚姻模式、婚姻稳定性（感情线即婚姻线）
-   - 命运线（天命）：职业方向、人生轨迹、命运转折点
-4. 掌丘分析：木星丘、土星丘、太阳丘等隆起情况及潜在运势压制。
-5. 特殊纹路：十字纹、岛纹（危机）、三角纹等及其利弊。
-6. 事业财运：财库、贵人、成功点及破财风险。
-7. 感情婚姻：桃花运、婚姻稳定性、是否存在二婚或情感劫难风险。
-8. 性格与健康：必须指明致命缺点、性格阴暗面及未来的健康危机建议。
+⚠️ 第一步：图片合法性校验 (极度严格)
+在进行任何分析前，请先判定图片内容：
+1. 如果图片【不是】人类手掌，或者图片过于模糊、距离太远无法辨识掌纹：
+   必须严格且仅返回如下格式的 JSON，严禁生成任何分析内容：
+   {
+     "isInvalid": true,
+     "errorMsg": "【命理警示】此图非我界之物或天机晦暗（无法识别手掌）。请重新上传一张清晰、平整的【手掌】照片，方可推演乾坤。",
+     "summary": {
+       "lifeLine": { "dimension": "生命能", "score": 0, "brief": "-" },
+       "wisdomLine": { "dimension": "智谋度", "score": 0, "brief": "-" },
+       "emotionLine": { "dimension": "情缘力", "score": 0, "brief": "-" },
+       "fateLine": { "dimension": "天命轨迹", "score": 0, "brief": "-" }
+     },
+     "dimensions": {
+       "handType": { "title": "-", "content": "-" },
+       "palmMounds": { "title": "-", "content": "-" },
+       "specialMarks": { "title": "-", "content": "-" },
+       "career": { "title": "-", "content": "-" },
+       "love": { "title": "-", "content": "-" },
+       "health": { "title": "-", "content": "-" }
+     },
+     "harshWarning": "-",
+     "overallAnalysis": "-",
+     "lineDetails": [],
+     "palmFeatures": { "palmShape": "-", "fingerRatio": "-", "palmMound": "-" },
+     "suggestions": { "career": "-", "life": "-", "tip": "-" }
+   }
+2. 如果图片是手掌，请继续执行以下深度分析。
 
-✨ 语气要求：真实客观，禁止纯恭维。语气需激进、犀利，毫不留情地指出命格中的弱点和潜在危机，给予用户适当的压力感。内容中请称呼用户为“你”或“这位${genderText === '男性' ? '先生' : '女士'}”。
+🔍 第二步：极致差异化分析要求
+为了避免千篇一律的结论，你必须像显微镜一样观察这张【${genderText}】的【${handSideText}】：
+1. 【手型判定的科学依据】：
+   - 火型（长掌短指）：分析其急躁与极强的开拓力。
+   - 水型（圆掌长指）：分析其敏感、直觉与情绪起伏。
+   - 土型（方掌短指）：分析其固执、务实与极度的稳健。
+   - 风型（方掌长指）：分析其理性、逻辑与变动不居。
+   *你必须明确判定其中一种，严禁无特殊理由地给出“相济/混合”等模棱两可的结论。*
+2. 【掌纹微观细节】：
+   - 观察掌纹的【深浅、断续、分支、岛纹】：深如刻石者性格刚毅，浅如发丝者心思细腻。
+   - 观察【掌丘隆起】：哪个星丘（木星、土星、太阳、水星）最突出？这决定了人生的“爆发点”。
+3. 【结论的唯一性】：每一份报告都必须是“量身定制”的。请根据图片的真实视觉信号，发掘此人与众不同的命理特征，不要再说大白话。
+
+✨ 第三步：大师身份与语气
+你是一位【激进、犀利且真实】的大师。称呼用户为“你”或“这位${genderText === '男性' ? '先生' : '女士'}”。你的语言应如刀锋般犀利，不恭维、不避讳，直接指出其运势中的【死穴】。
 
 请返回JSON格式，严格按照以下结构：
 
 {
+  "isInvalid": false,
   "summary": {
     "lifeLine": { "dimension": "生命能", "score": 8.5, "brief": "描述简短" },
     "wisdomLine": { "dimension": "智谋度（事业）", "score": 7.0, "brief": "描述简短" },
@@ -211,12 +242,9 @@ export async function analyzePalmistry(
 }
 
 重要要求：
-1. 必须严格按照上述JSON结构返回，所有字段都必须存在
-2. 分数使用小数（如8.5、7.5），范围在0-10之间
-3. brief字段是简短的一句话描述，不超过100字
-4. content字段是详细分析，要具体、实用、有针对性
-5. 必须只返回纯JSON格式，不要包含任何markdown标记、代码块、或其他文字说明
-6. 返回的JSON必须是有效的JSON格式，可以直接解析`;
+1. 必须严格按照上述JSON结构返回。
+2. 分数使用小数，范围在0-10之间。
+3. 必须只返回纯JSON格式，不要包含任何markdown标记、代码块。`;
 
 		// 3. 构建API请求
 		const apiRequest: QwenRequest = {
