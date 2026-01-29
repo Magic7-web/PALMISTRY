@@ -24,6 +24,18 @@
 					<view class="section-header">
 						<text class="section-title">第一章 · 综合命格</text>
 					</view>
+					
+					<!-- 致命命理警示 -->
+					<view class="harsh-warning-card" v-if="reportData.fullData && reportData.fullData.harshWarning">
+						<view class="warning-header">
+							<image class="warning-stamp" src="/static/favicon.png" mode="aspectFit"></image>
+							<text class="warning-title">天机·凶吉预警</text>
+						</view>
+						<view class="warning-content">
+							<text class="warning-text">{{ reportData.fullData.harshWarning }}</text>
+						</view>
+					</view>
+
 					<view class="summary-grid" v-if="reportData.fullData">
 						<view class="summary-item" v-for="(item, key) in reportData.fullData.summary" :key="key">
 							<view class="summary-score-circle" :class="key + '-border'">
@@ -51,17 +63,45 @@
 								mode="aspectFit"
 							></image>
 							
-							<!-- 卡通手底图 (上层，用于定位和参考) -->
+							<!-- 卡通手底图 (仅在未选中线条时显示，用于定位和参考) -->
 							<image 
+								v-if="!activeLineType"
 								class="hand-base-image" 
-								:class="{ 'mirror': gender === 'female' }"
+								:class="{ 'mirror': handSide === 'right' }"
 								src="/static/hand.png" 
 								mode="aspectFit"
 							></image>
 
-							<!-- 标注文字 -->
-							<view class="line-label-overlay" v-if="activeLineType">
-								<text class="label-text">{{ activeLineType }}</text>
+							<!-- 动态线条层 -->
+							<view class="hand-lines-glow-layer">
+								<image 
+									v-if="activeLineType === '生命线'" 
+									class="line-glow-img" 
+									:class="{ 'mirror': handSide === 'right' }"
+									src="@/static/hand-life.png" 
+									mode="aspectFit"
+								></image>
+								<image 
+									v-if="activeLineType === '智慧线'" 
+									class="line-glow-img" 
+									:class="{ 'mirror': handSide === 'right' }"
+									src="@/static/Cause-hand.png" 
+									mode="aspectFit"
+								></image>
+								<image 
+									v-if="activeLineType === '感情线'" 
+									class="line-glow-img" 
+									:class="{ 'mirror': handSide === 'right' }"
+									src="@/static/feeling-hand.png" 
+									mode="aspectFit"
+								></image>
+								<image 
+									v-if="activeLineType === '命运线'" 
+									class="line-glow-img" 
+									:class="{ 'mirror': handSide === 'right' }"
+									src="@/static/fate-hand.png" 
+									mode="aspectFit"
+								></image>
 							</view>
 						</view>
 						
@@ -192,6 +232,7 @@
 	interface ReportPageData {
 		imagePath: string | null;
 		gender: Gender | null;
+		handSide: HandSide | null;
 		reportData: PalmistryReport | null;
 		isAnalyzing: boolean;
 		activeLineType: string | null;
@@ -204,6 +245,7 @@
 			return {
 				imagePath: null,
 				gender: null,
+				handSide: null,
 				reportData: null,
 				isAnalyzing: false,
 				activeLineType: null,
@@ -288,9 +330,11 @@
 								// 直接设置参数并启动分析，避免递归调用
 								this.imagePath = decodeURIComponent(params.imagePath);
 								this.gender = (params.gender as Gender) || 'male';
+								this.handSide = (params.handSide as HandSide) || (this.gender === 'male' ? 'left' : 'right');
 								console.log('从URL解析后的参数:', {
 									imagePath: this.imagePath ? this.imagePath.substring(0, 50) + '...' : 'null',
-									gender: this.gender
+									gender: this.gender,
+									handSide: this.handSide
 								});
 								console.log('开始调用startAnalysis...');
 								this.startAnalysis();
@@ -325,11 +369,13 @@
 				
 				let imagePath: string | null = null;
 				let gender: Gender = 'male';
+				let handSide: HandSide = 'left';
 				
 				// 1. 优先从URL参数获取（用于兼容其他平台或手动输入URL的情况）
 				if (options && options.imagePath) {
 					imagePath = decodeURIComponent(options.imagePath);
 					gender = (options.gender as Gender) || 'male';
+					handSide = (options.handSide as HandSide) || (gender === 'male' ? 'left' : 'right');
 					console.log('从URL参数获取成功');
 				} 
 				// 2. 从全局存储获取（主要方案）
@@ -341,6 +387,7 @@
 						if (storageData && storageData.imagePath) {
 							imagePath = storageData.imagePath;
 							gender = storageData.gender || 'male';
+							handSide = storageData.handSide || (gender === 'male' ? 'left' : 'right');
 							console.log('从全局存储获取成功');
 							
 							// 清除存储，避免重复使用
@@ -355,9 +402,11 @@
 				if (imagePath) {
 					this.imagePath = imagePath;
 					this.gender = gender;
+					this.handSide = handSide;
 					console.log('解析后的参数:', {
 						imagePath: this.imagePath.substring(0, 50) + '...',
-						gender: this.gender
+						gender: this.gender,
+						handSide: this.handSide
 					});
 					console.log('开始调用startAnalysis...');
 					this.startAnalysis();
@@ -403,7 +452,8 @@
 					// 调用真实API
 					const result = await analyzePalmistry({
 						imagePath: this.imagePath,
-						gender: this.gender
+						gender: this.gender!,
+						handSide: this.handSide!
 					});
 
 					console.log('=== API返回结果 ===', result);
@@ -549,7 +599,8 @@
 					id: `report_${Date.now()}`,
 					imagePath: this.imagePath!,
 					analyzeTime: timeString,
-					results: results
+					results: results,
+					fullData: apiResult // 保存完整数据
 				};
 				
 				// 默认选中第一条纹路
@@ -765,6 +816,70 @@
 		margin-bottom: 30rpx;
 		border: 1rpx solid #e8e0cc;
 		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	/* 国风预警卡片 */
+	.harsh-warning-card {
+		background-color: #fff9f8;
+		border: 2rpx solid #d9a09a;
+		border-radius: 12rpx;
+		padding: 0;
+		margin-bottom: 40rpx;
+		overflow: hidden;
+		box-shadow: 0 10rpx 30rpx rgba(168, 46, 46, 0.1);
+		position: relative;
+	}
+
+	.harsh-warning-card::before {
+		content: "!";
+		position: absolute;
+		right: -20rpx;
+		bottom: -40rpx;
+		font-size: 200rpx;
+		color: rgba(168, 46, 46, 0.05);
+		font-weight: bold;
+		z-index: 0;
+	}
+
+	.warning-header {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		padding: 25rpx 30rpx;
+		background: linear-gradient(to right, #fdecea, #fff9f8);
+		gap: 15rpx;
+		border-bottom: 2rpx solid #f5d0cd;
+		position: relative;
+		z-index: 1;
+	}
+
+	.warning-stamp {
+		width: 45rpx;
+		height: 45rpx;
+	}
+
+	.warning-title {
+		color: #a82e2e;
+		font-weight: 900;
+		font-size: 32rpx;
+		letter-spacing: 4rpx;
+		text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.05);
+	}
+
+	.warning-content {
+		padding: 35rpx 40rpx;
+		position: relative;
+		z-index: 1;
+	}
+
+	.warning-text {
+		color: #5a3e2b;
+		font-size: 30rpx;
+		line-height: 1.8;
+		font-weight: 600;
+		text-align: justify;
 	}
 
 	.summary-grid {
@@ -882,6 +997,32 @@
 	}
 
 	.hand-base-image.mirror {
+		transform: scaleX(-1);
+	}
+
+	.hand-lines-glow-layer {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 3;
+	}
+
+	.line-glow-img {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		z-index: 3;
+		filter: drop-shadow(0 0 10rpx #b76e4a) brightness(1.2);
+	}
+
+	.line-glow-img.mirror {
 		transform: scaleX(-1);
 	}
 

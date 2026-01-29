@@ -9,20 +9,44 @@
 				<view class="header-deco"></view>
 				<text class="header-subtitle">上传手掌照片，AI为您深度解读命理轨迹</text>
 				<view class="hand-switch">
-					<button 
-						class="hand-btn" 
-						:class="{ 'active': handSide === 'left' }"
-						@click="switchHand('left')"
-					>
-						<text class="hand-text">左手</text>
-					</button>
-					<button 
-						class="hand-btn" 
-						:class="{ 'active': handSide === 'right' }"
-						@click="switchHand('right')"
-					>
-						<text class="hand-text">右手</text>
-					</button>
+					<view class="switch-group">
+						<text class="switch-label">选择性别</text>
+						<view class="switch-buttons">
+							<button 
+								class="hand-btn mini" 
+								:class="{ 'active': gender === 'male' }"
+								@click="gender = 'male'"
+							>
+								<text class="hand-text">男</text>
+							</button>
+							<button 
+								class="hand-btn mini" 
+								:class="{ 'active': gender === 'female' }"
+								@click="gender = 'female'"
+							>
+								<text class="hand-text">女</text>
+							</button>
+						</view>
+					</view>
+					<view class="switch-group">
+						<text class="switch-label">选择手掌</text>
+						<view class="switch-buttons">
+							<button 
+								class="hand-btn mini" 
+								:class="{ 'active': handSide === 'left' }"
+								@click="switchHand('left')"
+							>
+								<text class="hand-text">左手</text>
+							</button>
+							<button 
+								class="hand-btn mini" 
+								:class="{ 'active': handSide === 'right' }"
+								@click="switchHand('right')"
+							>
+								<text class="hand-text">右手</text>
+							</button>
+						</view>
+					</view>
 				</view>
 			</view>
 
@@ -209,8 +233,13 @@
 
 			<!-- 分析中状态 -->
 			<view class="analyzing-area" v-else-if="isAnalyzing">
+				<view class="scan-animation-container">
+					<image class="scan-hand-bg" src="@/static/hand.png" :class="{ 'mirror': handSide === 'right' }" mode="aspectFit"></image>
+					<view class="scan-line"></view>
+					<view class="scan-glow"></view>
+				</view>
 				<view class="analyzing-content">
-					<text class="analyzing-text">正在分析手相，请稍候...</text>
+					<text class="analyzing-text">正在通过 AI 识纹推演...</text>
 					<text class="analyzing-status">{{ analyzingStatus }}</text>
 				</view>
 			</view>
@@ -307,6 +336,7 @@
 	interface CameraPageData {
 		capturedImage: string | null;
 		handSide: HandSide;
+		gender: 'male' | 'female';
 		imageScale: number;
 		imageOffsetX: number;
 		imageOffsetY: number;
@@ -331,6 +361,7 @@
 			return {
 				capturedImage: null,
 				handSide: 'left', // 默认左手
+				gender: 'male', // 默认男性
 				imageScale: 1.0, // 图片缩放比例
 				imageOffsetX: 0, // 图片X轴偏移
 				imageOffsetY: 0, // 图片Y轴偏移
@@ -666,31 +697,25 @@
 				}
 
 				this.isAnalyzing = true;
-				this.analyzingStatus = '正在转换图片格式...';
+				this.analyzingStatus = '正在通过 AI 提取掌纹信息...';
 				this.reportData = null;
 
 				try {
 					// 1. 将图片转换为base64（不进行上传）
 					console.log('开始转换图片为base64...');
-					console.log('图片路径:', this.capturedImage.substring(0, 50) + '...');
-					
 					const imageBase64 = await convertImageToBase64(this.capturedImage);
-					console.log('图片转换完成，base64长度:', imageBase64.length);
-					console.log('base64格式:', imageBase64.substring(0, 30) + '...');
 					
-					this.analyzingStatus = '图片准备完成，开始分析...';
+					this.analyzingStatus = '掌纹提取成功，正在推演命格...';
 
 					// 2. 调用API分析手相（使用base64）
-					console.log('开始调用API分析手相...');
-					this.analyzingStatus = 'AI正在分析手相...';
-					
 					const result = await analyzePalmistry({
-						imagePath: imageBase64, // 使用base64，格式：data:image/jpeg;base64,xxxxx
-						gender: this.handSide === 'left' ? 'male' : 'female' // 映射到API需要的参数
+						imagePath: imageBase64,
+						gender: this.gender,
+						handSide: this.handSide
 					});
 
-					console.log('=== API返回结果 ===', result);
-					console.log('识别到的线条数量:', result.lines?.length || 0);
+					this.analyzingStatus = '命理推演完成，正在生成报告...';
+					await new Promise(resolve => setTimeout(resolve, 800)); // 增加一点停顿
 
 					// 3. 生成报告数据
 					this.generateReportFromAPI(result);
@@ -1021,11 +1046,31 @@
 
 	.hand-switch {
 		display: flex;
-		flex-direction: row;
-		justify-content: center;
+		flex-direction: column;
 		align-items: center;
-		gap: 30rpx;
+		gap: 20rpx;
 		margin-top: 10rpx;
+		width: 100%;
+	}
+
+	.switch-group {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 20rpx;
+	}
+
+	.switch-label {
+		font-size: 24rpx;
+		color: #8c7662;
+		width: 100rpx;
+		text-align: right;
+	}
+
+	.switch-buttons {
+		display: flex;
+		flex-direction: row;
+		gap: 15rpx;
 	}
 
 	.hand-btn {
@@ -1039,6 +1084,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.hand-btn.mini {
+		padding: 8rpx 30rpx;
+		min-width: 100rpx;
 	}
 
 	.hand-btn.active {
@@ -1567,39 +1617,58 @@
 		padding: 0;
 		margin-bottom: 30rpx;
 		overflow: hidden;
+		box-shadow: 0 10rpx 30rpx rgba(168, 46, 46, 0.1);
+		position: relative;
+	}
+
+	.harsh-warning-card::before {
+		content: "!";
+		position: absolute;
+		right: -20rpx;
+		bottom: -40rpx;
+		font-size: 200rpx;
+		color: rgba(168, 46, 46, 0.05);
+		font-weight: bold;
+		z-index: 0;
 	}
 
 	.warning-header {
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		padding: 20rpx 30rpx;
-		background-color: #fdecea;
+		padding: 25rpx 30rpx;
+		background: linear-gradient(to right, #fdecea, #fff9f8);
 		gap: 15rpx;
-		border-bottom: 1rpx solid #f5d0cd;
+		border-bottom: 2rpx solid #f5d0cd;
+		position: relative;
+		z-index: 1;
 	}
 
 	.warning-stamp {
-		width: 40rpx;
-		height: 40rpx;
+		width: 45rpx;
+		height: 45rpx;
 	}
 
 	.warning-title {
 		color: #a82e2e;
-		font-weight: bold;
-		font-size: 30rpx;
-		letter-spacing: 2rpx;
+		font-weight: 900;
+		font-size: 32rpx;
+		letter-spacing: 4rpx;
+		text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.05);
 	}
 
 	.warning-content {
-		padding: 30rpx;
+		padding: 35rpx 40rpx;
+		position: relative;
+		z-index: 1;
 	}
 
 	.warning-text {
 		color: #5a3e2b;
-		font-size: 28rpx;
+		font-size: 30rpx;
 		line-height: 1.8;
-		font-weight: 500;
+		font-weight: 600;
+		text-align: justify;
 	}
 
 	/* 综合命定结论卡片 */
@@ -1956,28 +2025,80 @@
 	/* 分析中状态样式 */
 	.analyzing-area {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		width: 100%;
 		height: 100%;
 		background-color: #fff;
+		gap: 40rpx;
+	}
+
+	.scan-animation-container {
+		position: relative;
+		width: 400rpx;
+		height: 500rpx;
+		background-color: #fdfaf5;
+		border-radius: 20rpx;
+		overflow: hidden;
+		border: 2rpx solid #e8e0cc;
+	}
+
+	.scan-hand-bg {
+		width: 100%;
+		height: 100%;
+		opacity: 0.2;
+	}
+
+	.scan-hand-bg.mirror {
+		transform: scaleX(-1);
+	}
+
+	.scan-line {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 4rpx;
+		background: linear-gradient(to right, transparent, #b76e4a, transparent);
+		box-shadow: 0 0 15rpx #b76e4a;
+		animation: scanMove 3s linear infinite;
+		z-index: 5;
+	}
+
+	.scan-glow {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100rpx;
+		background: linear-gradient(to bottom, rgba(183, 110, 74, 0.2), transparent);
+		animation: scanMove 3s linear infinite;
+		z-index: 4;
+	}
+
+	@keyframes scanMove {
+		0% { transform: translateY(-100rpx); }
+		100% { transform: translateY(600rpx); }
 	}
 
 	.analyzing-content {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 30rpx;
+		gap: 15rpx;
 	}
 
 	.analyzing-text {
-		font-size: 36rpx;
-		color: #1c1c1e;
+		font-size: 34rpx;
+		color: #5a3e2b;
 		font-weight: bold;
+		letter-spacing: 2rpx;
 	}
 
 	.analyzing-status {
-		font-size: 26rpx;
-		color: #8e8e93;
+		font-size: 24rpx;
+		color: #8c7662;
+		font-style: italic;
 	}
 </style>
