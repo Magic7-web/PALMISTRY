@@ -3,6 +3,8 @@
  */
 
 import { QWEN_CONFIG } from './config';
+import type { PalmistryAnalysisResult } from '@/types/index';
+import type { AppLocale } from '@/utils/locale';
 
 /**
  * Qwen API 消息内容
@@ -48,81 +50,16 @@ interface QwenResponse {
 	};
 }
 
-/**
- * 线条评分摘要
- */
-export interface LineSummary {
-	dimension: string; // 维度名称，如"健康维度"、"思维维度"
-	score: number; // 评分，0-10之间的小数
-	brief: string; // 简短描述
-}
-
-/**
- * 维度详细分析
- */
-export interface DimensionDetail {
-	title: string; // 维度标题
-	content: string; // 详细分析内容
-}
-
-/**
- * 线条详细解读
- */
-export interface LineDetail {
-	type: string; // 线条类型：life, wisdom, emotion, career
-	typeName: string; // 线条中文名称
-	description: string; // 纹路描述
-	interpretation: {
-		thinking?: string; // 思维方式
-		learning?: string; // 学习能力
-		decision?: string; // 决策特点
-		[key: string]: string | undefined; // 其他解读字段
-	};
-}
-
-/**
- * 掌部特征
- */
-export interface PalmFeatures {
-	palmShape: string; // 手掌形态
-	fingerRatio: string; // 手指比例
-	palmMound: string; // 掌丘状态
-}
-
-/**
- * 建议内容
- */
-export interface Suggestions {
-	career: string; // 事业建议
-	life: string; // 生活建议
-	tip: string; // 温馨提示
-}
-
-/**
- * 手相识别结果（新格式）
- */
-export interface PalmistryAnalysisResult {
-	isInvalid?: boolean; // 新增：图片是否无效
-	errorMsg?: string;   // 新增：无效时的错误提示
-	summary: {
-		lifeLine: LineSummary;
-		wisdomLine: LineSummary;
-		emotionLine: LineSummary;
-		fateLine: LineSummary;
-	};
-	dimensions: {
-		handType: DimensionDetail;
-		palmMounds: DimensionDetail;
-		specialMarks: DimensionDetail;
-		career: DimensionDetail;
-		love: DimensionDetail;
-		health: DimensionDetail;
-	};
-	harshWarning: string;
-	overallAnalysis: string;
-	lineDetails: LineDetail[];
-	palmFeatures: PalmFeatures;
-	suggestions: Suggestions;
+/** 旧版线条识别结构（兼容 lines 数组格式） */
+export interface DetectedLine {
+	type: string;
+	typeName: string;
+	typeNameEn?: string;
+	description?: string;
+	descriptionEn?: string;
+	clarity?: number;
+	length?: number;
+	points?: Array<{ x: number; y: number }>;
 }
 
 /**
@@ -132,25 +69,22 @@ interface PalmistryAnalyzeRequest {
 	imagePath: string;
 	gender: 'male' | 'female';
 	handSide: 'left' | 'right';
+	/** 界面语言偏好（用于提示模型；中英文 JSON 字段均需返回） */
+	locale?: AppLocale;
 }
 
 /**
- * 调用通义千问API分析手相
+ * 构建多语言提示词（中文主文案 + 并行英文字段说明）
  */
-export async function analyzePalmistry(
-	request: PalmistryAnalyzeRequest
-): Promise<PalmistryAnalysisResult> {
-	try {
-		// 1. 直接使用传入的图片数据（支持在线URL或base64格式）
-		const imageData = request.imagePath;
-		const isBase64 = imageData.startsWith('data:image/');
-		console.log('使用图片数据:', imageData.substring(0, 50) + '...');
-		console.log('图片数据类型:', isBase64 ? 'base64' : 'URL');
+function buildPalmistryPrompt(handSideText: string, genderText: string, locale: AppLocale): string {
+	const localeHint =
+		locale === 'en'
+			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
+			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
+	return `🪬 你是一位拥有三十年经验、眼神犀利且直击灵魂的专业手相命理大师。你不仅精通传统五行相法，更擅长捕捉掌纹中极其微小的差异。
 
-		// 2. 构建提示词
-		const handSideText = request.handSide === 'left' ? '左手' : '右手';
-		const genderText = request.gender === 'male' ? '男性' : '女性';
-		const prompt = `🪬 你是一位拥有三十年经验、眼神犀利且直击灵魂的专业手相命理大师。你不仅精通传统五行相法，更擅长捕捉掌纹中极其微小的差异。
+【语言与输出】${localeHint}
+你必须在 JSON 中同时包含中文主字段与英文平行字段：summary 四条线各含 dimensionEn、briefEn；dimensions 各维度含 titleEn、contentEn；顶层含 harshWarningEn、overallAnalysisEn；palmFeatures 含 palmShapeEn、fingerRatioEn、palmMoundEn；suggestions 含 careerEn、lifeEn、tipEn。无效图时 errorMsg 与 errorMsgEn 均需给出。
 
 ⚠️ 第一步：图片合法性校验 (极度严格)
 在进行任何分析前，请先判定图片内容：
@@ -159,25 +93,28 @@ export async function analyzePalmistry(
    {
      "isInvalid": true,
      "errorMsg": "【命理警示】此图非我界之物或天机晦暗（无法识别手掌）。请重新上传一张清晰、平整的【手掌】照片，方可推演乾坤。",
+     "errorMsgEn": "This image is not a clear palm or cannot be read. Please upload a clear, flat photo of your palm.",
      "summary": {
-       "lifeLine": { "dimension": "生命能", "score": 0, "brief": "-" },
-       "wisdomLine": { "dimension": "智谋度", "score": 0, "brief": "-" },
-       "emotionLine": { "dimension": "情缘力", "score": 0, "brief": "-" },
-       "fateLine": { "dimension": "天命轨迹", "score": 0, "brief": "-" }
+       "lifeLine": { "dimension": "生命能", "dimensionEn": "Vitality", "score": 0, "brief": "-", "briefEn": "-" },
+       "wisdomLine": { "dimension": "智谋度", "dimensionEn": "Wisdom", "score": 0, "brief": "-", "briefEn": "-" },
+       "emotionLine": { "dimension": "情缘力", "dimensionEn": "Emotion", "score": 0, "brief": "-", "briefEn": "-" },
+       "fateLine": { "dimension": "天命轨迹", "dimensionEn": "Fate", "score": 0, "brief": "-", "briefEn": "-" }
      },
      "dimensions": {
-       "handType": { "title": "-", "content": "-" },
-       "palmMounds": { "title": "-", "content": "-" },
-       "specialMarks": { "title": "-", "content": "-" },
-       "career": { "title": "-", "content": "-" },
-       "love": { "title": "-", "content": "-" },
-       "health": { "title": "-", "content": "-" }
+       "handType": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
+       "palmMounds": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
+       "specialMarks": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
+       "career": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
+       "love": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
+       "health": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" }
      },
      "harshWarning": "-",
+     "harshWarningEn": "-",
      "overallAnalysis": "-",
+     "overallAnalysisEn": "-",
      "lineDetails": [],
-     "palmFeatures": { "palmShape": "-", "fingerRatio": "-", "palmMound": "-" },
-     "suggestions": { "career": "-", "life": "-", "tip": "-" }
+     "palmFeatures": { "palmShape": "-", "palmShapeEn": "-", "fingerRatio": "-", "fingerRatioEn": "-", "palmMound": "-", "palmMoundEn": "-" },
+     "suggestions": { "career": "-", "careerEn": "-", "life": "-", "lifeEn": "-", "tip": "-", "tipEn": "-" }
    }
 2. 如果图片是手掌，请继续执行以下深度分析。
 
@@ -195,33 +132,37 @@ export async function analyzePalmistry(
 3. 【结论的唯一性】：每一份报告都必须是“量身定制”的。请根据图片的真实视觉信号，发掘此人与众不同的命理特征，不要再说大白话。
 
 ✨ 第三步：大师身份与语气
-你是一位【激进、犀利且真实】的大师。称呼用户为“你”或“这位${genderText === '男性' ? '先生' : '女士'}”。你的语言应如刀锋般犀利，不恭维、不避讳，直接指出其运势中的【死穴】。
+你是一位【激进、犀利且真实】的大师。称呼用户为“你”或“这位${genderText === '男性' ? '先生' : '女士'}”。你的语言应如刀锋般犀利，不恭维、不避讳，直接指出其运势中的【死穴】。英文平行字段（*En）应语气专业、直白，与中文信息一致，不要编造与图片无关的内容。
 
-请返回JSON格式，严格按照以下结构：
+请返回JSON格式，严格按照以下结构（注意所有 *En 字段必须填写）：
 
 {
   "isInvalid": false,
   "summary": {
-    "lifeLine": { "dimension": "生命能", "score": 8.5, "brief": "描述简短" },
-    "wisdomLine": { "dimension": "智谋度（事业）", "score": 7.0, "brief": "描述简短" },
-    "emotionLine": { "dimension": "情缘力（婚姻）", "score": 6.0, "brief": "描述简短" },
-    "fateLine": { "dimension": "天命轨迹", "score": 7.5, "brief": "描述简短" }
+    "lifeLine": { "dimension": "生命能", "dimensionEn": "Vitality (Life Line)", "score": 8.5, "brief": "中文简短", "briefEn": "English brief" },
+    "wisdomLine": { "dimension": "智谋度（事业）", "dimensionEn": "Wisdom (Head Line)", "score": 7.0, "brief": "中文简短", "briefEn": "English brief" },
+    "emotionLine": { "dimension": "情缘力（婚姻）", "dimensionEn": "Emotion (Heart Line)", "score": 6.0, "brief": "中文简短", "briefEn": "English brief" },
+    "fateLine": { "dimension": "天命轨迹", "dimensionEn": "Fate Line", "score": 7.5, "brief": "中文简短", "briefEn": "English brief" }
   },
   "dimensions": {
-    "handType": { "title": "五行命格", "content": "详细内容..." },
-    "palmMounds": { "title": "星丘压制", "content": "详细内容..." },
-    "specialMarks": { "title": "凶吉征兆", "content": "详细内容..." },
-    "career": { "title": "财官利禄", "content": "详细内容..." },
-    "love": { "title": "红尘情孽", "content": "详细内容..." },
-    "health": { "title": "命元警示", "content": "详细内容..." }
+    "handType": { "title": "五行命格", "titleEn": "Five Elements / Hand Type", "content": "详细内容...", "contentEn": "English..." },
+    "palmMounds": { "title": "星丘压制", "titleEn": "Mounts", "content": "详细内容...", "contentEn": "English..." },
+    "specialMarks": { "title": "凶吉征兆", "titleEn": "Signs", "content": "详细内容...", "contentEn": "English..." },
+    "career": { "title": "财官利禄", "titleEn": "Career & Wealth", "content": "详细内容...", "contentEn": "English..." },
+    "love": { "title": "红尘情孽", "titleEn": "Love & Relationships", "content": "详细内容...", "contentEn": "English..." },
+    "health": { "title": "命元警示", "titleEn": "Health", "content": "详细内容...", "contentEn": "English..." }
   },
-  "harshWarning": "【致命命理警示】此处用最犀利、激进的语言指出其性格或运势中最致命的一个问题，字数约100字。",
-  "overallAnalysis": "综合命定结论：从宏观命理看...",
+  "harshWarning": "【致命命理警示】中文约100字。",
+  "harshWarningEn": "English warning, same meaning.",
+  "overallAnalysis": "综合命定结论：中文。",
+  "overallAnalysisEn": "Overall conclusion in English.",
   "lineDetails": [
     {
       "type": "wisdom",
       "typeName": "智慧线",
+      "typeNameEn": "Head Line",
       "description": "...",
+      "descriptionEn": "...",
       "interpretation": {
         "thinking": "...",
         "learning": "...",
@@ -231,20 +172,46 @@ export async function analyzePalmistry(
   ],
   "palmFeatures": {
     "palmShape": "...",
+    "palmShapeEn": "...",
     "fingerRatio": "...",
-    "palmMound": "..."
+    "fingerRatioEn": "...",
+    "palmMound": "...",
+    "palmMoundEn": "..."
   },
   "suggestions": {
     "career": "...",
+    "careerEn": "...",
     "life": "...",
-    "tip": "..."
+    "lifeEn": "...",
+    "tip": "...",
+    "tipEn": "..."
   }
 }
 
 重要要求：
-1. 必须严格按照上述JSON结构返回。
+1. 必须严格按照上述JSON结构返回，且所有 *En 字段必须为有效英文句子或短语（无效图时可用 "-"）。
 2. 分数使用小数，范围在0-10之间。
 3. 必须只返回纯JSON格式，不要包含任何markdown标记、代码块。`;
+}
+
+/**
+ * 调用通义千问API分析手相
+ */
+export async function analyzePalmistry(
+	request: PalmistryAnalyzeRequest
+): Promise<PalmistryAnalysisResult> {
+	try {
+		// 1. 直接使用传入的图片数据（支持在线URL或base64格式）
+		const imageData = request.imagePath;
+		const isBase64 = imageData.startsWith('data:image/');
+		console.log('使用图片数据:', imageData.substring(0, 50) + '...');
+		console.log('图片数据类型:', isBase64 ? 'base64' : 'URL');
+
+		// 2. 构建提示词（含中英双轨 JSON 字段说明）
+		const handSideText = request.handSide === 'left' ? '左手' : '右手';
+		const genderText = request.gender === 'male' ? '男性' : '女性';
+		const locale: AppLocale = request.locale != null ? request.locale : 'en';
+		const prompt = buildPalmistryPrompt(handSideText, genderText, locale);
 
 		// 3. 构建API请求
 		const apiRequest: QwenRequest = {
@@ -268,7 +235,7 @@ export async function analyzePalmistry(
 			},
 			parameters: {
 				temperature: 0.1, // 低温度，更稳定的输出
-				max_tokens: 4000, // 增加token数量以支持详细的分析内容
+				max_tokens: 5000, // 中英双轨需更长输出
 				top_p: 0.8
 			}
 		};

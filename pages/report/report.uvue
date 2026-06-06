@@ -1,10 +1,33 @@
 <template>
 	<view class="report-container">
+		<!-- 背景暗纹 -->
+		<view class="bg-decoration">
+			<view class="bg-bagua"></view>
+		</view>
+
 		<view class="report-content-wrapper">
 			<view class="report-header">
-				<view class="header-main">
-					<text class="header-title">手相深度分析报告 - 林公测算</text>
-					<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
+				<view class="header-top-row">
+					<view class="header-main-left">
+						<text class="header-title">{{ ui.headerTitle }}</text>
+						<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
+					</view>
+					<view class="header-lang-inline">
+						<button
+							class="lang-btn lang-btn-inline"
+							:class="{ active: locale === 'zh' }"
+							@click="setLocale('zh')"
+						>
+							中文
+						</button>
+						<button
+							class="lang-btn lang-btn-inline"
+							:class="{ active: locale === 'en' }"
+							@click="setLocale('en')"
+						>
+							EN
+						</button>
+					</view>
 				</view>
 				<view class="header-deco"></view>
 				<text class="header-time" v-if="reportData">{{ reportData.analyzeTime }}</text>
@@ -13,7 +36,7 @@
 			<!-- 占位内容（分析中） -->
 			<view class="analyzing-area" v-if="isAnalyzing">
 				<view class="analyzing-content">
-					<text class="analyzing-text">正在推演命理，请稍候...</text>
+					<text class="analyzing-text">{{ ui.analyzing }}</text>
 				</view>
 			</view>
 
@@ -22,17 +45,17 @@
 				<!-- 综合评价区 -->
 				<view class="summary-section">
 					<view class="section-header">
-						<text class="section-title">第一章 · 综合命格</text>
+						<text class="section-title">{{ ui.chapter1 }}</text>
 					</view>
 					
 					<!-- 致命命理警示 -->
 					<view class="harsh-warning-card" v-if="reportData.fullData && reportData.fullData.harshWarning">
 						<view class="warning-header">
 							<image class="warning-stamp" src="/static/favicon.png" mode="aspectFit"></image>
-							<text class="warning-title">天机·凶吉预警</text>
+							<text class="warning-title">{{ ui.warningTitle }}</text>
 						</view>
 						<view class="warning-content">
-							<text class="warning-text">{{ reportData.fullData.harshWarning }}</text>
+							<text class="warning-text">{{ pickTxt(reportData.fullData.harshWarning, reportData.fullData.harshWarningEn) }}</text>
 						</view>
 					</view>
 
@@ -40,9 +63,9 @@
 						<view class="summary-item" v-for="(item, key) in reportData.fullData.summary" :key="key">
 							<view class="summary-score-circle" :class="key + '-border'">
 								<text class="summary-score">{{ item.score }}</text>
-								<text class="summary-score-unit">分</text>
+								<text class="summary-score-unit">{{ ui.scoreUnit }}</text>
 							</view>
-							<text class="summary-dim-name">{{ item.dimension }}</text>
+							<text class="summary-dim-name">{{ pickTxt(item.dimension, item.dimensionEn) }}</text>
 						</view>
 					</view>
 				</view>
@@ -50,8 +73,8 @@
 				<!-- 交互式手相图解 -->
 				<view class="interactive-section">
 					<view class="section-header">
-						<text class="section-title">第二章 · 手相纹路解析</text>
-						<text class="section-tips">点击下方按钮查看对应纹路位置</text>
+						<text class="section-title">{{ ui.chapter2 }}</text>
+						<text class="section-tips">{{ ui.chapter2Tip }}</text>
 					</view>
 					
 					<view class="hand-visual-container">
@@ -107,8 +130,8 @@
 						
 						<!-- 纹路简要说明 -->
 						<view class="line-brief-info" v-if="activeLineType && activeLineData">
-							<text class="brief-title">{{ activeLineData.type }} - {{ activeLineData.title }}</text>
-							<text class="brief-desc">{{ activeLineData.description }}</text>
+							<text class="brief-title">{{ pickTxt(activeLineData.type, activeLineData.typeEn) }} - {{ pickTxt(activeLineData.title, activeLineData.titleEn) }}</text>
+							<text class="brief-desc">{{ pickTxt(activeLineData.description, activeLineData.descriptionEn) }}</text>
 						</view>
 					</view>
 					
@@ -120,7 +143,7 @@
 							:class="['selector-item', activeLineType === item.type ? 'active' : '']"
 							@click="setActiveLine(item.type)"
 						>
-							<text class="selector-text">{{ item.type }}</text>
+							<text class="selector-text">{{ pickTxt(item.type, item.typeEn) }}</text>
 						</view>
 					</view>
 				</view>
@@ -128,36 +151,36 @@
 				<!-- 详细维度分析 -->
 				<view class="dimensions-section" v-if="reportData.fullData">
 					<view class="section-header">
-						<text class="section-title">第三章 · 深度解读</text>
+						<text class="section-title">{{ ui.chapter3 }}</text>
 					</view>
 					<view class="dimension-card" v-for="(dim, key) in reportData.fullData.dimensions" :key="key">
 						<view class="dimension-header">
 							<view class="dim-icon-box" :class="key + '-icon'">
 								<image class="dim-custom-icon" :src="getDimensionIcon(key)" mode="aspectFit"></image>
 							</view>
-							<text class="dimension-title">{{ dim.title }}</text>
+							<text class="dimension-title">{{ dimTitle(dim) }}</text>
 						</view>
-						<text class="dimension-content">{{ dim.content }}</text>
+						<text class="dimension-content">{{ dimContent(dim) }}</text>
 					</view>
 				</view>
 
 				<!-- 掌部特征 -->
 				<view class="features-section" v-if="reportData.fullData && reportData.fullData.palmFeatures">
 					<view class="section-header">
-						<text class="section-title">第四章 · 掌部特征</text>
+						<text class="section-title">{{ ui.chapter4 }}</text>
 					</view>
 					<view class="features-card">
 						<view class="feature-item">
-							<text class="feature-label">手掌形态</text>
-							<text class="feature-value">{{ reportData.fullData.palmFeatures.palmShape }}</text>
+							<text class="feature-label">{{ ui.palmShape }}</text>
+							<text class="feature-value">{{ pickTxt(reportData.fullData.palmFeatures.palmShape, reportData.fullData.palmFeatures.palmShapeEn) }}</text>
 						</view>
 						<view class="feature-item">
-							<text class="feature-label">手指比例</text>
-							<text class="feature-value">{{ reportData.fullData.palmFeatures.fingerRatio }}</text>
+							<text class="feature-label">{{ ui.fingerRatio }}</text>
+							<text class="feature-value">{{ pickTxt(reportData.fullData.palmFeatures.fingerRatio, reportData.fullData.palmFeatures.fingerRatioEn) }}</text>
 						</view>
 						<view class="feature-item">
-							<text class="feature-label">掌丘状态</text>
-							<text class="feature-value">{{ reportData.fullData.palmFeatures.palmMound }}</text>
+							<text class="feature-label">{{ ui.palmMound }}</text>
+							<text class="feature-value">{{ pickTxt(reportData.fullData.palmFeatures.palmMound, reportData.fullData.palmFeatures.palmMoundEn) }}</text>
 						</view>
 					</view>
 				</view>
@@ -165,26 +188,26 @@
 				<!-- 专家建议 -->
 				<view class="suggestions-section" v-if="reportData.fullData && reportData.fullData.suggestions">
 					<view class="section-header">
-						<text class="section-title">第五章 · 命理谏言</text>
+						<text class="section-title">{{ ui.chapter5 }}</text>
 					</view>
 				<view class="suggestions-card">
 					<view class="suggestion-group">
 						<view class="suggestion-header">
 							<text class="suggestion-dot career-dot"></text>
-							<text class="suggestion-type">事业建议</text>
+							<text class="suggestion-type">{{ ui.careerSuggest }}</text>
 						</view>
-						<text class="suggestion-text">{{ reportData.fullData.suggestions.career }}</text>
+						<text class="suggestion-text">{{ pickTxt(reportData.fullData.suggestions.career, reportData.fullData.suggestions.careerEn) }}</text>
 					</view>
 					<view class="suggestion-group">
 						<view class="suggestion-header">
 							<text class="suggestion-dot life-dot"></text>
-							<text class="suggestion-type">生活建议</text>
+							<text class="suggestion-type">{{ ui.lifeSuggest }}</text>
 						</view>
-						<text class="suggestion-text">{{ reportData.fullData.suggestions.life }}</text>
+						<text class="suggestion-text">{{ pickTxt(reportData.fullData.suggestions.life, reportData.fullData.suggestions.lifeEn) }}</text>
 					</view>
 					<view class="suggestion-footer">
 						<text class="tip-icon">💡</text>
-						<text class="tip-text">{{ reportData.fullData.suggestions.tip }}</text>
+						<text class="tip-text">{{ pickTxt(reportData.fullData.suggestions.tip, reportData.fullData.suggestions.tipEn) }}</text>
 					</view>
 				</view>
 			</view>
@@ -193,29 +216,27 @@
 		<!-- 空状态（无数据且不在分析中） -->
 		<view class="report-content" v-if="!isAnalyzing && !reportData">
 			<view class="analyzing-placeholder">
-				<text class="analyzing-text">暂无分析结果</text>
+				<text class="analyzing-text">{{ ui.empty }}</text>
 			</view>
 		</view>
 
 		<view class="report-footer">
 			<button class="footer-btn btn-primary" @click="handleShowWechat">
-				<text class="btn-text">下载报告</text>
+				<text class="btn-text">{{ ui.download }}</text>
 			</button>
 			<button class="footer-btn btn-secondary" @click="handleBack">
-				<text class="btn-text">返回拍照</text>
+				<text class="btn-text">{{ ui.backCamera }}</text>
 			</button>
 		</view>
 
 		<!-- 微信引流弹窗：玄学大师版文案 -->
 		<view class="wechat-mask" v-if="showWechatDialog">
 			<view class="wechat-dialog">
-				<text class="wechat-title">获取完整手相命理推演</text>
+				<text class="wechat-title">{{ ui.wechatTitle }}</text>
 				<image class="wechat-qrcode" src="/static/wechact.jpg" mode="widthFix" />
-				<text class="wechat-desc">
-					你现在看到的只是手相命理的一角。若想进一步洞察姻缘、财运、事业走向，以及关键年份的福祸转折，请添加小助手微信。小助手会帮你对接资深命理老师，从手相、八字等多维度为你推演全局运势。
-				</text>
+				<text class="wechat-desc">{{ ui.wechatDesc }}</text>
 				<button class="wechat-close-btn" @click="showWechatDialog = false">
-					<text class="btn-text">我知道了</text>
+					<text class="btn-text">{{ ui.wechatOk }}</text>
 				</button>
 			</view>
 		</view>
@@ -224,12 +245,21 @@
 </template>
 
 <script lang="uts">
-	import type { PalmistryReport, ReportResult } from '@/types/index';
+	import type { PalmistryReport, ReportResult, DimensionDetail, PalmistryAnalysisResult } from '@/types/index';
 	import { analyzePalmistry, type DetectedLine } from '@/utils/qwenApi';
+	import {
+		getAppLocale,
+		setAppLocale,
+		getReportUi,
+		pickLocaleText,
+		type AppLocale
+	} from '@/utils/locale';
 
 	type Gender = 'male' | 'female';
+	type HandSide = 'left' | 'right';
 
 	interface ReportPageData {
+		locale: AppLocale;
 		imagePath: string | null;
 		gender: Gender | null;
 		handSide: HandSide | null;
@@ -243,6 +273,7 @@
 		name: 'ReportPage',
 		data(): ReportPageData {
 			return {
+				locale: 'en',
 				imagePath: null,
 				gender: null,
 				handSide: null,
@@ -253,6 +284,9 @@
 			};
 		},
 		computed: {
+			ui(): Record<string, string> {
+				return getReportUi(this.locale);
+			},
 			/**
 			 * 获取当前选中的纹路数据
 			 */
@@ -264,6 +298,8 @@
 		onLoad(options: Record<string, any>) {
 			console.log('=== onLoad 被调用 ===');
 			console.log('onLoad参数:', options);
+			this.locale = getAppLocale();
+			this.applyNavTitle();
 			this.initPage(options);
 		},
 		onShow() {
@@ -289,11 +325,34 @@
 			// #endif
 		},
 		methods: {
+			applyNavTitle(): void {
+				uni.setNavigationBarTitle({ title: getReportUi(this.locale).headerTitle });
+			},
+			setLocale(next: AppLocale): void {
+				if (this.locale === next) {
+					return;
+				}
+				this.locale = next;
+				setAppLocale(next);
+				this.applyNavTitle();
+			},
+			pickTxt(zhText: string, enText?: string | null): string {
+				return pickLocaleText(this.locale, zhText, enText);
+			},
+			dimTitle(dim: DimensionDetail): string {
+				return pickLocaleText(this.locale, dim.title, dim.titleEn);
+			},
+			dimContent(dim: DimensionDetail): string {
+				return pickLocaleText(this.locale, dim.content, dim.contentEn);
+			},
 			/**
 			 * 获取维度图标路径
 			 */
 			getDimensionIcon(key: string): string {
 				const icons: Record<string, string> = {
+					'handType': '/static/命格.png',
+					'palmMounds': '/static/命格.png',
+					'specialMarks': '/static/命格.png',
 					'career': '/static/事业.png',
 					'love': '/static/感情.png',
 					'health': '/static/健康.png',
@@ -413,7 +472,7 @@
 				} else {
 					console.error('缺少图片参数');
 					uni.showToast({
-						title: '缺少图片参数，请先拍照',
+						title: getReportUi(this.locale).toastNeedImage,
 						icon: 'none'
 					});
 				}
@@ -429,7 +488,7 @@
 						gender: this.gender
 					});
 					uni.showToast({
-						title: '缺少必要参数',
+						title: getReportUi(this.locale).toastMissingParams,
 						icon: 'none'
 					});
 					return;
@@ -445,7 +504,7 @@
 					console.log('=== 开始调用Qwen API进行手相识别 ===');
 					
 					uni.showLoading({
-						title: '正在分析中...',
+						title: getReportUi(this.locale).loadingAnalyzing,
 						mask: true
 					});
 					
@@ -453,18 +512,18 @@
 					const result = await analyzePalmistry({
 						imagePath: this.imagePath,
 						gender: this.gender!,
-						handSide: this.handSide!
+						handSide: this.handSide!,
+						locale: this.locale
 					});
 
 					console.log('=== API返回结果 ===', result);
-					console.log('识别到的线条数量:', result.lines?.length || 0);
 
 					// 将识别结果转换为报告格式
 					this.generateReportFromAPI(result);
 
 					uni.hideLoading();
 					uni.showToast({
-						title: '识别成功',
+						title: getReportUi(this.locale).toastSuccess,
 						icon: 'success'
 					});
 
@@ -513,9 +572,9 @@
 			},
 
 			/**
-			 * 从API结果生成报告
+			 * 从API结果生成报告（支持 summary 新格式与 lines 旧格式）
 			 */
-			generateReportFromAPI(apiResult: any): void {
+			generateReportFromAPI(apiResult: PalmistryAnalysisResult | any): void {
 				const now = new Date();
 				const year = now.getFullYear();
 				const month = this.formatNumber(now.getMonth() + 1);
@@ -524,91 +583,139 @@
 				const minutes = this.formatNumber(now.getMinutes());
 				const timeString = `${year}-${month}-${day} ${hours}:${minutes}`;
 
-				// 将API返回的线条转换为报告格式
-				const results: ReportResult[] = apiResult.lines.map((line: DetectedLine) => {
-					let title = '';
-					
-					switch(line.type) {
-						case 'life':
-							title = '健康运势';
-							break;
-						case 'wisdom':
-							title = '智力与思考';
-							break;
-						case 'emotion':
-							title = '情感与关系';
-							break;
-						default:
-							title = '运势分析';
-					}
-
-					return {
-						type: line.typeName,
-						title: title,
-						description: line.description || `${line.typeName}分析结果`,
-						score: line.clarity || Math.floor((line.length || 0) / 2),
-						points: line.points,
-						clarity: line.clarity
-					};
-				});
-
-				// 如果API返回了overall信息，添加到结果中
-				if (apiResult.overall) {
-					const overall = apiResult.overall;
-					
-					// 确保有健康、智慧、情感三项
-					const existingTypes = results.map(r => r.type);
-					
-					if (!existingTypes.includes('生命线') && overall.healthScore) {
-						results.unshift({
+				// 新格式：与拍照页一致的 summary（通义千问当前返回）
+				if (apiResult.summary != null && apiResult.summary.lifeLine != null) {
+					const s = apiResult.summary;
+					const results: ReportResult[] = [
+						{
 							type: '生命线',
-							title: '健康运势',
-							description: overall.summary || '生命线分析',
-							score: overall.healthScore
-						});
-					}
-					
-					if (!existingTypes.includes('智慧线') && overall.wisdomScore) {
-						const wisdomIndex = existingTypes.indexOf('智慧线') === -1 ? 1 : existingTypes.indexOf('智慧线');
-						results.splice(wisdomIndex, 0, {
+							typeEn: 'Life Line',
+							title: s.lifeLine.dimension,
+							titleEn: s.lifeLine.dimensionEn,
+							description: s.lifeLine.brief,
+							descriptionEn: s.lifeLine.briefEn,
+							score: s.lifeLine.score
+						},
+						{
 							type: '智慧线',
-							title: '智力与思考',
-							description: overall.summary || '智慧线分析',
-							score: overall.wisdomScore
-						});
-					}
-					
-					if (!existingTypes.includes('感情线') && overall.emotionScore) {
-						results.push({
+							typeEn: 'Head Line',
+							title: s.wisdomLine.dimension,
+							titleEn: s.wisdomLine.dimensionEn,
+							description: s.wisdomLine.brief,
+							descriptionEn: s.wisdomLine.briefEn,
+							score: s.wisdomLine.score
+						},
+						{
 							type: '感情线',
-							title: '情感与关系',
-							description: overall.summary || '感情线分析',
-							score: overall.emotionScore
-						});
+							typeEn: 'Heart Line',
+							title: s.emotionLine.dimension,
+							titleEn: s.emotionLine.dimensionEn,
+							description: s.emotionLine.brief,
+							descriptionEn: s.emotionLine.briefEn,
+							score: s.emotionLine.score
+						},
+						{
+							type: '命运线',
+							typeEn: 'Fate Line',
+							title: s.fateLine.dimension,
+							titleEn: s.fateLine.dimensionEn,
+							description: s.fateLine.brief,
+							descriptionEn: s.fateLine.briefEn,
+							score: s.fateLine.score
+						}
+					];
+					this.reportData = {
+						id: `report_${Date.now()}`,
+						imagePath: this.imagePath!,
+						analyzeTime: timeString,
+						results: results,
+						fullData: apiResult as PalmistryAnalysisResult
+					};
+					if (results.length > 0) {
+						this.activeLineType = (results[0] as ReportResult).type;
 					}
-				}
-
-				// 如果没有任何结果，使用模拟数据
-				if (results.length === 0) {
-					console.warn('API未返回有效结果，使用模拟数据');
-					this.generateMockReport();
+					console.log('报告生成完成', this.reportData);
 					return;
 				}
 
-				this.reportData = {
-					id: `report_${Date.now()}`,
-					imagePath: this.imagePath!,
-					analyzeTime: timeString,
-					results: results,
-					fullData: apiResult // 保存完整数据
-				};
-				
-				// 默认选中第一条纹路
-				if (results.length > 0) {
-					this.activeLineType = (results[0] as ReportResult).type;
+				// 旧格式：lines 数组
+				if (apiResult.lines != null && Array.isArray(apiResult.lines) && apiResult.lines.length > 0) {
+					const results: ReportResult[] = apiResult.lines.map((line: DetectedLine) => {
+						let title = '';
+						switch (line.type) {
+							case 'life':
+								title = '健康运势';
+								break;
+							case 'wisdom':
+								title = '智力与思考';
+								break;
+							case 'emotion':
+								title = '情感与关系';
+								break;
+							default:
+								title = '运势分析';
+						}
+						return {
+							type: line.typeName,
+							typeEn: line.typeNameEn,
+							title: title,
+							description: line.description || `${line.typeName}分析结果`,
+							descriptionEn: line.descriptionEn,
+							score: line.clarity || Math.floor((line.length || 0) / 2),
+							points: line.points,
+							clarity: line.clarity
+						};
+					});
+
+					if (apiResult.overall) {
+						const overall = apiResult.overall;
+						const existingTypes = results.map((r) => r.type);
+						if (!existingTypes.includes('生命线') && overall.healthScore) {
+							results.unshift({
+								type: '生命线',
+								typeEn: 'Life Line',
+								title: '健康运势',
+								description: overall.summary || '生命线分析',
+								score: overall.healthScore
+							});
+						}
+						if (!existingTypes.includes('智慧线') && overall.wisdomScore) {
+							const wisdomIndex = existingTypes.indexOf('智慧线') === -1 ? 1 : existingTypes.indexOf('智慧线');
+							results.splice(wisdomIndex, 0, {
+								type: '智慧线',
+								typeEn: 'Head Line',
+								title: '智力与思考',
+								description: overall.summary || '智慧线分析',
+								score: overall.wisdomScore
+							});
+						}
+						if (!existingTypes.includes('感情线') && overall.emotionScore) {
+							results.push({
+								type: '感情线',
+								typeEn: 'Heart Line',
+								title: '情感与关系',
+								description: overall.summary || '感情线分析',
+								score: overall.emotionScore
+							});
+						}
+					}
+
+					this.reportData = {
+						id: `report_${Date.now()}`,
+						imagePath: this.imagePath!,
+						analyzeTime: timeString,
+						results: results,
+						fullData: apiResult
+					};
+					if (results.length > 0) {
+						this.activeLineType = (results[0] as ReportResult).type;
+					}
+					console.log('报告生成完成', this.reportData);
+					return;
 				}
 
-				console.log('报告生成完成', this.reportData);
+				console.warn('API未返回有效结果，使用模拟数据');
+				this.generateMockReport();
 			},
 
 			/**
@@ -640,20 +747,29 @@
 				const mockResults: ReportResult[] = [
 					{
 						type: '生命线',
+						typeEn: 'Life Line',
 						title: '健康运势',
+						titleEn: 'Health',
 						description: '生命线较长且清晰，表明身体健康状况良好，有较强的生命力和抵抗力。建议保持良好的作息习惯，适度运动。',
+						descriptionEn: 'A long, clear life line suggests vitality and steady habits.',
 						score: 85
 					},
 					{
 						type: '智慧线',
+						typeEn: 'Head Line',
 						title: '智力与思考',
+						titleEn: 'Intellect',
 						description: '智慧线清晰深邃，显示思维敏捷，学习能力强。在工作和生活中能够灵活应对各种挑战。',
+						descriptionEn: 'A deep head line indicates quick thinking and adaptability.',
 						score: 90
 					},
 					{
 						type: '感情线',
+						typeEn: 'Heart Line',
 						title: '情感与关系',
+						titleEn: 'Relationships',
 						description: '感情线平滑延伸，预示着情感生活相对稳定。在人际关系中表现良好，容易获得他人的信任和好感。',
+						descriptionEn: 'A smooth heart line suggests stable emotions and trust from others.',
 						score: 80
 					}
 				];
@@ -720,10 +836,42 @@
 		width: 100%;
 		min-height: 100vh;
 		background-color: #fdf7ee;
+		background-image: 
+			radial-gradient(#f4ebd0 1px, transparent 0),
+			radial-gradient(#f4ebd0 1px, transparent 0);
+		background-size: 40px 40px;
+		background-position: 0 0, 20px 20px;
 		overflow-x: hidden;
 		box-sizing: border-box;
 		align-items: center;
 		font-family: "STKaiti", "Kaiti", "SimKai", serif;
+		position: relative;
+	}
+
+	.bg-decoration {
+		position: fixed;
+		top: 0; left: 0; width: 100%; height: 100%;
+		pointer-events: none;
+		z-index: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		overflow: hidden;
+	}
+
+	.bg-bagua {
+		width: 1200rpx;
+		height: 1200rpx;
+		opacity: 0.03;
+		background-image: url('https://img.alicdn.com/imgextra/i4/O1CN01Z5vXvz1Z5vXvz1Z5v_!!6000000000001-2-tps-1024-1024.png');
+		background-size: contain;
+		background-repeat: no-repeat;
+		animation: rotateBg 60s linear infinite;
+	}
+
+	@keyframes rotateBg {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 
 	.report-content-wrapper {
@@ -733,9 +881,24 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
+		position: relative;
 		min-height: 100vh;
-		box-shadow: 0 0 60rpx rgba(90, 62, 43, 0.1);
+		box-shadow: 0 0 80rpx rgba(90, 62, 43, 0.15);
 		background-color: #fdf7ee;
+		/* 侧边装饰线，模拟卷轴 */
+		border-left: 2rpx solid #e8e0cc;
+		border-right: 2rpx solid #e8e0cc;
+	}
+
+	.report-content-wrapper::before {
+		content: "";
+		position: absolute;
+		top: 0; left: 0; right: 0; bottom: 0;
+		pointer-events: none;
+		border: 30rpx solid transparent;
+		border-image: radial-gradient(circle, #e8e0cc 20%, transparent 80%) 20;
+		opacity: 0.3;
+		z-index: 0;
 	}
 
 	.report-header {
@@ -748,19 +911,51 @@
 		box-sizing: border-box;
 	}
 
-	.header-main {
+	/* 标题行：左侧标题+印章，右侧中英文切换 */
+	.header-top-row {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0 8rpx;
+		margin-bottom: 15rpx;
+		gap: 16rpx;
+	}
+
+	.header-main-left {
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		justify-content: center;
-		gap: 15rpx;
-		margin-bottom: 15rpx;
+		flex-wrap: wrap;
+		flex: 1;
+		min-width: 0;
+		gap: 12rpx;
+	}
+
+	.header-lang-inline {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 10rpx;
+		padding-top: 6rpx;
+		position: relative;
+		z-index: 2;
 	}
 
 	.header-stamp {
 		width: 80rpx;
 		height: 80rpx;
 		opacity: 0.9;
+		animation: seal落印 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+
+	@keyframes seal落印 {
+		0% { transform: scale(3); opacity: 0; }
+		70% { transform: scale(0.9); opacity: 1; }
+		100% { transform: scale(1); opacity: 0.9; }
 	}
 
 	.header-deco {
@@ -785,17 +980,42 @@
 	.header-deco::after { right: -15rpx; }
 
 	.header-title {
-		font-size: 46rpx;
+		font-size: 42rpx;
 		font-weight: bold;
 		color: #5a3e2b;
-		margin-bottom: 15rpx;
-		letter-spacing: 6rpx;
+		margin-bottom: 0;
+		letter-spacing: 4rpx;
+		text-shadow: 2rpx 2rpx 4rpx rgba(90, 62, 43, 0.1);
+		max-width: 420rpx;
 	}
 
 	.header-time {
 		font-size: 26rpx;
 		color: #8c7662;
 		font-style: italic;
+		opacity: 0.8;
+	}
+
+	.lang-btn {
+		padding: 8rpx 28rpx;
+		border-radius: 32rpx;
+		border: 2rpx solid #c8b99b;
+		background-color: #fff;
+		font-size: 24rpx;
+		color: #8c7662;
+	}
+
+	.lang-btn-inline {
+		padding: 6rpx 20rpx;
+		font-size: 22rpx;
+		border-radius: 28rpx;
+		min-width: 72rpx;
+	}
+
+	.lang-btn.active {
+		background: linear-gradient(135deg, #5a3e2b, #3d2a1d);
+		color: #fdf7ee;
+		border-color: #5a3e2b;
 	}
 
 	.report-content {
@@ -906,6 +1126,13 @@
 		justify-content: center;
 		position: relative;
 		background-color: #fdfaf5;
+		box-shadow: inset 0 0 20rpx rgba(90, 62, 43, 0.05);
+		transition: all 0.3s ease;
+	}
+
+	.summary-score-circle:hover {
+		transform: scale(1.1);
+		box-shadow: 0 0 30rpx rgba(183, 110, 74, 0.2);
 	}
 
 	.summary-score {
@@ -952,6 +1179,18 @@
 		color: #5a3e2b;
 		display: block;
 		margin-bottom: 10rpx;
+		position: relative;
+	}
+
+	.section-title::after {
+		content: "";
+		position: absolute;
+		bottom: -4rpx;
+		left: 0;
+		width: 60rpx;
+		height: 4rpx;
+		background-color: #5a3e2b;
+		border-radius: 2rpx;
 	}
 
 	.section-tips {
@@ -1106,6 +1345,7 @@
 
 	.dimension-card {
 		background-color: #fff;
+		background-image: url('https://img.alicdn.com/imgextra/i2/O1CN01m99vS21Z5vXvz1Z5v_!!6000000000001-2-tps-100-100.png');
 		border-radius: 12rpx;
 		padding: 40rpx 30rpx;
 		margin-bottom: 25rpx;
@@ -1164,6 +1404,8 @@
 
 	.features-card {
 		background-color: #fff;
+		background-image: linear-gradient(rgba(232, 224, 204, 0.05) 1rpx, transparent 1rpx);
+		background-size: 100% 40rpx;
 		border-radius: 12rpx;
 		padding: 40rpx 30rpx;
 		display: flex;

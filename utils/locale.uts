@@ -1,0 +1,298 @@
+/**
+ * 应用界面语言：持久化与文案
+ */
+
+export type AppLocale = 'zh' | 'en';
+
+const STORAGE_KEY = 'app_locale';
+
+/**
+ * 读取已保存语言，无记录时默认英文
+ */
+export function getAppLocale(): AppLocale {
+	try {
+		const v = uni.getStorageSync(STORAGE_KEY) as string;
+		if (v === 'en' || v === 'zh') {
+			return v as AppLocale;
+		}
+	} catch (e) {
+		console.error('getAppLocale', e);
+	}
+	return 'en';
+}
+
+/**
+ * 保存语言并写入本地存储
+ */
+export function setAppLocale(locale: AppLocale): void {
+	try {
+		uni.setStorageSync(STORAGE_KEY, locale);
+	} catch (e) {
+		console.error('setAppLocale', e);
+	}
+}
+
+/**
+ * 按当前语言选取中文或英文（英文缺省时回退中文）
+ */
+export function pickLocaleText(locale: AppLocale, zhText: string, enText?: string | null): string {
+	if (locale === 'en' && enText != null && enText.length > 0 && enText !== '-') {
+		return enText;
+	}
+	return zhText;
+}
+
+/** 拍照页文案 */
+export type CameraUiKey =
+	| 'navTitle'
+	| 'headerTitle'
+	| 'headerSubtitle'
+	| 'langZh'
+	| 'langEn'
+	| 'genderLabel'
+	| 'handLabel'
+	| 'male'
+	| 'female'
+	| 'leftHand'
+	| 'rightHand'
+	| 'resultTitle'
+	| 'warningTitle'
+	| 'downloadReport'
+	| 'retakePhoto'
+	| 'wechatTitle'
+	| 'wechatDesc'
+	| 'wechatOk'
+	| 'analyzingMain'
+	| 'scanTermPlaceholder'
+	| 'previewRetake'
+	| 'previewConfirm'
+	| 'guideLeft'
+	| 'guideRight'
+	| 'footerPhoto'
+	| 'footerAlbum'
+	| 'toastNeedPhoto'
+	| 'toastAnalyzeFirst'
+	| 'toastSuccess'
+	| 'scoreUnit'
+	| 'overallCardTitle'
+	| 'featuresCardTitle'
+	| 'suggestionsCardTitle'
+	| 'careerAdviceTag'
+	| 'lifeAdviceTag'
+	| 'featurePalmShape'
+	| 'featureFinger'
+	| 'featureMound'
+	| 'analyzingExtract'
+	| 'analyzingFate'
+	| 'analyzingReport'
+	| 'analyzingDone';
+
+const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
+	navTitle: '免费看手相 - 林公测算',
+	headerTitle: '免费看手相 - 林公测算',
+	headerSubtitle: '通过中国传统文化预测你的未来，正确率高达91.3%',
+	langZh: '中文',
+	langEn: 'EN',
+	genderLabel: '选择性别',
+	handLabel: '选择手掌',
+	male: '男',
+	female: '女',
+	leftHand: '左手',
+	rightHand: '右手',
+	resultTitle: '手相分析报告',
+	warningTitle: '天机·凶吉预警',
+	downloadReport: '下载报告',
+	retakePhoto: '重新拍照',
+	wechatTitle: '获取完整手相命理推演',
+	wechatDesc:
+		'你现在看到的只是手相命理的一角。若想进一步洞察姻缘、财运、事业走向，以及关键年份的福祸转折，请添加小助手微信。小助手会帮你对接资深命理老师，从手相、八字等多维度为你推演全局运势。',
+	wechatOk: '我知道了',
+	analyzingMain: '正在通过 AI 识纹推演...',
+	scanTermPlaceholder: '推演中...',
+	previewRetake: '重新拍照',
+	previewConfirm: '确认使用',
+	guideLeft: '请将左手放入框内，对齐手形轮廓',
+	guideRight: '请将右手放入框内，对齐手形轮廓',
+	footerPhoto: '拍照',
+	footerAlbum: '从相册选择',
+	toastNeedPhoto: '请先拍照',
+	toastAnalyzeFirst: '请先完成手相分析',
+	toastSuccess: '分析成功',
+	scoreUnit: '分',
+	overallCardTitle: '命定终局建议',
+	featuresCardTitle: '掌部特征',
+	suggestionsCardTitle: '命理师谏言',
+	careerAdviceTag: '事业建议',
+	lifeAdviceTag: '生活建议',
+	featurePalmShape: '手掌形态：',
+	featureFinger: '手指比例：',
+	featureMound: '掌丘状态：',
+	analyzingExtract: '正在通过 AI 提取掌纹信息...',
+	analyzingFate: '掌纹提取成功，正在推演命格...',
+	analyzingReport: '命理推演完成，正在生成报告...',
+	analyzingDone: '分析完成'
+};
+
+const CAMERA_UI_EN: Record<CameraUiKey, string> = {
+	navTitle: 'Free Palm Reading',
+	headerTitle: 'Free Palm Reading',
+	headerSubtitle:
+		'Predict your future through traditional Chinese culture, with an accuracy rate of 91.3%.',
+	langZh: '中文',
+	langEn: 'EN',
+	genderLabel: 'Gender',
+	handLabel: 'Hand',
+	male: 'Male',
+	female: 'Female',
+	leftHand: 'Left',
+	rightHand: 'Right',
+	resultTitle: 'Palm Reading Report',
+	warningTitle: 'Destiny Alert',
+	downloadReport: 'Download',
+	retakePhoto: 'Retake',
+	wechatTitle: 'Full reading via WeChat',
+	wechatDesc:
+		'This is only part of your reading. For love, wealth, career and turning points, add our assistant on WeChat to connect with a senior reader for palmistry and BaZi.',
+	wechatOk: 'OK',
+	analyzingMain: 'AI is reading your palm lines...',
+	scanTermPlaceholder: 'Analyzing...',
+	previewRetake: 'Retake',
+	previewConfirm: 'Use photo',
+	guideLeft: 'Place your LEFT hand in the frame and align with the outline',
+	guideRight: 'Place your RIGHT hand in the frame and align with the outline',
+	footerPhoto: 'Camera',
+	footerAlbum: 'Album',
+	toastNeedPhoto: 'Take a photo first',
+	toastAnalyzeFirst: 'Complete analysis first',
+	toastSuccess: 'Done',
+	scoreUnit: 'pts',
+	overallCardTitle: 'Summary',
+	featuresCardTitle: 'Palm features',
+	suggestionsCardTitle: 'Advice',
+	careerAdviceTag: 'Career',
+	lifeAdviceTag: 'Life',
+	featurePalmShape: 'Palm shape: ',
+	featureFinger: 'Fingers: ',
+	featureMound: 'Mounts: ',
+	analyzingExtract: 'Extracting palm features...',
+	analyzingFate: 'Reading lines...',
+	analyzingReport: 'Generating report...',
+	analyzingDone: 'Done'
+};
+
+export function getCameraUi(locale: AppLocale): Record<CameraUiKey, string> {
+	return locale === 'en' ? CAMERA_UI_EN : CAMERA_UI_ZH;
+}
+
+/** 报告页文案 */
+export type ReportUiKey =
+	| 'headerTitle'
+	| 'chapter1'
+	| 'warningTitle'
+	| 'chapter2'
+	| 'chapter2Tip'
+	| 'chapter3'
+	| 'chapter4'
+	| 'palmShape'
+	| 'fingerRatio'
+	| 'palmMound'
+	| 'chapter5'
+	| 'careerSuggest'
+	| 'lifeSuggest'
+	| 'empty'
+	| 'analyzing'
+	| 'download'
+	| 'backCamera'
+	| 'wechatTitle'
+	| 'wechatDesc'
+	| 'wechatOk'
+	| 'toastNeedImage'
+	| 'toastSuccess'
+	| 'loadingAnalyzing'
+	| 'toastMissingParams'
+	| 'scoreUnit';
+
+const REPORT_UI_ZH: Record<ReportUiKey, string> = {
+	headerTitle: '手相深度分析报告 - 林公测算',
+	chapter1: '第一章 · 综合命格',
+	warningTitle: '天机·凶吉预警',
+	chapter2: '第二章 · 手相纹路解析',
+	chapter2Tip: '点击下方按钮查看对应纹路位置',
+	chapter3: '第三章 · 深度解读',
+	chapter4: '第四章 · 掌部特征',
+	palmShape: '手掌形态',
+	fingerRatio: '手指比例',
+	palmMound: '掌丘状态',
+	chapter5: '第五章 · 命理谏言',
+	careerSuggest: '事业建议',
+	lifeSuggest: '生活建议',
+	empty: '暂无分析结果',
+	analyzing: '正在推演命理，请稍候...',
+	download: '下载报告',
+	backCamera: '返回拍照',
+	wechatTitle: '获取完整手相命理推演',
+	wechatDesc:
+		'你现在看到的只是手相命理的一角。若想进一步洞察姻缘、财运、事业走向，以及关键年份的福祸转折，请添加小助手微信。小助手会帮你对接资深命理老师，从手相、八字等多维度为你推演全局运势。',
+	wechatOk: '我知道了',
+	toastNeedImage: '缺少图片参数，请先拍照',
+	toastSuccess: '识别成功',
+	loadingAnalyzing: '正在分析中...',
+	toastMissingParams: '缺少必要参数',
+	scoreUnit: '分'
+};
+
+const REPORT_UI_EN: Record<ReportUiKey, string> = {
+	headerTitle: 'Palm Reading Report',
+	chapter1: 'Chapter 1 · Overview',
+	warningTitle: 'Destiny Alert',
+	chapter2: 'Chapter 2 · Major lines',
+	chapter2Tip: 'Tap a line to highlight it',
+	chapter3: 'Chapter 3 · Deep dive',
+	chapter4: 'Chapter 4 · Palm shape',
+	palmShape: 'Palm shape',
+	fingerRatio: 'Finger ratio',
+	palmMound: 'Mounts',
+	chapter5: 'Chapter 5 · Advice',
+	careerSuggest: 'Career',
+	lifeSuggest: 'Life',
+	empty: 'No report yet',
+	analyzing: 'Analyzing...',
+	download: 'Download',
+	backCamera: 'Back',
+	wechatTitle: 'Full reading via WeChat',
+	wechatDesc:
+		'This is only part of your reading. For love, wealth, career and turning points, add our assistant on WeChat to connect with a senior reader for palmistry and BaZi.',
+	wechatOk: 'OK',
+	toastNeedImage: 'Missing image. Take a photo first.',
+	toastSuccess: 'Success',
+	loadingAnalyzing: 'Analyzing...',
+	toastMissingParams: 'Missing parameters',
+	scoreUnit: 'pts'
+};
+
+export function getReportUi(locale: AppLocale): Record<ReportUiKey, string> {
+	return locale === 'en' ? REPORT_UI_EN : REPORT_UI_ZH;
+}
+
+/** 分析中轮播术语 */
+export const SCAN_TERMS_ZH: string[] = [
+	'定位坤宫（财位）...',
+	'观测生命线延伸...',
+	'解析智慧线交汇...',
+	'感应五行气场...',
+	'计算掌心明堂...',
+	'扫描离宫位置...',
+	'判定手型命格...',
+	'捕捉天机纹路...'
+];
+
+export const SCAN_TERMS_EN: string[] = [
+	'Locating Kun palace...',
+	'Tracing life line...',
+	'Reading head line...',
+	'Scanning mounts...',
+	'Measuring palm center...',
+	'Checking Li palace...',
+	'Judging hand type...',
+	'Capturing fine lines...'
+];

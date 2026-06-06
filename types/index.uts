@@ -39,6 +39,10 @@ export interface LineSummary {
 	dimension: string;
 	score: number;
 	brief: string;
+	/** 英文：维度名称 */
+	dimensionEn?: string;
+	/** 英文：简短描述 */
+	briefEn?: string;
 }
 
 /**
@@ -47,6 +51,10 @@ export interface LineSummary {
 export interface DimensionDetail {
 	title: string;
 	content: string;
+	/** 英文：标题 */
+	titleEn?: string;
+	/** 英文：正文 */
+	contentEn?: string;
 }
 
 /**
@@ -56,6 +64,8 @@ export interface LineDetail {
 	type: string;
 	typeName: string;
 	description: string;
+	typeNameEn?: string;
+	descriptionEn?: string;
 	interpretation: {
 		thinking?: string;
 		learning?: string;
@@ -71,6 +81,9 @@ export interface PalmFeatures {
 	palmShape: string;
 	fingerRatio: string;
 	palmMound: string;
+	palmShapeEn?: string;
+	fingerRatioEn?: string;
+	palmMoundEn?: string;
 }
 
 /**
@@ -80,12 +93,19 @@ export interface Suggestions {
 	career: string;
 	life: string;
 	tip: string;
+	careerEn?: string;
+	lifeEn?: string;
+	tipEn?: string;
 }
 
 /**
  * 手相识别结果（新格式）
  */
 export interface PalmistryAnalysisResult {
+	isInvalid?: boolean;
+	errorMsg?: string;
+	/** 英文：无效图片时的提示 */
+	errorMsgEn?: string;
 	summary: {
 		lifeLine: LineSummary;
 		wisdomLine: LineSummary;
@@ -99,9 +119,15 @@ export interface PalmistryAnalysisResult {
 		career: DimensionDetail;
 		love: DimensionDetail;
 		health: DimensionDetail;
+		/** 部分模型可能返回财富维度 */
+		wealth?: DimensionDetail;
 	};
 	harshWarning: string;
 	overallAnalysis: string;
+	/** 英文：致命警示全文 */
+	harshWarningEn?: string;
+	/** 英文：综合结论 */
+	overallAnalysisEn?: string;
 	lineDetails: LineDetail[];
 	palmFeatures: PalmFeatures;
 	suggestions: Suggestions;
@@ -115,6 +141,10 @@ export interface ReportResult {
 	title: string
 	description: string
 	score?: number
+	/** 英文线条名，如 Life Line */
+	typeEn?: string
+	titleEn?: string
+	descriptionEn?: string
 	points?: Array<{x: number, y: number}> // 线条坐标点（可选）
 	clarity?: number // 清晰度 0-100（可选）
 }

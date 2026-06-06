@@ -1,49 +1,73 @@
 <template>
 	<view class="camera-container">
+		<!-- 背景暗纹 -->
+		<view class="bg-decoration">
+			<view class="bg-bagua"></view>
+		</view>
+
 		<view class="camera-content-wrapper">
 			<view class="camera-header" v-if="!reportData">
 				<view class="header-main">
-					<text class="header-title">免费看手相 - 林公测算</text>
+					<text class="header-title">{{ ui.headerTitle }}</text>
 					<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
 				</view>
 				<view class="header-deco"></view>
-				<text class="header-subtitle">上传手掌照片，AI为您深度解读命理轨迹</text>
+				<text class="header-subtitle">{{ ui.headerSubtitle }}</text>
+				<view class="lang-switch-row">
+					<text class="switch-label">{{ locale === 'en' ? 'Language' : '语言' }}</text>
+					<view class="switch-buttons">
+						<button
+							class="hand-btn mini lang-btn"
+							:class="{ 'active': locale === 'zh' }"
+							@click="setLocale('zh')"
+						>
+							<text class="hand-text">{{ ui.langZh }}</text>
+						</button>
+						<button
+							class="hand-btn mini lang-btn"
+							:class="{ 'active': locale === 'en' }"
+							@click="setLocale('en')"
+						>
+							<text class="hand-text">{{ ui.langEn }}</text>
+						</button>
+					</view>
+				</view>
 				<view class="hand-switch">
 					<view class="switch-group">
-						<text class="switch-label">选择性别</text>
+						<text class="switch-label">{{ ui.genderLabel }}</text>
 						<view class="switch-buttons">
 							<button 
 								class="hand-btn mini" 
 								:class="{ 'active': gender === 'male' }"
 								@click="gender = 'male'"
 							>
-								<text class="hand-text">男</text>
+								<text class="hand-text">{{ ui.male }}</text>
 							</button>
 							<button 
 								class="hand-btn mini" 
 								:class="{ 'active': gender === 'female' }"
 								@click="gender = 'female'"
 							>
-								<text class="hand-text">女</text>
+								<text class="hand-text">{{ ui.female }}</text>
 							</button>
 						</view>
 					</view>
 					<view class="switch-group">
-						<text class="switch-label">选择手掌</text>
+						<text class="switch-label">{{ ui.handLabel }}</text>
 						<view class="switch-buttons">
 							<button 
 								class="hand-btn mini" 
 								:class="{ 'active': handSide === 'left' }"
 								@click="switchHand('left')"
 							>
-								<text class="hand-text">左手</text>
+								<text class="hand-text">{{ ui.leftHand }}</text>
 							</button>
 							<button 
 								class="hand-btn mini" 
 								:class="{ 'active': handSide === 'right' }"
 								@click="switchHand('right')"
 							>
-								<text class="hand-text">右手</text>
+								<text class="hand-text">{{ ui.rightHand }}</text>
 							</button>
 						</view>
 					</view>
@@ -56,8 +80,29 @@
 				<scroll-view class="result-scroll" scroll-y="true">
 					<view class="result-card">
 						<view class="result-header">
-							<text class="result-title">手相分析报告</text>
-							<text class="result-time" v-if="reportData.analyzeTime">{{ reportData.analyzeTime }}</text>
+							<view class="result-header-top-row">
+								<view class="result-header-text-block">
+									<text class="result-title">{{ ui.resultTitle }}</text>
+									<text class="result-time" v-if="reportData.analyzeTime">{{ reportData.analyzeTime }}</text>
+								</view>
+								<view class="result-lang-inline">
+									<button
+										class="result-lang-btn"
+										:class="{ active: locale === 'zh' }"
+										@click="setLocale('zh')"
+									>
+										中文
+									</button>
+									<button
+										class="result-lang-btn"
+										:class="{ active: locale === 'en' }"
+										@click="setLocale('en')"
+									>
+										EN
+									</button>
+								</view>
+							</view>
+							<text class="result-subtitle">{{ ui.headerSubtitle }}</text>
 						</view>
 
 						<!-- 交互式手相标注区域 -->
@@ -133,10 +178,10 @@
 							<view class="harsh-warning-card" v-if="reportData.fullData && reportData.fullData.harshWarning">
 								<view class="warning-header">
 									<image class="warning-stamp" src="/static/favicon.png" mode="aspectFit"></image>
-									<text class="warning-title">天机·凶吉预警</text>
+									<text class="warning-title">{{ ui.warningTitle }}</text>
 								</view>
 								<view class="warning-content">
-									<text class="warning-text">{{ reportData.fullData.harshWarning }}</text>
+									<text class="warning-text">{{ pickTxt(reportData.fullData.harshWarning, reportData.fullData.harshWarningEn) }}</text>
 								</view>
 							</view>
 
@@ -144,11 +189,11 @@
 							<view class="line-detail-card" v-if="selectedLineInfo">
 								<view class="line-detail-header">
 									<view class="line-tag-wrapper">
-										<text class="line-tag-text">「{{ selectedLineInfo.type }}」</text>
+										<text class="line-tag-text">「{{ pickTxt(selectedLineInfo.type, selectedLineInfo.typeEn) }}」</text>
 									</view>
-									<text class="line-score" v-if="selectedLineInfo.score">{{ selectedLineInfo.score }}分</text>
+									<text class="line-score" v-if="selectedLineInfo.score">{{ selectedLineInfo.score }}{{ ui.scoreUnit }}</text>
 								</view>
-								<text class="line-description">{{ selectedLineInfo.description }}</text>
+								<text class="line-description">{{ pickTxt(selectedLineInfo.description, selectedLineInfo.descriptionEn) }}</text>
 							</view>
 
 							<!-- 其他 AI 分析内容 -->
@@ -159,71 +204,69 @@
 										<image class="dim-custom-icon" :src="getDimensionIcon(key)" mode="aspectFit"></image>
 									</view>
 									<view class="dimension-info">
-										<text class="dimension-title">{{ dim.title }}</text>
-										<text class="dimension-content">{{ dim.content }}</text>
+										<text class="dimension-title">{{ dimTitle(dim) }}</text>
+										<text class="dimension-content">{{ dimContent(dim) }}</text>
 									</view>
 								</view>
 
 								<!-- 综合命定结论 -->
 								<view class="overall-conclusion-card" v-if="reportData.fullData.overallAnalysis">
-									<text class="card-title">命定终局建议</text>
-									<text class="overall-text">{{ reportData.fullData.overallAnalysis }}</text>
+									<text class="card-title">{{ ui.overallCardTitle }}</text>
+									<text class="overall-text">{{ pickTxt(reportData.fullData.overallAnalysis, reportData.fullData.overallAnalysisEn) }}</text>
 								</view>
 
 								<!-- 掌部特征 -->
 								<view class="features-card" v-if="reportData.fullData.palmFeatures">
-									<text class="card-title">掌部特征</text>
+									<text class="card-title">{{ ui.featuresCardTitle }}</text>
 									<view class="feature-item">
-										<text class="feature-label">手掌形态：</text>
-										<text class="feature-value">{{ reportData.fullData.palmFeatures.palmShape }}</text>
+										<text class="feature-label">{{ ui.featurePalmShape }}</text>
+										<text class="feature-value">{{ pickTxt(reportData.fullData.palmFeatures.palmShape, reportData.fullData.palmFeatures.palmShapeEn) }}</text>
 									</view>
 									<view class="feature-item">
-										<text class="feature-label">手指比例：</text>
-										<text class="feature-value">{{ reportData.fullData.palmFeatures.fingerRatio }}</text>
+										<text class="feature-label">{{ ui.featureFinger }}</text>
+										<text class="feature-value">{{ pickTxt(reportData.fullData.palmFeatures.fingerRatio, reportData.fullData.palmFeatures.fingerRatioEn) }}</text>
 									</view>
 									<view class="feature-item">
-										<text class="feature-label">掌丘状态：</text>
-										<text class="feature-value">{{ reportData.fullData.palmFeatures.palmMound }}</text>
+										<text class="feature-label">{{ ui.featureMound }}</text>
+										<text class="feature-value">{{ pickTxt(reportData.fullData.palmFeatures.palmMound, reportData.fullData.palmFeatures.palmMoundEn) }}</text>
 									</view>
 								</view>
 
 								<!-- 专家建议 -->
 								<view class="suggestions-card" v-if="reportData.fullData.suggestions">
-									<text class="card-title">命理师谏言</text>
+									<text class="card-title">{{ ui.suggestionsCardTitle }}</text>
 									<view class="suggestion-item">
 										<view class="suggestion-header">
-											<text class="suggestion-tag career-tag">事业建议</text>
+											<text class="suggestion-tag career-tag">{{ ui.careerAdviceTag }}</text>
 										</view>
-										<text class="suggestion-text">{{ reportData.fullData.suggestions.career }}</text>
+										<text class="suggestion-text">{{ pickTxt(reportData.fullData.suggestions.career, reportData.fullData.suggestions.careerEn) }}</text>
 									</view>
 									<view class="suggestion-item">
 										<view class="suggestion-header">
-											<text class="suggestion-tag life-tag">生活建议</text>
+											<text class="suggestion-tag life-tag">{{ ui.lifeAdviceTag }}</text>
 										</view>
-										<text class="suggestion-text">{{ reportData.fullData.suggestions.life }}</text>
+										<text class="suggestion-text">{{ pickTxt(reportData.fullData.suggestions.life, reportData.fullData.suggestions.lifeEn) }}</text>
 									</view>
 									<view class="suggestion-tip">
-										<text class="tip-text">{{ reportData.fullData.suggestions.tip }}</text>
+										<text class="tip-text">{{ pickTxt(reportData.fullData.suggestions.tip, reportData.fullData.suggestions.tipEn) }}</text>
 									</view>
 								</view>
 							</view>
 						</view>
 						
 						<view class="result-actions">
-							<button class="result-btn btn-primary" @click="handleDownloadReport">下载报告</button>
-							<button class="result-btn btn-secondary" @click="handleReset">重新拍照</button>
+							<button class="result-btn btn-primary" @click="handleDownloadReport">{{ ui.downloadReport }}</button>
+							<button class="result-btn btn-secondary" @click="handleReset">{{ ui.retakePhoto }}</button>
 						</view>
 
 						<!-- 微信引流弹窗：玄学大师版文案 -->
 						<view class="wechat-mask" v-if="showWechatDialog">
 							<view class="wechat-dialog">
-								<text class="wechat-title">获取完整手相命理推演</text>
+								<text class="wechat-title">{{ ui.wechatTitle }}</text>
 								<image class="wechat-qrcode" src="/static/wechact.jpg" mode="widthFix" />
-								<text class="wechat-desc">
-									你现在看到的只是手相命理的一角。若想进一步洞察姻缘、财运、事业走向，以及关键年份的福祸转折，请添加小助手微信。小助手会帮你对接资深命理老师，从手相、八字等多维度为你推演全局运势。
-								</text>
+								<text class="wechat-desc">{{ ui.wechatDesc }}</text>
 								<button class="wechat-close-btn" @click="showWechatDialog = false">
-									<text class="btn-text">我知道了</text>
+									<text class="btn-text">{{ ui.wechatOk }}</text>
 								</button>
 							</view>
 						</view>
@@ -237,9 +280,13 @@
 					<image class="scan-hand-bg" src="@/static/hand.png" :class="{ 'mirror': handSide === 'right' }" mode="aspectFit"></image>
 					<view class="scan-line"></view>
 					<view class="scan-glow"></view>
+					<!-- 扫描时的术语显示 -->
+					<view class="scan-term-overlay">
+						<text class="scan-term-text">{{ dynamicScanText }}</text>
+					</view>
 				</view>
 				<view class="analyzing-content">
-					<text class="analyzing-text">正在通过 AI 识纹推演...</text>
+					<text class="analyzing-text">{{ ui.analyzingMain }}</text>
 					<text class="analyzing-status">{{ analyzingStatus }}</text>
 				</view>
 			</view>
@@ -293,8 +340,8 @@
 					</view>
 				</view>
 				<view class="preview-actions">
-					<button class="action-btn btn-cancel" @click="handleCancel">重新拍照</button>
-					<button class="action-btn btn-confirm" @click="handleConfirm">确认使用</button>
+					<button class="action-btn btn-cancel" @click="handleCancel">{{ ui.previewRetake }}</button>
+					<button class="action-btn btn-confirm" @click="handleConfirm">{{ ui.previewConfirm }}</button>
 				</view>
 			</view>
 
@@ -309,17 +356,17 @@
 							mode="aspectFit"
 						></image>
 					</view>
-					<text class="guide-text">{{ handSide === 'left' ? '请将左手放入框内，对齐手形轮廓' : '请将右手放入框内，对齐手形轮廓' }}</text>
+					<text class="guide-text">{{ handSide === 'left' ? ui.guideLeft : ui.guideRight }}</text>
 				</view>
 			</view>
 		</view>
 
 		<view class="camera-footer" v-if="!reportData">
 			<button class="camera-btn" @click="handleTakePhoto">
-				<text class="btn-text">{{ capturedImage ? '重新拍照' : '拍照' }}</text>
+				<text class="btn-text">{{ capturedImage ? ui.previewRetake : ui.footerPhoto }}</text>
 			</button>
 			<button class="album-btn" @click="handleChooseFromAlbum">
-				<text class="btn-text">从相册选择</text>
+				<text class="btn-text">{{ ui.footerAlbum }}</text>
 			</button>
 		</view>
 	</view>
@@ -327,13 +374,23 @@
 </template>
 
 <script lang="uts">
-	import type { PalmistryReport, ReportResult } from '@/types/index';
+	import type { PalmistryReport, ReportResult, PalmistryAnalysisResult, DimensionDetail } from '@/types/index';
 	import { analyzePalmistry } from '@/utils/qwenApi';
 	import { convertImageToBase64 } from '@/utils/imageHelper';
+	import {
+		getAppLocale,
+		setAppLocale,
+		getCameraUi,
+		pickLocaleText,
+		type AppLocale,
+		SCAN_TERMS_ZH,
+		SCAN_TERMS_EN
+	} from '@/utils/locale';
 
-	type: 'left' | 'right';
+	type HandSide = 'left' | 'right';
 
 	interface CameraPageData {
+		locale: AppLocale;
 		capturedImage: string | null;
 		handSide: HandSide;
 		gender: 'male' | 'female';
@@ -348,6 +405,7 @@
 		// 新增字段
 		isAnalyzing: boolean;
 		analyzingStatus: string;
+		dynamicScanText: string; // 新增：动态扫描文字
 		reportData: PalmistryReport | null;
 		// 新增：当前选中的交互线条类型
 		selectedLine: string | null;
@@ -359,6 +417,7 @@
 		name: 'CameraPage',
 		data(): CameraPageData {
 			return {
+				locale: 'en',
 				capturedImage: null,
 				handSide: 'left', // 默认左手
 				gender: 'male', // 默认男性
@@ -373,16 +432,29 @@
 				// 新增字段初始化
 				isAnalyzing: false,
 				analyzingStatus: '准备中...',
+				dynamicScanText: '',
 				reportData: null,
 				selectedLine: 'life', // 默认选中生命线
 				showWechatDialog: false
 			};
 		},
 		computed: {
+			/** 当前语言下的界面文案 */
+			ui(): Record<string, string> {
+				return getCameraUi(this.locale);
+			},
 			/**
 			 * 线条 Tab 配置
 			 */
 			handTabs(): Array<Record<string, string>> {
+				if (this.locale === 'en') {
+					return [
+						{ id: 'life', name: 'Life Line' },
+						{ id: 'wisdom', name: 'Head Line' },
+						{ id: 'emotion', name: 'Heart Line' },
+						{ id: 'fate', name: 'Fate Line' }
+					];
+				}
 				return [
 					{ id: 'life', name: '生命线' },
 					{ id: 'wisdom', name: '智慧线' },
@@ -409,8 +481,31 @@
 		},
 		onLoad(options: Record<string, any>) {
 			console.log('拍照页面加载', options);
+			this.locale = getAppLocale();
+			this.applyNavTitle();
 		},
 		methods: {
+			applyNavTitle(): void {
+				const t = getCameraUi(this.locale).navTitle;
+				uni.setNavigationBarTitle({ title: t });
+			},
+			setLocale(next: AppLocale): void {
+				if (this.locale === next) {
+					return;
+				}
+				this.locale = next;
+				setAppLocale(next);
+				this.applyNavTitle();
+			},
+			pickTxt(zhText: string, enText?: string | null): string {
+				return pickLocaleText(this.locale, zhText, enText);
+			},
+			dimTitle(dim: DimensionDetail): string {
+				return pickLocaleText(this.locale, dim.title, dim.titleEn);
+			},
+			dimContent(dim: DimensionDetail): string {
+				return pickLocaleText(this.locale, dim.content, dim.contentEn);
+			},
 			/**
 			 * 切换手（左/右）
 			 */
@@ -489,7 +584,6 @@
 			handleCancel(): void {
 				this.capturedImage = null;
 				this.reportData = null;
-				this.imageUrl = null;
 				// 重置图片变换参数
 				this.imageScale = 1.0;
 				this.imageOffsetX = 0;
@@ -690,34 +784,49 @@
 			async handleConfirm(): Promise<void> {
 				if (!this.capturedImage) {
 					uni.showToast({
-						title: '请先拍照',
+						title: getCameraUi(this.locale).toastNeedPhoto,
 						icon: 'none'
 					});
 					return;
 				}
 
+				const u = getCameraUi(this.locale);
 				this.isAnalyzing = true;
-				this.analyzingStatus = '正在通过 AI 提取掌纹信息...';
+				this.analyzingStatus = u.analyzingExtract;
 				this.reportData = null;
+				
+				// 启动动态术语循环
+				const scanTerms = this.locale === 'en' ? SCAN_TERMS_EN : SCAN_TERMS_ZH;
+				let termIndex = 0;
+				this.dynamicScanText = scanTerms[0];
+				const termInterval = setInterval(() => {
+					termIndex = (termIndex + 1) % scanTerms.length;
+					this.dynamicScanText = scanTerms[termIndex];
+				}, 1500);
 
 				try {
 					// 1. 将图片转换为base64（不进行上传）
 					console.log('开始转换图片为base64...');
 					const imageBase64 = await convertImageToBase64(this.capturedImage);
 					
-					this.analyzingStatus = '掌纹提取成功，正在推演命格...';
+					this.analyzingStatus = getCameraUi(this.locale).analyzingFate;
 
 					// 2. 调用API分析手相（使用base64）
 					const result = await analyzePalmistry({
 						imagePath: imageBase64,
 						gender: this.gender,
-						handSide: this.handSide
+						handSide: this.handSide,
+						locale: this.locale
 					});
 
 					// 新增：判断图片是否合法
 					if (result.isInvalid === true) {
 						uni.showToast({
-							title: result.errorMsg || '识别失败，请确保上传手掌图片',
+							title: pickLocaleText(
+								this.locale,
+								result.errorMsg || '识别失败，请确保上传手掌图片',
+								result.errorMsgEn
+							),
 							icon: 'none',
 							duration: 5000
 						});
@@ -725,16 +834,16 @@
 						return;
 					}
 
-					this.analyzingStatus = '命理推演完成，正在生成报告...';
+					this.analyzingStatus = getCameraUi(this.locale).analyzingReport;
 					await new Promise(resolve => setTimeout(resolve, 800)); // 增加一点停顿
 
 					// 3. 生成报告数据
 					this.generateReportFromAPI(result);
 
-					this.analyzingStatus = '分析完成';
+					this.analyzingStatus = getCameraUi(this.locale).analyzingDone;
 					
 					uni.showToast({
-						title: '分析成功',
+						title: getCameraUi(this.locale).toastSuccess,
 						icon: 'success'
 					});
 
@@ -770,6 +879,7 @@
 				} finally {
 					this.isAnalyzing = false;
 					this.analyzingStatus = '';
+					clearInterval(termInterval);
 				}
 			},
 
@@ -792,31 +902,44 @@
 					return;
 				}
 
-				// 从新格式中提取结果
+				// 从新格式中提取结果（含英文字段）
+				const s = apiResult.summary;
 				const results: ReportResult[] = [
 					{
 						type: '生命线',
-						title: apiResult.summary.lifeLine.dimension,
-						description: apiResult.summary.lifeLine.brief,
-						score: apiResult.summary.lifeLine.score
+						typeEn: 'Life Line',
+						title: s.lifeLine.dimension,
+						titleEn: s.lifeLine.dimensionEn,
+						description: s.lifeLine.brief,
+						descriptionEn: s.lifeLine.briefEn,
+						score: s.lifeLine.score
 					},
 					{
 						type: '智慧线',
-						title: apiResult.summary.wisdomLine.dimension,
-						description: apiResult.summary.wisdomLine.brief,
-						score: apiResult.summary.wisdomLine.score
+						typeEn: 'Head Line',
+						title: s.wisdomLine.dimension,
+						titleEn: s.wisdomLine.dimensionEn,
+						description: s.wisdomLine.brief,
+						descriptionEn: s.wisdomLine.briefEn,
+						score: s.wisdomLine.score
 					},
 					{
 						type: '感情线',
-						title: apiResult.summary.emotionLine.dimension,
-						description: apiResult.summary.emotionLine.brief,
-						score: apiResult.summary.emotionLine.score
+						typeEn: 'Heart Line',
+						title: s.emotionLine.dimension,
+						titleEn: s.emotionLine.dimensionEn,
+						description: s.emotionLine.brief,
+						descriptionEn: s.emotionLine.briefEn,
+						score: s.emotionLine.score
 					},
 					{
 						type: '命运线',
-						title: apiResult.summary.fateLine.dimension,
-						description: apiResult.summary.fateLine.brief,
-						score: apiResult.summary.fateLine.score
+						typeEn: 'Fate Line',
+						title: s.fateLine.dimension,
+						titleEn: s.fateLine.dimensionEn,
+						description: s.fateLine.brief,
+						descriptionEn: s.fateLine.briefEn,
+						score: s.fateLine.score
 					}
 				];
 
@@ -846,26 +969,38 @@
 				const mockResults: ReportResult[] = [
 					{
 						type: '生命线',
+						typeEn: 'Life Line',
 						title: '生命能',
+						titleEn: 'Vitality',
 						description: '生命线基础雄厚但中段出现细微岛纹，警示长期高压透支已动摇命元。',
+						descriptionEn: 'A strong life line with a faint island mid-way warns of burnout.',
 						score: 85
 					},
 					{
 						type: '智慧线',
+						typeEn: 'Head Line',
 						title: '智谋度',
+						titleEn: 'Wisdom',
 						description: '智慧线过于平直且末端下坠，显示思维理性到近乎冷酷，却极易在关键时刻陷入偏执。',
+						descriptionEn: 'A straight head line dipping at the end suggests rigid thinking and stubborn streaks.',
 						score: 70
 					},
 					{
 						type: '感情线',
+						typeEn: 'Heart Line',
 						title: '情缘力',
+						titleEn: 'Emotion',
 						description: '感情线断续且杂纹丛生，命带红尘情孽，易深陷不伦或无果之恋。',
+						descriptionEn: 'A broken heart line hints at turbulent relationships.',
 						score: 60
 					},
 					{
 						type: '命运线',
+						typeEn: 'Fate Line',
 						title: '天命轨迹',
+						titleEn: 'Fate',
 						description: '命运线深长且清晰，预示人生轨迹明确，但中段有分叉，暗示中年会有重大转折，需把握机遇。',
+						descriptionEn: 'A clear fate line with a fork suggests a major mid-life turning point.',
 						score: 75
 					}
 				];
@@ -873,53 +1008,99 @@
 				// 补全 fullData 结构
 				const mockFullData: PalmistryAnalysisResult = {
 					summary: {
-						lifeLine: { dimension: '生命能', score: 8.5, brief: '生命线基础雄厚但中段出现细微岛纹，警示长期高压透支已动摇命元。' },
-						wisdomLine: { dimension: '智谋度（事业）', score: 7.0, brief: '智慧线过于平直且末端下坠，显示思维理性到近乎冷酷，却极易在关键时刻陷入偏执。' },
-						emotionLine: { dimension: '情缘力（婚姻）', score: 6.0, brief: '感情线断续且杂纹丛生，命带红尘情孽，易深陷不伦或无果之恋。' },
-						fateLine: { dimension: '天命轨迹', score: 7.5, brief: '命运线深长且清晰，预示人生轨迹明确，但中段有分叉，暗示中年会有重大转折，需把握机遇。' }
+						lifeLine: {
+							dimension: '生命能',
+							dimensionEn: 'Vitality',
+							score: 8.5,
+							brief: '生命线基础雄厚但中段出现细微岛纹，警示长期高压透支已动摇命元。',
+							briefEn: 'Strong vitality line with mid-palm warning signs.'
+						},
+						wisdomLine: {
+							dimension: '智谋度（事业）',
+							dimensionEn: 'Wisdom (career)',
+							score: 7.0,
+							brief: '智慧线过于平直且末端下坠，显示思维理性到近乎冷酷，却极易在关键时刻陷入偏执。',
+							briefEn: 'Head line reads as overly rational and stubborn under pressure.'
+						},
+						emotionLine: {
+							dimension: '情缘力（婚姻）',
+							dimensionEn: 'Emotion (love)',
+							score: 6.0,
+							brief: '感情线断续且杂纹丛生，命带红尘情孽，易深陷不伦或无果之恋。',
+							briefEn: 'Heart line shows emotional turbulence.'
+						},
+						fateLine: {
+							dimension: '天命轨迹',
+							dimensionEn: 'Fate line',
+							score: 7.5,
+							brief: '命运线深长且清晰，预示人生轨迹明确，但中段有分叉，暗示中年会有重大转折，需把握机遇。',
+							briefEn: 'Clear fate line with a fork near mid-life.'
+						}
 					},
 					dimensions: {
 						handType: {
 							title: '五行命格',
-							content: '你属于典型的"火型手"，性格急躁如烈火，虽有极强的开拓精神和执行力，但也极易因冲动而招致挫败。命格中缺乏"水"的滋润，导致为人处世过于刚硬，缺乏弹性。'
+							titleEn: 'Five elements / hand type',
+							content: '你属于典型的"火型手"，性格急躁如烈火，虽有极强的开拓精神和执行力，但也极易因冲动而招致挫败。命格中缺乏"水"的滋润，导致为人处世过于刚硬，缺乏弹性。',
+							contentEn: 'Fire-type hand: driven and impulsive; needs more flexibility.'
 						},
 						palmMounds: {
 							title: '星丘压制',
-							content: '土星丘过度隆起且伴有杂纹，显示你内心深处压抑着巨大的孤独感和不安全感。太阳丘平淡，意味着你的才华往往难以在早期获得对等的社会认可，存在"怀才不遇"的压制。'
+							titleEn: 'Mounts',
+							content: '土星丘过度隆起且伴有杂纹，显示你内心深处压抑着巨大的孤独感和不安全感。太阳丘平淡，意味着你的才华往往难以在早期获得对等的社会认可，存在"怀才不遇"的压制。',
+							contentEn: 'Prominent Saturn mount; subdued Sun mount may delay recognition.'
 						},
 						specialMarks: {
 							title: '凶吉征兆',
-							content: '智慧线末端出现细微岛纹，这是典型的由于过度透支精力导致的思维停滞预兆。事业线中段有横切纹，预示着在35岁左右会遭遇一次重大的职业转型或财务危机。'
+							titleEn: 'Signs',
+							content: '智慧线末端出现细微岛纹，这是典型的由于过度透支精力导致的思维停滞预兆。事业线中段有横切纹，预示着在35岁左右会遭遇一次重大的职业转型或财务危机。',
+							contentEn: 'Small island on head line; career stress line around mid-30s.'
 						},
 						career: {
 							title: '财官利禄',
-							content: '财库线尚不闭合，这意味着你虽然赚钱能力强，但守财极难，开销如流水。贵人线断续，显示你习惯单打独斗，不擅利用人脉资源，这严重制约了你的官禄高度。'
+							titleEn: 'Career & wealth',
+							content: '财库线尚不闭合，这意味着你虽然赚钱能力强，但守财极难，开销如流水。贵人线断续，显示你习惯单打独斗，不擅利用人脉资源，这严重制约了你的官禄高度。',
+							contentEn: 'Strong earning but weak saving; underuse of networks.'
 						},
 						love: {
 							title: '红尘情孽',
-							content: '感情线断续且向食指延伸不足，这预示着你在亲密关系中极度自私，总希望对方无条件迁就自己。若不改掉这种唯我独尊的性格，二婚风险极大，晚年易生凄凉。'
+							titleEn: 'Love',
+							content: '感情线断续且向食指延伸不足，这预示着你在亲密关系中极度自私，总希望对方无条件迁就自己。若不改掉这种唯我独尊的性格，二婚风险极大，晚年易生凄凉。',
+							contentEn: 'Relationship pattern skews selfish; work on empathy.'
 						},
 						health: {
 							title: '命元警示',
-							content: '生命线中段变浅，预示消化系统或心血管方面存在隐患。长期高压工作已严重侵蚀你的命元。'
+							titleEn: 'Health',
+							content: '生命线中段变浅，预示消化系统或心血管方面存在隐患。长期高压工作已严重侵蚀你的命元。',
+							contentEn: 'Mid life line fade suggests stress-related health risks.'
 						},
 						wealth: {
 							title: '财帛福禄',
-							content: '财帛宫位见红润之色，预示近期将有偏财入账。但需注意守成，不可因一时贪念而陷入投机之险。'
+							titleEn: 'Windfall',
+							content: '财帛宫位见红润之色，预示近期将有偏财入账。但需注意守成，不可因一时贪念而陷入投机之险。',
+							contentEn: 'Short-term windfall possible; avoid reckless bets.'
 						}
 					},
 					harshWarning: '你最大的问题在于"狂妄自大"与"自毁灭倾向"。你总是在即将成功时，因为无法控制的情绪暴走或盲目自信而亲手毁掉前程。若不学会低头与自省，你的人生终将是一场悲剧性的轮回。',
+					harshWarningEn: 'Your blind spots are pride and self-sabotage right before success.',
 					overallAnalysis: '你的命格属于典型的"先繁华后凋零"。前半生依仗天赋可占得先机，但若无后天德行的修养，中年后必遇大劫。需修身养性，方可改命。',
+					overallAnalysisEn: 'Early gains from talent need discipline to sustain later life.',
 					lineDetails: [],
 					palmFeatures: {
 						palmShape: '修长火型掌',
+						palmShapeEn: 'Long fire-type palm',
 						fingerRatio: '中指过长',
-						palmMound: '土星丘过度隆起'
+						fingerRatioEn: 'Long middle finger',
+						palmMound: '土星丘过度隆起',
+						palmMoundEn: 'Raised Saturn mount'
 					},
 					suggestions: {
 						career: '学会藏锋，不要在实力不足时过早展露野心。',
+						careerEn: 'Keep ambitions private until you can back them up.',
 						life: '每日冥想，强行压制内心的躁动。',
-						tip: '命理乃定数，亦是提醒。转念即转运，好自为之。'
+						lifeEn: 'Daily calm practice to steady the mind.',
+						tip: '命理乃定数，亦是提醒。转念即转运，好自为之。',
+						tipEn: 'Fate is a mirror; change mindset, change outcomes.'
 					}
 				};
 
@@ -945,7 +1126,7 @@
 			handleDownloadReport(): void {
 				if (!this.reportData) {
 					uni.showToast({
-						title: '请先完成手相分析',
+						title: getCameraUi(this.locale).toastAnalyzeFirst,
 						icon: 'none'
 					});
 					return;
@@ -975,10 +1156,42 @@
 		width: 100%;
 		min-height: 100vh;
 		background-color: #fdf7ee;
+		background-image: 
+			radial-gradient(#f4ebd0 1px, transparent 0),
+			radial-gradient(#f4ebd0 1px, transparent 0);
+		background-size: 40px 40px;
+		background-position: 0 0, 20px 20px;
 		overflow-x: hidden;
 		box-sizing: border-box;
 		align-items: center;
 		font-family: "STKaiti", "Kaiti", "SimKai", serif;
+		position: relative;
+	}
+
+	.bg-decoration {
+		position: fixed;
+		top: 0; left: 0; width: 100%; height: 100%;
+		pointer-events: none;
+		z-index: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		overflow: hidden;
+	}
+
+	.bg-bagua {
+		width: 1200rpx;
+		height: 1200rpx;
+		opacity: 0.03;
+		background-image: url('https://img.alicdn.com/imgextra/i4/O1CN01Z5vXvz1Z5vXvz1Z5v_!!6000000000001-2-tps-1024-1024.png'); /* 使用通用的八卦图链接或本地素材 */
+		background-size: contain;
+		background-repeat: no-repeat;
+		animation: rotateBg 60s linear infinite;
+	}
+
+	@keyframes rotateBg {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 
 	.camera-content-wrapper {
@@ -990,8 +1203,23 @@
 		align-items: center;
 		position: relative;
 		min-height: 100vh;
-		box-shadow: 0 0 60rpx rgba(90, 62, 43, 0.1);
+		box-shadow: 0 0 80rpx rgba(90, 62, 43, 0.15);
 		background-color: #fdf7ee;
+		/* 侧边装饰线，模拟卷轴 */
+		border-left: 2rpx solid #e8e0cc;
+		border-right: 2rpx solid #e8e0cc;
+	}
+
+	.camera-content-wrapper::before {
+		content: "";
+		position: absolute;
+		top: 0; left: 0; right: 0; bottom: 0;
+		pointer-events: none;
+		border: 30rpx solid transparent;
+		/* 增加边角装饰感 */
+		border-image: radial-gradient(circle, #e8e0cc 20%, transparent 80%) 20;
+		opacity: 0.3;
+		z-index: 0;
 	}
 
 	.camera-header {
@@ -1018,6 +1246,13 @@
 		width: 80rpx;
 		height: 80rpx;
 		opacity: 0.9;
+		animation: seal落印 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+
+	@keyframes seal落印 {
+		0% { transform: scale(3); opacity: 0; }
+		70% { transform: scale(0.9); opacity: 1; }
+		100% { transform: scale(1); opacity: 0.9; }
 	}
 
 	.header-deco {
@@ -1046,6 +1281,7 @@
 		font-weight: bold;
 		color: #5a3e2b;
 		letter-spacing: 6rpx;
+		text-shadow: 2rpx 2rpx 4rpx rgba(90, 62, 43, 0.1);
 	}
 
 	.header-subtitle {
@@ -1053,6 +1289,21 @@
 		color: #8c7662;
 		margin-bottom: 30rpx;
 		font-style: italic;
+		opacity: 0.8;
+	}
+
+	.lang-switch-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 20rpx;
+		margin-bottom: 24rpx;
+		width: 100%;
+	}
+
+	.lang-btn {
+		min-width: 88rpx;
 	}
 
 	.hand-switch {
@@ -1087,14 +1338,15 @@
 	.hand-btn {
 		padding: 14rpx 45rpx;
 		border-radius: 40rpx;
-		border: 1rpx solid #c8b99b;
-		background-color: #fff;
+		border: 2rpx solid #c8b99b;
+		background: linear-gradient(to bottom, #fff, #fdfaf5);
 		font-size: 26rpx;
 		color: #8c7662;
 		transition: all 0.3s ease;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
 	}
 
 	.hand-btn.mini {
@@ -1103,10 +1355,11 @@
 	}
 
 	.hand-btn.active {
-		background-color: #5a3e2b;
+		background: linear-gradient(135deg, #5a3e2b, #3d2a1d);
 		border-color: #5a3e2b;
 		color: #fdf7ee;
-		box-shadow: 0 4rpx 15rpx rgba(90, 62, 43, 0.2);
+		box-shadow: 0 6rpx 20rpx rgba(90, 62, 43, 0.3);
+		transform: translateY(-2rpx);
 	}
 
 	.hand-text {
@@ -1123,12 +1376,18 @@
 		padding: 20rpx;
 		margin: 20rpx 0;
 		background-color: #fff;
+		background-image: 
+			linear-gradient(rgba(232, 224, 204, 0.1) 1rpx, transparent 1rpx),
+			linear-gradient(90deg, rgba(232, 224, 204, 0.1) 1rpx, transparent 1rpx);
+		background-size: 20rpx 20rpx;
 		border-radius: 12rpx;
-		border: 1rpx solid #e8e0cc;
+		border: 2rpx solid #e8e0cc;
 		box-sizing: border-box;
-		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03);
+		box-shadow: inset 0 0 40rpx rgba(0,0,0,0.02);
 		overflow: hidden;
 		min-height: 500rpx;
+		position: relative;
+		z-index: 1;
 	}
 
 	.camera-content.report-mode {
@@ -1407,29 +1666,119 @@
 	.result-card {
 		width: 100%;
 		background-color: #fff;
+		background-image: 
+			linear-gradient(to right, #fdf7ee 2rpx, transparent 2rpx),
+			linear-gradient(to bottom, #fdf7ee 2rpx, transparent 2rpx);
+		background-size: 40rpx 40rpx;
 		border-radius: 12rpx;
-		border: 1rpx solid #e8e0cc;
+		border: 4rpx double #5a3e2b;
 		padding: 40rpx 30rpx;
-		box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.03);
+		box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.05);
 		box-sizing: border-box;
 	}
 
 	.result-header {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
+		align-items: stretch;
+		width: 100%;
 		margin-bottom: 40rpx;
-		border-bottom: 1rpx dashed #e8e0cc;
+		border-bottom: 2rpx solid #5a3e2b;
 		padding-bottom: 20rpx;
+		position: relative;
+		box-sizing: border-box;
+	}
+
+	.result-header-top-row {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		width: 100%;
+		gap: 16rpx;
+		box-sizing: border-box;
+	}
+
+	.result-header-text-block {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		flex: 1;
+		min-width: 0;
+		padding-left: 44rpx;
+		padding-right: 8rpx;
+		box-sizing: border-box;
+	}
+
+	.result-lang-inline {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 10rpx;
+		padding-top: 8rpx;
+		position: relative;
+		z-index: 2;
+	}
+
+	.result-lang-btn {
+		padding: 8rpx 22rpx;
+		border-radius: 28rpx;
+		border: 2rpx solid #c8b99b;
+		background-color: #fff;
+		font-size: 24rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.result-lang-btn.active {
+		background: linear-gradient(135deg, #5a3e2b, #3d2a1d);
+		color: #fdf7ee;
+		border-color: #5a3e2b;
+	}
+
+	.result-subtitle {
+		font-size: 26rpx;
+		color: #8c7662;
+		line-height: 1.55;
+		margin-top: 20rpx;
+		width: 100%;
+		text-align: center;
+		padding: 0 10rpx;
+		box-sizing: border-box;
+	}
+
+	.result-header::after {
+		content: "";
+		position: absolute;
+		bottom: -6rpx;
+		left: 0;
+		width: 100%;
+		height: 2rpx;
+		background-color: #5a3e2b;
 	}
 
 	.result-title {
-		font-size: 48rpx;
+		font-size: 44rpx;
 		font-weight: bold;
 		color: #5a3e2b;
-		letter-spacing: 4rpx;
-		margin-bottom: 12rpx;
+		letter-spacing: 3rpx;
+		margin-bottom: 10rpx;
+		position: relative;
+		text-align: left;
 	}
+
+	.result-title::before, .result-title::after {
+		content: "✦";
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		font-size: 24rpx;
+		color: #c8b99b;
+	}
+
+	.result-title::before { left: -40rpx; }
+	.result-title::after { right: -40rpx; }
 
 	.result-time {
 		font-size: 26rpx;
@@ -1702,11 +2051,13 @@
 	.dimension-card {
 		display: flex;
 		flex-direction: row;
-		background-color: #f8f9ff;
+		background-color: #fcfaf2;
+		background-image: url('https://img.alicdn.com/imgextra/i2/O1CN01m99vS21Z5vXvz1Z5v_!!6000000000001-2-tps-100-100.png'); /* 极淡的底纹 */
 		border-radius: 24rpx;
 		padding: 30rpx;
 		gap: 24rpx;
-		border: 1rpx solid rgba(0, 122, 255, 0.05);
+		border: 1rpx solid rgba(90, 62, 43, 0.1);
+		box-shadow: 0 4rpx 15rpx rgba(0,0,0,0.02);
 	}
 
 	.dimension-icon-box {
@@ -1765,11 +2116,23 @@
 	.card-title {
 		font-size: 32rpx;
 		font-weight: bold;
-		color: #1c1c1e;
+		color: #5a3e2b;
 		margin-bottom: 24rpx;
 		display: block;
-		padding-left: 16rpx;
-		border-left: 8rpx solid #007aff;
+		padding-left: 20rpx;
+		border-left: 10rpx solid #5a3e2b;
+		position: relative;
+	}
+
+	.card-title::after {
+		content: "";
+		position: absolute;
+		bottom: -10rpx;
+		left: 0;
+		width: 100rpx;
+		height: 2rpx;
+		background-color: #5a3e2b;
+		opacity: 0.3;
 	}
 
 	.feature-item {
@@ -2059,6 +2422,13 @@
 		width: 100%;
 		height: 100%;
 		opacity: 0.2;
+		animation: pulse 2s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0% { opacity: 0.15; transform: scale(0.98); }
+		50% { opacity: 0.3; transform: scale(1.02); }
+		100% { opacity: 0.15; transform: scale(0.98); }
 	}
 
 	.scan-hand-bg.mirror {
@@ -2111,5 +2481,31 @@
 		font-size: 24rpx;
 		color: #8c7662;
 		font-style: italic;
+	}
+
+	.scan-term-overlay {
+		position: absolute;
+		bottom: 40rpx;
+		left: 0;
+		width: 100%;
+		display: flex;
+		justify-content: center;
+		z-index: 10;
+	}
+
+	.scan-term-text {
+		background-color: rgba(90, 62, 43, 0.7);
+		color: #fdf7ee;
+		padding: 10rpx 30rpx;
+		border-radius: 30rpx;
+		font-size: 24rpx;
+		letter-spacing: 2rpx;
+		animation: termFade 1.5s infinite;
+	}
+
+	@keyframes termFade {
+		0% { opacity: 0.5; transform: translateY(10rpx); }
+		50% { opacity: 1; transform: translateY(0); }
+		100% { opacity: 0.5; transform: translateY(-10rpx); }
 	}
 </style>
