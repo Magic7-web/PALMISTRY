@@ -13,6 +13,12 @@ export default defineConfig({
         headers: {
           'Origin': 'https://dashscope.aliyuncs.com'
         }
+      },
+      '/api/paddle-js': {
+        target: 'https://cdn.paddle.com',
+        changeOrigin: true,
+        rewrite: () => '/paddle/v2/paddle.js',
+        secure: true
       }
     }
   }

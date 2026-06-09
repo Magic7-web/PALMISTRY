@@ -341,8 +341,11 @@
 				</view>
 				<view class="preview-actions">
 					<button class="action-btn btn-cancel" @click="handleCancel">{{ ui.previewRetake }}</button>
-					<button class="action-btn btn-confirm" @click="handleConfirm">{{ ui.previewConfirm }}</button>
+					<button class="action-btn btn-confirm" :disabled="isPaying" @click="handlePayAndConfirm">
+						{{ isPaying ? ui.paymentOpening : ui.previewPayAndAnalyze }}
+					</button>
 				</view>
+				<text class="payment-tip">{{ ui.paymentRequired }}</text>
 			</view>
 
 			<!-- 引导区域 -->
@@ -377,6 +380,7 @@
 	import type { PalmistryReport, ReportResult, PalmistryAnalysisResult, DimensionDetail } from '@/types/index';
 	import { analyzePalmistry } from '@/utils/qwenApi';
 	import { convertImageToBase64 } from '@/utils/imageHelper';
+	import { isPaddleConfigured, openPaddleCheckout } from '@/utils/paddlePayment';
 	import {
 		getAppLocale,
 		setAppLocale,
@@ -411,6 +415,8 @@
 		selectedLine: string | null;
 		// 下载报告引流弹窗
 		showWechatDialog: boolean;
+		isPaying: boolean;
+		hasPaidForCurrentImage: boolean;
 	}
 
 	export default {
@@ -435,7 +441,9 @@
 				dynamicScanText: '',
 				reportData: null,
 				selectedLine: 'life', // 默认选中生命线
-				showWechatDialog: false
+				showWechatDialog: false,
+				isPaying: false,
+				hasPaidForCurrentImage: false
 			};
 		},
 		computed: {
@@ -541,6 +549,7 @@
 					success: (res) => {
 						if (res.tempFilePaths && res.tempFilePaths.length > 0) {
 							this.capturedImage = res.tempFilePaths[0];
+							this.hasPaidForCurrentImage = false;
 							console.log('拍照成功', res.tempFilePaths[0]);
 						}
 					},
@@ -565,6 +574,7 @@
 					success: (res) => {
 						if (res.tempFilePaths && res.tempFilePaths.length > 0) {
 							this.capturedImage = res.tempFilePaths[0];
+							this.hasPaidForCurrentImage = false;
 							console.log('选择图片成功', res.tempFilePaths[0]);
 						}
 					},
@@ -584,6 +594,7 @@
 			handleCancel(): void {
 				this.capturedImage = null;
 				this.reportData = null;
+				this.hasPaidForCurrentImage = false;
 				// 重置图片变换参数
 				this.imageScale = 1.0;
 				this.imageOffsetX = 0;
@@ -781,6 +792,64 @@
 			/**
 			 * 确认使用当前图片，开始分析
 			 */
+			async handlePayAndConfirm(): Promise<void> {
+				if (!this.capturedImage) {
+					uni.showToast({
+						title: getCameraUi(this.locale).toastNeedPhoto,
+						icon: 'none'
+					});
+					return;
+				}
+
+				if (!this.hasPaidForCurrentImage) {
+					if (!isPaddleConfigured()) {
+						uni.showToast({
+							title: getCameraUi(this.locale).paymentConfigMissing,
+							icon: 'none',
+							duration: 4000
+						});
+						return;
+					}
+
+					this.isPaying = true;
+					try {
+						const result = await openPaddleCheckout(this.locale);
+						if (result.status === 'completed') {
+							this.hasPaidForCurrentImage = true;
+							uni.showToast({
+								title: getCameraUi(this.locale).paymentCompleted,
+								icon: 'success'
+							});
+						} else if (result.status === 'closed') {
+							uni.showToast({
+								title: getCameraUi(this.locale).paymentCanceled,
+								icon: 'none'
+							});
+							return;
+						} else {
+							uni.showToast({
+								title: result.errorMessage || getCameraUi(this.locale).paymentFailed,
+								icon: 'none',
+								duration: 5000
+							});
+							return;
+						}
+					} catch (error: any) {
+						console.error('Paddle 支付失败', error);
+						uni.showToast({
+							title: error.message || getCameraUi(this.locale).paymentFailed,
+							icon: 'none',
+							duration: 5000
+						});
+						return;
+					} finally {
+						this.isPaying = false;
+					}
+				}
+
+				await this.handleConfirm();
+			},
+
 			async handleConfirm(): Promise<void> {
 				if (!this.capturedImage) {
 					uni.showToast({
@@ -1141,6 +1210,7 @@
 			handleReset(): void {
 				this.capturedImage = null;
 				this.reportData = null;
+				this.hasPaidForCurrentImage = false;
 				this.imageScale = 1.0;
 				this.imageOffsetX = 0;
 				this.imageOffsetY = 0;
@@ -1543,6 +1613,20 @@
 	.btn-confirm {
 		background-color: #007aff;
 		color: #fff;
+	}
+
+	.btn-confirm[disabled] {
+		opacity: 0.7;
+	}
+
+	.payment-tip {
+		display: block;
+		margin-top: 16rpx;
+		padding: 0 20rpx;
+		font-size: 24rpx;
+		line-height: 1.5;
+		color: #8c7662;
+		text-align: center;
 	}
 
 	.guide-area {

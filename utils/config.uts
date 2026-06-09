@@ -31,3 +31,17 @@ export const QWEN_CONFIG = {
 	model: 'qwen-vl-plus', // 使用视觉模型：qwen-vl-plus 或 qwen-vl-max
 	timeout: 60000 // 60秒超时（AI分析可能需要更长时间）
 };
+
+/**
+ * Paddle 支付配置
+ * 1. 在 Paddle 沙盒后台创建 Client-side token，填入 clientToken（test_ 开头）
+ * 2. 在 Catalog > Products 里复制价格 ID，填入 priceId（pri_ 开头）
+ * 3. 上线时把 environment 改为 'production'，并替换 live_ token 与正式 priceId
+ */
+export const PADDLE_CONFIG = {
+	enabled: true,
+	environment: 'sandbox',
+	clientToken: 'test_85d543ced613f3327f05427f899',
+	priceId: 'pri_01ksa6bjf8ktax0m2bn323c13b',
+	quantity: 1
+};

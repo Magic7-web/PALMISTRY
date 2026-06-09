@@ -66,6 +66,13 @@ export type CameraUiKey =
 	| 'scanTermPlaceholder'
 	| 'previewRetake'
 	| 'previewConfirm'
+	| 'previewPayAndAnalyze'
+	| 'paymentRequired'
+	| 'paymentOpening'
+	| 'paymentCompleted'
+	| 'paymentCanceled'
+	| 'paymentConfigMissing'
+	| 'paymentFailed'
 	| 'guideLeft'
 	| 'guideRight'
 	| 'footerPhoto'
@@ -111,6 +118,13 @@ const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	scanTermPlaceholder: '推演中...',
 	previewRetake: '重新拍照',
 	previewConfirm: '确认使用',
+	previewPayAndAnalyze: '支付并开始分析',
+	paymentRequired: '支付完成后将立即生成手相分析报告',
+	paymentOpening: '正在打开支付...',
+	paymentCompleted: '支付成功，开始分析',
+	paymentCanceled: '支付已取消',
+	paymentConfigMissing: '请先配置 Paddle 支付参数',
+	paymentFailed: '支付失败，请重试',
 	guideLeft: '请将左手放入框内，对齐手形轮廓',
 	guideRight: '请将右手放入框内，对齐手形轮廓',
 	footerPhoto: '拍照',
@@ -158,6 +172,13 @@ const CAMERA_UI_EN: Record<CameraUiKey, string> = {
 	scanTermPlaceholder: 'Analyzing...',
 	previewRetake: 'Retake',
 	previewConfirm: 'Use photo',
+	previewPayAndAnalyze: 'Pay & analyze',
+	paymentRequired: 'Your palm report starts right after payment.',
+	paymentOpening: 'Opening checkout...',
+	paymentCompleted: 'Payment complete. Starting analysis.',
+	paymentCanceled: 'Payment canceled',
+	paymentConfigMissing: 'Configure Paddle payment first',
+	paymentFailed: 'Payment failed. Try again.',
 	guideLeft: 'Place your LEFT hand in the frame and align with the outline',
 	guideRight: 'Place your RIGHT hand in the frame and align with the outline',
 	footerPhoto: 'Camera',

@@ -1,0 +1,188 @@
+import { PADDLE_CONFIG } from '@/utils/config';
+import type { AppLocale } from '@/utils/locale';
+
+type PaddleCheckoutStatus = 'completed' | 'closed' | 'error';
+
+export interface PaddleCheckoutResult {
+	status: PaddleCheckoutStatus;
+	transactionId?: string;
+	errorMessage?: string;
+}
+
+let paddleScriptPromise: Promise<void> | null = null;
+let pendingCheckoutResolve: ((result: PaddleCheckoutResult) => void) | null = null;
+let hasInitializedPaddle = false;
+
+function getPaddle(): any {
+	const g = globalThis as any;
+	if (g.window && g.window.Paddle) {
+		return g.window.Paddle;
+	}
+	return g.Paddle;
+}
+
+function isPlaceholder(value: string): boolean {
+	return value.indexOf('REPLACE_WITH') >= 0;
+}
+
+export function isPaddleConfigured(): boolean {
+	return PADDLE_CONFIG.clientToken.length > 0
+		&& PADDLE_CONFIG.priceId.length > 0
+		&& !isPlaceholder(PADDLE_CONFIG.clientToken)
+		&& !isPlaceholder(PADDLE_CONFIG.priceId);
+}
+
+function loadPaddleScript(): Promise<void> {
+	// #ifndef H5
+	return Promise.reject(new Error('Paddle Checkout 目前只支持 H5/Web 环境'));
+	// #endif
+
+	// #ifdef H5
+	if (getPaddle()) {
+		return Promise.resolve();
+	}
+	if (paddleScriptPromise) {
+		return paddleScriptPromise;
+	}
+
+	paddleScriptPromise = new Promise((resolve, reject) => {
+		const g = globalThis as any;
+		const doc = g.document;
+		if (!doc) {
+			reject(new Error('当前环境无法加载 Paddle.js'));
+			return;
+		}
+
+		const existing = doc.querySelector('script[data-paddle-js="true"]');
+		if (existing) {
+			existing.addEventListener('load', () => resolve());
+			existing.addEventListener('error', () => reject(new Error('Paddle.js 加载失败')));
+			return;
+		}
+
+		const isLocalhost = g.location
+			&& (g.location.hostname === 'localhost' || g.location.hostname === '127.0.0.1');
+		const scriptUrls = isLocalhost
+			? ['/api/paddle-js', 'https://cdn.paddle.com/paddle/v2/paddle.js']
+			: ['https://cdn.paddle.com/paddle/v2/paddle.js'];
+		let urlIndex = 0;
+
+		const tryLoadScript = () => {
+			const script = doc.createElement('script');
+			script.src = scriptUrls[urlIndex];
+			script.async = true;
+			script.setAttribute('data-paddle-js', 'true');
+			script.onload = () => resolve();
+			script.onerror = () => {
+				if (script.parentNode) {
+					script.parentNode.removeChild(script);
+				}
+				urlIndex += 1;
+				if (urlIndex < scriptUrls.length) {
+					tryLoadScript();
+					return;
+				}
+				reject(new Error('Paddle.js 加载失败，请检查网络/代理是否允许访问 cdn.paddle.com'));
+			};
+			doc.head.appendChild(script);
+		};
+
+		tryLoadScript();
+	});
+
+	return paddleScriptPromise;
+	// #endif
+}
+
+function extractTransactionId(eventData: any): string {
+	if (!eventData) {
+		return '';
+	}
+	const data = eventData.data || {};
+	const transaction = data.transaction || {};
+	return transaction.id || data.id || eventData.transaction_id || '';
+}
+
+async function initializePaddle(): Promise<any> {
+	await loadPaddleScript();
+	const Paddle = getPaddle();
+	if (!Paddle) {
+		throw new Error('Paddle.js 未加载');
+	}
+
+	if (!hasInitializedPaddle) {
+		if (PADDLE_CONFIG.environment === 'sandbox' && Paddle.Environment) {
+			Paddle.Environment.set('sandbox');
+		}
+
+		Paddle.Initialize({
+			token: PADDLE_CONFIG.clientToken,
+			eventCallback: (eventData: any) => {
+				const eventName = eventData && eventData.name ? eventData.name : '';
+				console.log('Paddle event:', eventName, eventData);
+
+				if (!pendingCheckoutResolve) {
+					return;
+				}
+
+				if (eventName === 'checkout.completed') {
+					const resolve = pendingCheckoutResolve;
+					pendingCheckoutResolve = null;
+					resolve({
+						status: 'completed',
+						transactionId: extractTransactionId(eventData)
+					});
+				} else if (eventName === 'checkout.closed') {
+					const resolve = pendingCheckoutResolve;
+					pendingCheckoutResolve = null;
+					resolve({ status: 'closed' });
+				} else if (eventName === 'checkout.error' || eventName === 'checkout.payment.failed') {
+					const resolve = pendingCheckoutResolve;
+					pendingCheckoutResolve = null;
+					resolve({
+						status: 'error',
+						errorMessage: eventData && eventData.error ? `${eventData.error}` : 'Paddle checkout failed'
+					});
+				}
+			}
+		});
+		hasInitializedPaddle = true;
+	}
+
+	return Paddle;
+}
+
+export async function openPaddleCheckout(locale: AppLocale): Promise<PaddleCheckoutResult> {
+	if (!isPaddleConfigured()) {
+		throw new Error('请先在 utils/config.uts 中配置 Paddle clientToken 和 priceId');
+	}
+
+	const Paddle = await initializePaddle();
+	const checkoutLocale = locale === 'zh' ? 'zh' : 'en';
+
+	return new Promise((resolve, reject) => {
+		pendingCheckoutResolve = resolve;
+
+		try {
+			Paddle.Checkout.open({
+				settings: {
+					displayMode: 'overlay',
+					theme: 'light',
+					locale: checkoutLocale
+				},
+				items: [
+					{
+						priceId: PADDLE_CONFIG.priceId,
+						quantity: PADDLE_CONFIG.quantity
+					}
+				],
+				customData: {
+					product: 'palmistry_report'
+				}
+			});
+		} catch (e: any) {
+			pendingCheckoutResolve = null;
+			reject(e);
+		}
+	});
+}
