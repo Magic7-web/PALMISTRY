@@ -379,6 +379,22 @@
 			</view>
 		</view>
 	</view>
+
+		<!-- PayPal 支付弹窗：确认照片后先付款再分析 -->
+		<view class="payment-mask" v-if="showPaymentDialog">
+			<view class="payment-dialog">
+				<text class="payment-title">{{ ui.paymentTitle }}</text>
+				<text class="payment-price">US$ {{ paymentPrice }}</text>
+				<text class="payment-desc">{{ ui.paymentDesc }}</text>
+				<view v-if="paymentLoading" class="payment-loading">
+					<text class="payment-loading-text">{{ ui.paymentLoading }}</text>
+				</view>
+				<view id="paypal-button-container" class="paypal-button-host" v-show="!paymentLoading"></view>
+				<button class="payment-cancel-btn" @click="closePaymentDialog">
+					<text class="btn-text">{{ ui.paymentCancel }}</text>
+				</button>
+			</view>
+		</view>
 </view>
 </template>
 
@@ -386,6 +402,12 @@
 	import type { PalmistryReport, ReportResult, PalmistryAnalysisResult, DimensionDetail } from '@/types/index';
 	import { analyzePalmistry } from '@/utils/qwenApi';
 	import { convertImageToBase64 } from '@/utils/imageHelper';
+	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
+	import {
+		loadPayPalSdk,
+		renderPayPalButtons,
+		clearPayPalButtonContainer
+	} from '@/utils/paypalPayment';
 	import {
 		getAppLocale,
 		setAppLocale,
@@ -420,6 +442,10 @@
 		selectedLine: string | null;
 		// 下载报告引流弹窗
 		showWechatDialog: boolean;
+		// PayPal 支付弹窗
+		showPaymentDialog: boolean;
+		paymentLoading: boolean;
+		paymentPrice: string;
 	}
 
 	export default {
@@ -444,7 +470,10 @@
 				dynamicScanText: '',
 				reportData: null,
 				selectedLine: 'life', // 默认选中生命线
-				showWechatDialog: false
+				showWechatDialog: false,
+				showPaymentDialog: false,
+				paymentLoading: false,
+				paymentPrice: PAYMENT_CONFIG.priceUsd
 			};
 		},
 		computed: {
@@ -803,9 +832,9 @@
 			},
 
 			/**
-			 * 确认使用当前图片，开始分析
+			 * 确认使用当前图片：先弹出 PayPal 支付，成功后再分析
 			 */
-			async handleConfirm(): Promise<void> {
+			handleConfirm(): void {
 				if (!this.capturedImage) {
 					uni.showToast({
 						title: getCameraUi(this.locale).toastNeedPhoto,
@@ -814,28 +843,135 @@
 					return;
 				}
 
+				if (!PAYMENT_CONFIG.enabled) {
+					this.runAnalysis();
+					return;
+				}
+
+				// #ifndef H5
+				this.runAnalysis();
+				return;
+				// #endif
+
+				// #ifdef H5
+				if (PAYMENT_CONFIG.paypalClientId == null || PAYMENT_CONFIG.paypalClientId.length === 0) {
+					uni.showToast({
+						title: getCameraUi(this.locale).toastPayPalNotConfigured,
+						icon: 'none',
+						duration: 4000
+					});
+					return;
+				}
+				this.showPaymentDialog = true;
+				this.paymentLoading = true;
+				clearPayPalButtonContainer('paypal-button-container');
+				setTimeout(() => {
+					this.mountPayPalButtons();
+				}, 350);
+				// #endif
+			},
+
+			/**
+			 * 挂载 PayPal 支付按钮
+			 */
+			mountPayPalButtons(): void {
+				const u = getCameraUi(this.locale);
+				loadPayPalSdk(PAYMENT_CONFIG.paypalClientId)
+					.then(() => {
+						return renderPayPalButtons(
+							'#paypal-button-container',
+							PAYMENT_CONFIG.priceUsd,
+							PAYMENT_CONFIG.productName,
+							{
+								onSuccess: (orderId: string) => {
+									this.handlePaymentSuccess(orderId);
+								},
+								onCancel: () => {
+									uni.showToast({
+										title: u.toastPaymentCancelled,
+										icon: 'none'
+									});
+								},
+								onError: (message: string) => {
+									console.error('PayPal error:', message);
+									uni.showToast({
+										title: message,
+										icon: 'none',
+										duration: 4000
+									});
+								}
+							}
+						);
+					})
+					.catch((error: any) => {
+						console.error('PayPal mount failed:', error);
+						uni.showToast({
+							title: u.toastPaymentFailed,
+							icon: 'none',
+							duration: 4000
+						});
+					})
+					.finally(() => {
+						this.paymentLoading = false;
+					});
+			},
+
+			/**
+			 * PayPal 付款成功回调
+			 */
+			handlePaymentSuccess(orderId: string): void {
+				console.log('PayPal payment completed, order:', orderId);
+				try {
+					uni.setStorageSync('paypal_last_order_id', orderId);
+				} catch (e) {
+					console.error('save order id failed', e);
+				}
+				this.showPaymentDialog = false;
+				clearPayPalButtonContainer('paypal-button-container');
+				uni.showToast({
+					title: getCameraUi(this.locale).toastPaymentSuccess,
+					icon: 'success'
+				});
+				this.runAnalysis();
+			},
+
+			/**
+			 * 关闭支付弹窗
+			 */
+			closePaymentDialog(): void {
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				clearPayPalButtonContainer('paypal-button-container');
+			},
+
+			/**
+			 * 执行手相 AI 分析（付费成功后调用）
+			 */
+			async runAnalysis(): Promise<void> {
+				if (!this.capturedImage) {
+					return;
+				}
+
 				const u = getCameraUi(this.locale);
 				this.isAnalyzing = true;
 				this.analyzingStatus = u.analyzingExtract;
 				this.reportData = null;
-				
-				// 启动动态术语循环
+
 				const scanTerms = this.locale === 'en' ? SCAN_TERMS_EN : SCAN_TERMS_ZH;
 				let termIndex = 0;
 				this.dynamicScanText = scanTerms[0];
-				const termInterval = setInterval(() => {
+				let termInterval = 0;
+				termInterval = setInterval(() => {
 					termIndex = (termIndex + 1) % scanTerms.length;
 					this.dynamicScanText = scanTerms[termIndex];
 				}, 1500);
 
 				try {
-					// 1. 将图片转换为base64（不进行上传）
 					console.log('开始转换图片为base64...');
 					const imageBase64 = await convertImageToBase64(this.capturedImage);
-					
+
 					this.analyzingStatus = getCameraUi(this.locale).analyzingFate;
 
-					// 2. 调用API分析手相（使用base64）
 					const result = await analyzePalmistry({
 						imagePath: imageBase64,
 						gender: this.gender,
@@ -843,7 +979,6 @@
 						locale: this.locale
 					});
 
-					// 新增：判断图片是否合法
 					if (result.isInvalid === true) {
 						uni.showToast({
 							title: pickLocaleText(
@@ -859,24 +994,19 @@
 					}
 
 					this.analyzingStatus = getCameraUi(this.locale).analyzingReport;
-					await new Promise(resolve => setTimeout(resolve, 800)); // 增加一点停顿
+					await new Promise((resolve) => setTimeout(resolve, 800));
 
-					// 3. 生成报告数据
 					this.generateReportFromAPI(result);
 
 					this.analyzingStatus = getCameraUi(this.locale).analyzingDone;
-					
+
 					uni.showToast({
 						title: getCameraUi(this.locale).toastSuccess,
 						icon: 'success'
 					});
-
 				} catch (error: any) {
 					console.error('=== 分析失败 ===', error);
-					console.error('错误类型:', typeof error);
-					console.error('错误信息:', error.message || error.errMsg || error);
-					console.error('错误堆栈:', error.stack);
-					
+
 					let errorMessage = '分析失败，请重试';
 					if (error.message) {
 						if (error.message.includes('转换')) {
@@ -896,10 +1026,8 @@
 						duration: 5000
 					});
 
-					// 使用模拟数据作为fallback
 					console.log('使用模拟数据作为fallback');
 					this.generateMockReport();
-
 				} finally {
 					this.isAnalyzing = false;
 					this.analyzingStatus = '';
@@ -2440,6 +2568,88 @@
 		justify-content: center;
 		border: none;
 		box-shadow: 0 4rpx 15rpx rgba(90, 62, 43, 0.2);
+	}
+
+	/* PayPal 支付弹窗 */
+	.payment-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.65);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.payment-dialog {
+		width: 640rpx;
+		max-width: 92vw;
+		padding: 48rpx 40rpx 36rpx;
+		border-radius: 12rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		border: 4rpx solid #5a3e2b;
+	}
+
+	.payment-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 16rpx;
+		text-align: center;
+	}
+
+	.payment-price {
+		font-size: 52rpx;
+		font-weight: bold;
+		color: #2f1d13;
+		margin-bottom: 12rpx;
+	}
+
+	.payment-desc {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+		text-align: center;
+		margin-bottom: 32rpx;
+	}
+
+	.payment-loading {
+		width: 100%;
+		padding: 24rpx 0 32rpx;
+		display: flex;
+		justify-content: center;
+	}
+
+	.payment-loading-text {
+		font-size: 26rpx;
+		color: #8c7662;
+	}
+
+	.paypal-button-host {
+		width: 100%;
+		min-height: 120rpx;
+		margin-bottom: 24rpx;
+	}
+
+	.payment-cancel-btn {
+		width: 100%;
+		height: 84rpx;
+		border-radius: 42rpx;
+		background-color: #fff;
+		color: #5a3e2b;
+		font-size: 28rpx;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1rpx solid #5a3e2b;
 	}
 
 	/* 分析中状态样式 */

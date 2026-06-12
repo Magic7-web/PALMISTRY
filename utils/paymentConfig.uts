@@ -1,0 +1,20 @@
+/**
+ * PayPal 支付配置（前端 MVP）
+ *
+ * 获取 Client ID 步骤：
+ * 1. 打开 https://developer.paypal.com/dashboard/
+ * 2. 左上角保持 Sandbox（测试）或切 Live（正式）
+ * 3. 左侧 Apps & Credentials → 选 Default Application 或 Create App
+ * 4. 复制 Client ID 粘贴到下方 paypalClientId
+ */
+
+export const PAYMENT_CONFIG = {
+	/** 是否启用付费（false 时直接分析，方便本地调试） */
+	enabled: true,
+	/** Sandbox 或 Live 的 Client ID */
+	paypalClientId: 'AaO_GRW-zltYozI8OYBr0uDeo0G1br6S05KhilpnxjGFnPrNlaaLcL5hu5HEjPblLwfq9CBHDZeqtH-R',
+	/** 一次性报告价格（美元） */
+	priceUsd: '4.99',
+	/** 商品描述（PayPal 订单里展示） */
+	productName: 'AI Palm Reading Report'
+};

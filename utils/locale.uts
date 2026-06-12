@@ -85,7 +85,15 @@ export type CameraUiKey =
 	| 'analyzingExtract'
 	| 'analyzingFate'
 	| 'analyzingReport'
-	| 'analyzingDone';
+	| 'analyzingDone'
+	| 'paymentTitle'
+	| 'paymentDesc'
+	| 'paymentCancel'
+	| 'paymentLoading'
+	| 'toastPaymentSuccess'
+	| 'toastPaymentCancelled'
+	| 'toastPaymentFailed'
+	| 'toastPayPalNotConfigured';
 
 const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	navTitle: '免费看手相 - 林公测算',
@@ -130,7 +138,15 @@ const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	analyzingExtract: '正在通过 AI 提取掌纹信息...',
 	analyzingFate: '掌纹提取成功，正在推演命格...',
 	analyzingReport: '命理推演完成，正在生成报告...',
-	analyzingDone: '分析完成'
+	analyzingDone: '分析完成',
+	paymentTitle: '解锁 AI 手相报告',
+	paymentDesc: '一次性购买，付款成功后立即生成完整报告。',
+	paymentCancel: '取消',
+	paymentLoading: '正在加载 PayPal...',
+	toastPaymentSuccess: '支付成功',
+	toastPaymentCancelled: '已取消支付',
+	toastPaymentFailed: '支付加载失败，请稍后重试',
+	toastPayPalNotConfigured: '请先在 paymentConfig.uts 填写 PayPal Client ID'
 };
 
 const CAMERA_UI_EN: Record<CameraUiKey, string> = {
@@ -177,7 +193,15 @@ const CAMERA_UI_EN: Record<CameraUiKey, string> = {
 	analyzingExtract: 'Extracting palm features...',
 	analyzingFate: 'Reading lines...',
 	analyzingReport: 'Generating report...',
-	analyzingDone: 'Done'
+	analyzingDone: 'Done',
+	paymentTitle: 'Unlock AI Palm Report',
+	paymentDesc: 'One-time purchase. Your full report is generated right after payment.',
+	paymentCancel: 'Cancel',
+	paymentLoading: 'Loading PayPal...',
+	toastPaymentSuccess: 'Payment successful',
+	toastPaymentCancelled: 'Payment cancelled',
+	toastPaymentFailed: 'Failed to load PayPal. Please try again.',
+	toastPayPalNotConfigured: 'Set your PayPal Client ID in paymentConfig.uts first'
 };
 
 export function getCameraUi(locale: AppLocale): Record<CameraUiKey, string> {
