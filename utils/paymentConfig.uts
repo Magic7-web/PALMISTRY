@@ -12,7 +12,7 @@ export const PAYMENT_CONFIG = {
 	/** 是否启用付费（false 时直接分析，方便本地调试） */
 	enabled: true,
 	/** Sandbox 或 Live 的 Client ID */
-	paypalClientId: 'AaO_GRW-zltYozI8OYBr0uDeo0G1br6S05KhilpnxjGFnPrNlaaLcL5hu5HEjPblLwfq9CBHDZeqtH-R',
+	paypalClientId: 'AQj_qTNCKhQCse3z81qWS886wDG2UE0vbW0zAQOayUmWB2a17jISvlwsOCcPY9JghjiOHEoKHI9_t_lX',
 	/** 一次性报告价格（美元） */
 	priceUsd: '4.99',
 	/** 商品描述（PayPal 订单里展示） */
