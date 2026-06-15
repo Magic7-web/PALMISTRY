@@ -274,7 +274,7 @@
 		name: 'ReportPage',
 		data(): ReportPageData {
 			return {
-				locale: 'en',
+				locale: getAppLocale(),
 				imagePath: null,
 				gender: null,
 				handSide: null,
@@ -299,12 +299,12 @@
 		onLoad(options: Record<string, any>) {
 			console.log('=== onLoad 被调用 ===');
 			console.log('onLoad参数:', options);
-			this.locale = getAppLocale();
-			this.applyNavTitle();
+			this.syncLocaleFromStorage();
 			this.initPage(options);
 		},
 		onShow() {
 			console.log('=== onShow 被调用 ===');
+			this.syncLocaleFromStorage();
 			// H5平台可能在onLoad时没有参数，在onShow时从URL解析
 			// #ifdef H5
 			if (!this.imagePath) {
@@ -328,6 +328,13 @@
 		methods: {
 			applyNavTitle(): void {
 				uni.setNavigationBarTitle({ title: getReportUi(this.locale).headerTitle });
+			},
+			syncLocaleFromStorage(): void {
+				const saved = getAppLocale();
+				if (this.locale !== saved) {
+					this.locale = saved;
+				}
+				this.applyNavTitle();
 			},
 			setLocale(next: AppLocale): void {
 				if (this.locale === next) {

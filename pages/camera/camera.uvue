@@ -692,7 +692,7 @@
 		name: 'CameraPage',
 		data(): CameraPageData {
 			return {
-				locale: 'en',
+				locale: getAppLocale(),
 				capturedImage: null,
 				handSide: 'left', // 默认左手
 				gender: 'male', // 默认男性
@@ -828,9 +828,11 @@
 		},
 		onLoad(options: Record<string, any>) {
 			console.log('拍照页面加载', options);
-			this.locale = getAppLocale();
-			this.applyNavTitle();
+			this.syncLocaleFromStorage();
 			this.restoreActiveReportSnapshot();
+		},
+		onShow() {
+			this.syncLocaleFromStorage();
 		},
 		methods: {
 			openPolicyPage(path: string): void {
@@ -852,6 +854,13 @@
 				const t = getCameraUi(this.locale).navTitle;
 				uni.setNavigationBarTitle({ title: t });
 			},
+			syncLocaleFromStorage(): void {
+				const saved = getAppLocale();
+				if (this.locale !== saved) {
+					this.locale = saved;
+				}
+				this.applyNavTitle();
+			},
 			setLocale(next: AppLocale): void {
 				if (this.locale === next) {
 					return;
@@ -859,6 +868,9 @@
 				this.locale = next;
 				setAppLocale(next);
 				this.applyNavTitle();
+				if (this.reportData != null) {
+					this.persistActiveReportSnapshot();
+				}
 			},
 			pickTxt(zhText: string, enText?: string | null): string {
 				return pickLocaleText(this.locale, zhText, enText);
@@ -1189,8 +1201,7 @@
 					this.reportSessionId = snapshot.sessionId;
 					this.gender = snapshot.gender;
 					this.handSide = snapshot.handSide;
-					this.locale = snapshot.locale;
-					setAppLocale(snapshot.locale);
+					// 语言以 app_locale 为准，不用快照里的旧 locale 覆盖用户选择
 
 					let restoredImage = snapshot.capturedImage;
 					const snapshotReportImage = snapshot.reportData != null ? snapshot.reportData.imagePath : '';
