@@ -1,0 +1,130 @@
+/**
+ * PayPal 前端 SDK 封装（仅 H5）
+ * MVP：在浏览器内完成下单与 capture，无需自建后端
+ */
+
+export type PayPalPaymentCallbacks = {
+	onSuccess: (orderId: string) => void;
+	onCancel: () => void;
+	onError: (message: string) => void;
+};
+
+/**
+ * 动态加载 PayPal JavaScript SDK
+ */
+export function loadPayPalSdk(clientId: string): Promise<void> {
+	// #ifdef H5
+	return new Promise((resolve, reject) => {
+		const g = globalThis as any;
+		if (g.paypal != null) {
+			resolve();
+			return;
+		}
+		const doc = g.document;
+		if (doc == null) {
+			reject(new Error('document unavailable'));
+			return;
+		}
+		const existing = doc.getElementById('paypal-sdk-script');
+		if (existing != null) {
+			existing.remove();
+		}
+		const script = doc.createElement('script');
+		script.id = 'paypal-sdk-script';
+		script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
+		script.async = true;
+		script.onload = () => resolve();
+		script.onerror = () => reject(new Error('PayPal SDK load failed'));
+		doc.head.appendChild(script);
+	});
+	// #endif
+
+	// #ifndef H5
+	return Promise.reject(new Error('PayPal only supported on H5'));
+	// #endif
+}
+
+/**
+ * 在指定容器内渲染 PayPal 支付按钮
+ */
+export function renderPayPalButtons(
+	containerSelector: string,
+	priceUsd: string,
+	productName: string,
+	callbacks: PayPalPaymentCallbacks
+): Promise<void> {
+	// #ifdef H5
+	return new Promise((resolve, reject) => {
+		const g = globalThis as any;
+		const paypal = g.paypal;
+		if (paypal == null) {
+			reject(new Error('PayPal SDK not loaded'));
+			return;
+		}
+		const container = g.document.querySelector(containerSelector);
+		if (container != null) {
+			container.innerHTML = '';
+		}
+		paypal
+			.Buttons({
+				style: {
+					layout: 'vertical',
+					color: 'gold',
+					shape: 'rect',
+					label: 'paypal',
+					height: 45
+				},
+				createOrder: (_data: any, actions: any) => {
+					return actions.order.create({
+						purchase_units: [
+							{
+								description: productName,
+								amount: {
+									value: priceUsd,
+									currency_code: 'USD'
+								}
+							}
+						]
+					});
+				},
+				onApprove: (data: any, actions: any) => {
+					return actions.order.capture().then((details: any) => {
+						if (details.status === 'COMPLETED') {
+							callbacks.onSuccess(data.orderID as string);
+						} else {
+							callbacks.onError('Payment not completed');
+						}
+					});
+				},
+				onCancel: () => {
+					callbacks.onCancel();
+				},
+				onError: (err: any) => {
+					const msg =
+						err != null && err.message != null ? (err.message as string) : 'PayPal error';
+					callbacks.onError(msg);
+				}
+			})
+			.render(containerSelector)
+			.then(() => resolve())
+			.catch((err: any) => reject(err));
+	});
+	// #endif
+
+	// #ifndef H5
+	return Promise.reject(new Error('PayPal only supported on H5'));
+	// #endif
+}
+
+/**
+ * 清空 PayPal 按钮容器
+ */
+export function clearPayPalButtonContainer(containerId: string): void {
+	// #ifdef H5
+	const g = globalThis as any;
+	const el = g.document != null ? g.document.getElementById(containerId) : null;
+	if (el != null) {
+		el.innerHTML = '';
+	}
+	// #endif
+}

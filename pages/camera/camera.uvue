@@ -252,6 +252,168 @@
 									</view>
 								</view>
 							</view>
+
+							<!-- 继续追问模块：首报免费，后续按模块付费 -->
+							<view class="followup-section" v-if="followUpModules.length > 0">
+								<view class="section-header">
+									<text class="section-title">{{ ui.followUpSectionTitle }}</text>
+									<text class="section-tips">{{ ui.followUpSectionTip }}</text>
+								</view>
+
+								<view class="followup-tabs">
+									<button
+										class="followup-tab"
+										v-for="module in followUpModules"
+										:key="module.id"
+										:class="{ active: activeFollowUpModuleId === module.id }"
+										@click="switchFollowUpTab(module.id)"
+									>
+										<text class="followup-tab-text">{{ getFollowUpTabLabel(module) }}</text>
+									</button>
+								</view>
+
+								<view class="followup-panel" v-if="activeFollowUpModuleId === 'love'">
+									<view class="followup-panel-head">
+										<view class="followup-card-title-block">
+											<text class="followup-card-title">{{ getFollowUpModuleTitle('love') }}</text>
+											<text class="followup-card-desc">{{ getFollowUpModuleDesc('love') }}</text>
+										</view>
+										<text class="followup-card-price">{{ getFollowUpModulePriceLabel('love') }}</text>
+									</view>
+
+									<view class="followup-answer-box" v-if="getFollowUpAnswer('love')">
+										<text class="followup-answer-title">{{ ui.followUpAnswerTitle }}</text>
+										<text class="followup-answer-text">{{ getFollowUpAnswerText('love') }}</text>
+										<text class="followup-answer-hint">{{ ui.followUpAnswerHint }}</text>
+									</view>
+
+									<view class="followup-generating" v-else-if="isFollowUpGenerating('love')">
+										<view class="followup-spinner"></view>
+										<text class="followup-generating-title">{{ locale === 'en' ? 'Generating deep reading' : '正在生成深度解读' }}</text>
+										<text class="followup-generating-desc">{{ locale === 'en' ? 'The AI is reading this module based on your palm.' : 'AI 正在结合你的手相重新推演这个模块。' }}</text>
+									</view>
+
+									<view class="followup-locked-panel" v-else>
+										<view class="followup-preview-blur">
+											<text class="followup-preview-text">{{ getFollowUpModulePreview('love') }}</text>
+											<text class="followup-preview-text">
+												{{ locale === 'en'
+													? 'The full reading includes why this pattern appears, what it means, practical next steps, and the risks to avoid.'
+													: '完整内容会继续展开：为什么这么判断、解读出来的结果、应对策略，以及你最需要避开的风险。' }}
+											</text>
+										</view>
+										<view class="followup-lock-overlay">
+											<button
+												class="followup-unlock-btn"
+												@click="openFollowUpPaymentById('love')"
+											>
+												<text class="btn-text">
+													{{ locale === 'en' ? 'Unlock this module ' : '解锁当前模块 ' }}{{ getFollowUpModulePriceLabel('love') }}
+												</text>
+											</button>
+											<button
+												class="followup-unlock-btn bundle-btn"
+												v-if="!isAllFollowUpUnlocked()"
+												@click="openBundlePayment"
+											>
+												<text class="btn-text">
+													{{ locale === 'en' ? 'Unlock all ' : '一次解锁全部 ' }}{{ getBundlePriceLabel() }}
+												</text>
+											</button>
+										</view>
+									</view>
+								</view>
+
+								<view class="followup-panel" v-if="activeFollowUpModuleId === 'career'">
+									<view class="followup-panel-head">
+										<view class="followup-card-title-block">
+											<text class="followup-card-title">{{ getFollowUpModuleTitle('career') }}</text>
+											<text class="followup-card-desc">{{ getFollowUpModuleDesc('career') }}</text>
+										</view>
+										<text class="followup-card-price">{{ getFollowUpModulePriceLabel('career') }}</text>
+									</view>
+
+									<view class="followup-answer-box" v-if="getFollowUpAnswer('career')">
+										<text class="followup-answer-title">{{ ui.followUpAnswerTitle }}</text>
+										<text class="followup-answer-text">{{ getFollowUpAnswerText('career') }}</text>
+										<text class="followup-answer-hint">{{ ui.followUpAnswerHint }}</text>
+									</view>
+
+									<view class="followup-generating" v-else-if="isFollowUpGenerating('career')">
+										<view class="followup-spinner"></view>
+										<text class="followup-generating-title">{{ locale === 'en' ? 'Generating deep reading' : '正在生成深度解读' }}</text>
+										<text class="followup-generating-desc">{{ locale === 'en' ? 'The AI is reading this module based on your palm.' : 'AI 正在结合你的手相重新推演这个模块。' }}</text>
+									</view>
+
+									<view class="followup-locked-panel" v-else>
+										<view class="followup-preview-blur">
+											<text class="followup-preview-text">{{ getFollowUpModulePreview('career') }}</text>
+											<text class="followup-preview-text">
+												{{ locale === 'en'
+													? 'The full reading includes why this pattern appears, what it means, practical next steps, and the risks to avoid.'
+													: '完整内容会继续展开：为什么这么判断、解读出来的结果、应对策略，以及你最需要避开的风险。' }}
+											</text>
+										</view>
+										<view class="followup-lock-overlay">
+											<button class="followup-unlock-btn" @click="openFollowUpPaymentById('career')">
+												<text class="btn-text">
+													{{ locale === 'en' ? 'Unlock this module ' : '解锁当前模块 ' }}{{ getFollowUpModulePriceLabel('career') }}
+												</text>
+											</button>
+											<button class="followup-unlock-btn bundle-btn" v-if="!isAllFollowUpUnlocked()" @click="openBundlePayment">
+												<text class="btn-text">
+													{{ locale === 'en' ? 'Unlock all ' : '一次解锁全部 ' }}{{ getBundlePriceLabel() }}
+												</text>
+											</button>
+										</view>
+									</view>
+								</view>
+
+								<view class="followup-panel" v-if="activeFollowUpModuleId === 'health'">
+									<view class="followup-panel-head">
+										<view class="followup-card-title-block">
+											<text class="followup-card-title">{{ getFollowUpModuleTitle('health') }}</text>
+											<text class="followup-card-desc">{{ getFollowUpModuleDesc('health') }}</text>
+										</view>
+										<text class="followup-card-price">{{ getFollowUpModulePriceLabel('health') }}</text>
+									</view>
+
+									<view class="followup-answer-box" v-if="getFollowUpAnswer('health')">
+										<text class="followup-answer-title">{{ ui.followUpAnswerTitle }}</text>
+										<text class="followup-answer-text">{{ getFollowUpAnswerText('health') }}</text>
+										<text class="followup-answer-hint">{{ ui.followUpAnswerHint }}</text>
+									</view>
+
+									<view class="followup-generating" v-else-if="isFollowUpGenerating('health')">
+										<view class="followup-spinner"></view>
+										<text class="followup-generating-title">{{ locale === 'en' ? 'Generating deep reading' : '正在生成深度解读' }}</text>
+										<text class="followup-generating-desc">{{ locale === 'en' ? 'The AI is reading this module based on your palm.' : 'AI 正在结合你的手相重新推演这个模块。' }}</text>
+									</view>
+
+									<view class="followup-locked-panel" v-else>
+										<view class="followup-preview-blur">
+											<text class="followup-preview-text">{{ getFollowUpModulePreview('health') }}</text>
+											<text class="followup-preview-text">
+												{{ locale === 'en'
+													? 'The full reading includes why this pattern appears, what it means, practical next steps, and the risks to avoid.'
+													: '完整内容会继续展开：为什么这么判断、解读出来的结果、应对策略，以及你最需要避开的风险。' }}
+											</text>
+										</view>
+										<view class="followup-lock-overlay">
+											<button class="followup-unlock-btn" @click="openFollowUpPaymentById('health')">
+												<text class="btn-text">
+													{{ locale === 'en' ? 'Unlock this module ' : '解锁当前模块 ' }}{{ getFollowUpModulePriceLabel('health') }}
+												</text>
+											</button>
+											<button class="followup-unlock-btn bundle-btn" v-if="!isAllFollowUpUnlocked()" @click="openBundlePayment">
+												<text class="btn-text">
+													{{ locale === 'en' ? 'Unlock all ' : '一次解锁全部 ' }}{{ getBundlePriceLabel() }}
+												</text>
+											</button>
+										</view>
+									</view>
+								</view>
+							</view>
 						</view>
 						
 						<view class="result-actions">
@@ -379,14 +541,97 @@
 			</view>
 		</view>
 	</view>
+
+		<!-- 追问模块支付弹窗：只用于后续追问，不再拦截首个免费报告 -->
+		<view class="payment-mask" v-if="showPaymentDialog">
+			<view class="payment-dialog">
+				<text class="payment-title">{{ ui.paymentTitle }}</text>
+				<text class="payment-desc">{{ ui.paymentDesc }}</text>
+				<view class="payment-topic" v-if="paymentSummaryLabel">
+					<text class="payment-topic-label">{{ locale === 'en' ? 'Module' : '追问模块' }}</text>
+					<text class="payment-topic-name">{{ paymentSummaryLabel }}</text>
+				</view>
+				<view class="payment-method-tabs">
+					<button
+						class="payment-method-tab"
+						:class="{ active: paymentMethod === 'paypal' }"
+						@click="selectPaymentMethod('paypal')"
+					>
+						<text class="payment-method-text">{{ ui.paymentPayPalTab }}</text>
+					</button>
+					<button
+						class="payment-method-tab"
+						:class="{ active: paymentMethod === 'alipay' }"
+						@click="selectPaymentMethod('alipay')"
+					>
+						<text class="payment-method-text">{{ ui.paymentAlipayTab }}</text>
+					</button>
+				</view>
+
+				<view class="paypal-panel" v-if="paymentMethod === 'paypal'">
+					<text class="payment-price">US$ {{ paymentPrice }}</text>
+					<view v-if="paymentLoading" class="payment-loading">
+						<text class="payment-loading-text">{{ ui.paymentLoading }}</text>
+					</view>
+					<view id="paypal-button-container" class="paypal-button-host" v-show="!paymentLoading"></view>
+				</view>
+
+				<view class="alipay-panel" v-if="paymentMethod === 'alipay'">
+					<text class="alipay-title">{{ ui.alipayTitle }}</text>
+					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
+					<view class="alipay-info">
+						<text class="alipay-info-line">{{ ui.alipayAmountLabel }}: ¥{{ alipayPrice }}</text>
+						<text class="alipay-info-line">{{ ui.alipayOrderLabel }}: {{ manualPaymentCode }}</text>
+						<text class="alipay-info-line">{{ ui.alipayEmailLabel }}: {{ supportEmail }}</text>
+					</view>
+					<text class="alipay-desc">{{ ui.alipayDesc }}</text>
+					<text class="alipay-notice">{{ ui.alipayManualNotice }}</text>
+					<button class="alipay-paid-btn" @click="confirmAlipayPayment">
+						<text class="btn-text">{{ ui.alipayPaidButton }}</text>
+					</button>
+				</view>
+
+				<button class="payment-cancel-btn" @click="closePaymentDialog">
+					<text class="btn-text">{{ ui.paymentCancel }}</text>
+				</button>
+			</view>
+		</view>
 </view>
 </template>
 
 <script lang="uts">
-	import type { PalmistryReport, ReportResult, PalmistryAnalysisResult, DimensionDetail } from '@/types/index';
-	import { analyzePalmistry } from '@/utils/qwenApi';
-	import { convertImageToBase64 } from '@/utils/imageHelper';
+	import type {
+		PalmistryReport,
+		ReportResult,
+		PalmistryAnalysisResult,
+		DimensionDetail,
+		FollowUpModule,
+		FollowUpPack,
+		FollowUpAnswerRecord,
+		ActiveReportSnapshot
+	} from '@/types/index';
+	import { analyzePalmistry, analyzeFollowUpReading } from '@/utils/qwenApi';
+	import {
+		convertImageToBase64,
+		resolveImageForApi,
+		isApiReadyImage,
+		isEphemeralImagePath
+	} from '@/utils/imageHelper';
 	import { getOrderedDimensionKeys as orderDimensionKeys } from '@/utils/dimensionHelper';
+	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
+	import {
+		saveActiveReportSnapshot,
+		loadActiveReportSnapshot,
+		clearActiveReportSnapshot,
+		loadFollowUpAnswers,
+		saveFollowUpAnswer,
+		clearFollowUpAnswers
+	} from '@/utils/sessionStore';
+	import {
+		loadPayPalSdk,
+		renderPayPalButtons,
+		clearPayPalButtonContainer
+	} from '@/utils/paypalPayment';
 	import {
 		getAppLocale,
 		setAppLocale,
@@ -398,6 +643,8 @@
 	} from '@/utils/locale';
 
 	type HandSide = 'left' | 'right';
+	type PaymentMethod = 'paypal' | 'alipay';
+	type PaymentTarget = 'followup';
 
 	interface CameraPageData {
 		locale: AppLocale;
@@ -419,8 +666,26 @@
 		reportData: PalmistryReport | null;
 		// 新增：当前选中的交互线条类型
 		selectedLine: string | null;
+		reportSessionId: string;
+		followUpModules: FollowUpModule[];
+		followUpBundle: FollowUpPack;
+		followUpAnswers: FollowUpAnswerRecord[];
+		activeFollowUpModuleId: string;
+		followUpGeneratingModuleId: string;
+		pendingFollowUpModule: FollowUpModule | null;
+		paymentTarget: PaymentTarget | null;
+		paymentSummaryLabel: string;
 		// 下载报告引流弹窗
 		showWechatDialog: boolean;
+		// PayPal 支付弹窗
+		showPaymentDialog: boolean;
+		paymentLoading: boolean;
+		paymentPrice: string;
+		alipayPrice: string;
+		alipayQrCode: string;
+		supportEmail: string;
+		paymentMethod: PaymentMethod;
+		manualPaymentCode: string;
 	}
 
 	export default {
@@ -445,7 +710,73 @@
 				dynamicScanText: '',
 				reportData: null,
 				selectedLine: 'life', // 默认选中生命线
-				showWechatDialog: false
+				reportSessionId: '',
+				followUpModules: [
+					{
+						id: 'love',
+						title: '情缘深度解读',
+						titleEn: 'Love deep reading',
+						description: '解读关系节奏、相处模式、桃花窗口和感情避坑。',
+						descriptionEn: 'Read relationship timing, emotional patterns, and love risks.',
+						previewText: '你的感情线并不是单纯的顺或不顺，而是呈现出一种先热后审、外柔内防的关系模式。掌纹里的细小分叉说明你在感情里容易一边期待亲密，一边又会用理性反复确认安全感。接下来的情缘重点不是有没有人出现，而是你能不能识别真正稳定的人，以及避开只给情绪刺激却不给现实承诺的关系。',
+						previewTextEn: 'Your heart line does not simply show good or bad luck. It points to a pattern of warm attraction followed by careful testing. The small branches suggest that you want closeness but also need repeated signs of emotional safety. The next love focus is not whether someone appears, but whether you can identify stable affection and avoid relationships that offer intensity without commitment.',
+						priceUsd: PAYMENT_CONFIG.priceUsd,
+						priceCny: PAYMENT_CONFIG.priceCny,
+						prompt: '请结合当前报告，围绕关系节奏、相处方式、沟通模式、遇到合适对象的窗口、避免烂桃花，给出爱情深度解读。',
+						promptEn: 'Based on the current report, give a deep love reading about relationship timing, communication patterns, suitable partners, and emotional risks.'
+					},
+					{
+						id: 'career',
+						title: '事业财运深度解读',
+						titleEn: 'Career and wealth deep reading',
+						description: '解读上升路径、机会选择、财运节奏和事业避坑。',
+						descriptionEn: 'Read career direction, opportunity timing, wealth rhythm, and work risks.',
+						previewText: '你的事业线显示出来的不是没有机会，而是机会往往伴随压力和选择成本。智慧线与命运线之间的呼应说明你适合靠判断力、执行力和阶段性积累打开局面，而不是频繁换方向。事业财运的关键在于先做出一个能被看见的结果，再谈更大的跳跃，否则容易出现忙了很多却没有沉淀的情况。',
+						previewTextEn: 'Your fate line does not suggest a lack of opportunity. It suggests that opportunities often come with pressure and decision costs. The link between head line and fate line points to progress through judgment, execution, and accumulated proof rather than constant switching. Your career and wealth path depends on creating visible results before making larger moves.',
+						priceUsd: PAYMENT_CONFIG.priceUsd,
+						priceCny: PAYMENT_CONFIG.priceCny,
+						prompt: '请结合当前报告，围绕工作选择、跳槽或转岗时机、上升路径、执行节奏、贵人阻力、财运节奏和避坑，给出事业财运深度解读。',
+						promptEn: 'Based on the current report, give a deep career and wealth reading about work choices, timing, growth path, execution rhythm, support, resistance, and risks.'
+					},
+					{
+						id: 'health',
+						title: '身心能量深度解读',
+						titleEn: 'Mind and body energy deep reading',
+						description: '解读压力、睡眠、体力消耗、作息和身心修复策略。',
+						descriptionEn: 'Read stress, sleep, energy drain, routines, and recovery strategy.',
+						previewText: '你的生命线和掌丘状态更像是在提醒你：问题不是短期有没有大病，而是长期消耗之后恢复速度会变慢。掌纹中的细碎纹路通常对应压力累积、睡眠质量和情绪负荷。身心能量的重点不是制造焦虑，而是看清你在哪些习惯上持续透支，以及如何把作息、运动、饮食和体检节奏重新拉回稳定。',
+						previewTextEn: 'Your life line and mounts read more like a warning about long-term depletion than an immediate illness. Fine stress lines often point to accumulated pressure, sleep quality, and emotional load. The focus is not fear, but recognizing where daily habits drain your energy and how to rebuild rhythm through sleep, movement, food, and checkups.',
+						priceUsd: PAYMENT_CONFIG.priceUsd,
+						priceCny: PAYMENT_CONFIG.priceCny,
+						prompt: '请结合当前报告，围绕压力、睡眠、体力消耗、作息、体检、生活习惯调整和身心修复，给出身心能量深度解读。',
+						promptEn: 'Based on the current report, give a deep mind and body energy reading about stress, sleep, energy drain, routines, checkups, and recovery.'
+					}
+				],
+				followUpBundle: {
+					id: 'all',
+					title: '全部解锁',
+					titleEn: 'Unlock all',
+					description: '一次性解锁爱情、事业、健康三个模块，适合想要完整建议的用户。',
+					descriptionEn: 'Unlock love, career, and health in one purchase.',
+					priceUsd: PAYMENT_CONFIG.bundlePriceUsd,
+					priceCny: PAYMENT_CONFIG.bundlePriceCny,
+					moduleIds: ['love', 'career', 'health']
+				},
+				followUpAnswers: [],
+				activeFollowUpModuleId: 'love',
+				followUpGeneratingModuleId: '',
+				pendingFollowUpModule: null,
+				paymentTarget: null,
+				paymentSummaryLabel: '',
+				showWechatDialog: false,
+				showPaymentDialog: false,
+				paymentLoading: false,
+				paymentPrice: PAYMENT_CONFIG.priceUsd,
+				alipayPrice: PAYMENT_CONFIG.priceCny,
+				alipayQrCode: PAYMENT_CONFIG.alipayQrCode,
+				supportEmail: PAYMENT_CONFIG.supportEmail,
+				paymentMethod: 'paypal',
+				manualPaymentCode: ''
 			};
 		},
 		computed: {
@@ -486,13 +817,20 @@
 				};
 				
 				const targetTypeName = typeMap[this.selectedLine];
-				return this.reportData.results.find((item: ReportResult): boolean => item.type === targetTypeName) || null;
+				for (let i = 0; i < this.reportData.results.length; i += 1) {
+					const item = this.reportData.results[i];
+					if (item.type === targetTypeName) {
+						return item;
+					}
+				}
+				return null;
 			}
 		},
 		onLoad(options: Record<string, any>) {
 			console.log('拍照页面加载', options);
 			this.locale = getAppLocale();
 			this.applyNavTitle();
+			this.restoreActiveReportSnapshot();
 		},
 		methods: {
 			openPolicyPage(path: string): void {
@@ -561,9 +899,9 @@
 				return orderDimensionKeys(dimensions);
 			},
 
-			/**
-			 * 拍照
-			 */
+				/**
+				 * 拍照
+				 */
 			handleTakePhoto(): void {
 				uni.chooseImage({
 					count: 1,
@@ -810,9 +1148,9 @@
 			},
 
 			/**
-			 * 确认使用当前图片，开始分析
+			 * 确认使用当前图片：首个报告免费，直接进入分析
 			 */
-			async handleConfirm(): Promise<void> {
+			handleConfirm(): void {
 				if (!this.capturedImage) {
 					uni.showToast({
 						title: getCameraUi(this.locale).toastNeedPhoto,
@@ -820,29 +1158,650 @@
 					});
 					return;
 				}
+				this.runAnalysis();
+			},
+
+			/**
+			 * 创建报告会话 ID
+			 */
+			createReportSessionId(): string {
+				const now = new Date();
+				const year = now.getFullYear();
+				const month = this.formatNumber(now.getMonth() + 1);
+				const day = this.formatNumber(now.getDate());
+				const hours = this.formatNumber(now.getHours());
+				const minutes = this.formatNumber(now.getMinutes());
+				const seconds = this.formatNumber(now.getSeconds());
+				const random = Math.floor(1000 + Math.random() * 9000);
+				return `RP${year}${month}${day}-${hours}${minutes}${seconds}-${random}`;
+			},
+
+			/**
+			 * 载入本地保存的报告快照和追问结果
+			 */
+			restoreActiveReportSnapshot(): void {
+				try {
+					const snapshot = loadActiveReportSnapshot();
+					if (!snapshot) {
+						return;
+					}
+
+					this.reportSessionId = snapshot.sessionId;
+					this.gender = snapshot.gender;
+					this.handSide = snapshot.handSide;
+					this.locale = snapshot.locale;
+					setAppLocale(snapshot.locale);
+
+					let restoredImage = snapshot.capturedImage;
+					const snapshotReportImage = snapshot.reportData != null ? snapshot.reportData.imagePath : '';
+					if (isApiReadyImage(snapshotReportImage)) {
+						restoredImage = snapshotReportImage;
+					} else if (isEphemeralImagePath(restoredImage || '')) {
+						restoredImage = null;
+					}
+					this.capturedImage = restoredImage;
+
+					if (snapshot.reportData) {
+						this.reportData = snapshot.reportData;
+						if (isApiReadyImage(restoredImage || '')) {
+							this.reportData.imagePath = restoredImage as string;
+						}
+						this.selectedLine = this.reportData.results.length > 0 ? this.reportData.results[0].type : 'life';
+						this.followUpAnswers = loadFollowUpAnswers(snapshot.sessionId);
+						this.isAnalyzing = false;
+						console.log('已恢复报告快照:', snapshot.sessionId);
+					}
+				} catch (error) {
+					console.error('恢复报告快照失败', error);
+				}
+			},
+
+			/**
+			 * 保存当前报告快照，便于刷新后继续查看追问答案
+			 */
+			persistActiveReportSnapshot(): void {
+				if (!this.reportData || !this.reportSessionId) {
+					return;
+				}
+
+				const imageToSave = isApiReadyImage(this.capturedImage || '')
+					? (this.capturedImage as string)
+					: (isApiReadyImage(this.reportData.imagePath || '') ? this.reportData.imagePath : '');
+
+				const reportDataForSnapshot = {
+					...this.reportData,
+					imagePath: imageToSave || this.reportData.imagePath
+				};
+
+				const snapshot: ActiveReportSnapshot = {
+					sessionId: this.reportSessionId,
+					capturedImage: imageToSave || this.capturedImage || '',
+					gender: this.gender,
+					handSide: this.handSide,
+					locale: this.locale,
+					reportData: reportDataForSnapshot,
+					createdAt: new Date().toISOString()
+				};
+				saveActiveReportSnapshot(snapshot);
+				this.followUpAnswers = loadFollowUpAnswers(this.reportSessionId);
+			},
+
+			createManualPaymentCode(): string {
+				const now = new Date();
+				const year = now.getFullYear();
+				const month = this.formatNumber(now.getMonth() + 1);
+				const day = this.formatNumber(now.getDate());
+				const random = Math.floor(100000 + Math.random() * 900000);
+				return `CN${year}${month}${day}-${random}`;
+			},
+
+			switchFollowUpTab(moduleId: string): void {
+				this.activeFollowUpModuleId = moduleId;
+			},
+
+			getFollowUpTabLabel(module: FollowUpModule): string {
+				if (this.locale === 'en') {
+					if (module.id === 'love') return 'Love';
+					if (module.id === 'career') return 'Career';
+					if (module.id === 'health') return 'Health';
+					return module.titleEn || module.title;
+				}
+				if (module.id === 'love') return '爱情';
+				if (module.id === 'career') return '事业';
+				if (module.id === 'health') return '健康';
+				return module.title;
+			},
+
+			getFollowUpModuleById(moduleId: string): FollowUpModule {
+				for (let i = 0; i < this.followUpModules.length; i += 1) {
+					const item = this.followUpModules[i];
+					if (item.id === moduleId) {
+						return item;
+					}
+				}
+				return this.followUpModules[0] as FollowUpModule;
+			},
+
+			getFollowUpModuleTitle(moduleId: string): string {
+				const module = this.getFollowUpModuleById(moduleId);
+				return this.pickTxt(module.title, module.titleEn);
+			},
+
+			getFollowUpModuleDesc(moduleId: string): string {
+				const module = this.getFollowUpModuleById(moduleId);
+				return this.pickTxt(module.description, module.descriptionEn);
+			},
+
+			getFollowUpModulePreview(moduleId: string): string {
+				const module = this.getFollowUpModuleById(moduleId);
+				return this.pickTxt(module.previewText, module.previewTextEn);
+			},
+
+			getFollowUpModulePriceLabel(moduleId: string): string {
+				return this.getFollowUpPriceLabel(this.getFollowUpModuleById(moduleId));
+			},
+
+			openFollowUpPaymentById(moduleId: string): void {
+				this.openFollowUpPayment(this.getFollowUpModuleById(moduleId));
+			},
+
+			getFollowUpPriceLabel(module: FollowUpModule): string {
+				return this.locale === 'zh' ? `¥${module.priceCny}` : `$${module.priceUsd}`;
+			},
+
+			getBundlePriceLabel(): string {
+				return this.locale === 'zh' ? `¥${this.followUpBundle.priceCny}` : `$${this.followUpBundle.priceUsd}`;
+			},
+
+			isAllFollowUpUnlocked(): boolean {
+				const unlockedIds = this.getUnlockedModuleIds();
+				for (let i = 0; i < this.followUpBundle.moduleIds.length; i += 1) {
+					const id = this.followUpBundle.moduleIds[i];
+					let matched = false;
+					for (let j = 0; j < unlockedIds.length; j += 1) {
+						if (unlockedIds[j] === id) {
+							matched = true;
+							break;
+						}
+					}
+					if (!matched) {
+						return false;
+					}
+				}
+				return true;
+			},
+
+			isFollowUpGenerating(moduleId: string): boolean {
+				return this.followUpGeneratingModuleId === moduleId || this.followUpGeneratingModuleId === this.followUpBundle.id;
+			},
+
+			/**
+			 * 打开追问模块支付
+			 */
+			openFollowUpPayment(module: FollowUpModule): void {
+				if (!this.reportData) {
+					uni.showToast({
+						title: getCameraUi(this.locale).toastAnalyzeFirst,
+						icon: 'none'
+					});
+					return;
+				}
+
+				this.pendingFollowUpModule = module;
+				this.paymentTarget = 'followup';
+				this.paymentSummaryLabel = this.pickTxt(module.title, module.titleEn);
+				this.paymentPrice = module.priceUsd;
+				this.alipayPrice = module.priceCny;
+				this.alipayQrCode = PAYMENT_CONFIG.alipayQrCode;
+				this.manualPaymentCode = this.createManualPaymentCode();
+				this.showPaymentDialog = true;
+				clearPayPalButtonContainer('paypal-button-container');
+
+				const canUsePayPal = PAYMENT_CONFIG.paypalClientId != null && PAYMENT_CONFIG.paypalClientId.length > 0;
+				const preferredMethod: PaymentMethod = this.locale === 'zh' && PAYMENT_CONFIG.alipayEnabled
+					? 'alipay'
+					: (canUsePayPal ? 'paypal' : 'alipay');
+				this.selectPaymentMethod(preferredMethod);
+			},
+
+			/**
+			 * 打开全部解锁支付
+			 */
+			openBundlePayment(): void {
+				if (!this.reportData) {
+					uni.showToast({
+						title: getCameraUi(this.locale).toastAnalyzeFirst,
+						icon: 'none'
+					});
+					return;
+				}
+
+				this.pendingFollowUpModule = null;
+				this.paymentTarget = 'followup';
+				this.paymentSummaryLabel = this.pickTxt(this.followUpBundle.title, this.followUpBundle.titleEn);
+				this.paymentPrice = this.followUpBundle.priceUsd;
+				this.alipayPrice = this.followUpBundle.priceCny;
+				this.alipayQrCode = PAYMENT_CONFIG.alipayBundleQrCode;
+				this.manualPaymentCode = this.createManualPaymentCode();
+				this.showPaymentDialog = true;
+				clearPayPalButtonContainer('paypal-button-container');
+
+				const canUsePayPal = PAYMENT_CONFIG.paypalClientId != null && PAYMENT_CONFIG.paypalClientId.length > 0;
+				const preferredMethod: PaymentMethod = this.locale === 'zh' && PAYMENT_CONFIG.alipayEnabled
+					? 'alipay'
+					: (canUsePayPal ? 'paypal' : 'alipay');
+				this.selectPaymentMethod(preferredMethod);
+			},
+
+			/**
+			 * 获取某个追问模块的已保存答案
+			 */
+			getFollowUpAnswer(moduleId: string): FollowUpAnswerRecord | null {
+				if (!this.reportSessionId) {
+					return null;
+				}
+				for (let i = 0; i < this.followUpAnswers.length; i += 1) {
+					const item = this.followUpAnswers[i];
+					if (item.moduleId === moduleId) {
+						return item;
+					}
+				}
+				return null;
+			},
+
+			getFollowUpAnswerText(moduleId: string): string {
+				const answer = this.getFollowUpAnswer(moduleId);
+				return answer ? answer.answer : '';
+			},
+
+			/**
+			 * 获取已解锁模块ID集合
+			 */
+			getUnlockedModuleIds(): string[] {
+				const moduleIds: string[] = [];
+				for (let i = 0; i < this.followUpAnswers.length; i += 1) {
+					moduleIds.push(this.followUpAnswers[i].moduleId);
+				}
+				return moduleIds;
+			},
+
+			/**
+			 * 获取追问报告摘要文本
+			 */
+			getFollowUpReportSummaryText(): string {
+				if (!this.reportData || !this.reportData.fullData) {
+					return '暂无首报摘要。';
+				}
+
+				const summary = this.reportData.fullData.summary;
+				const dimensions = this.reportData.fullData.dimensions;
+				const selectedLineText = this.selectedLineInfo
+					? this.pickTxt(this.selectedLineInfo.type, this.selectedLineInfo.typeEn)
+					: '未选择线条';
+
+				return [
+					`当前选中线条：${selectedLineText}`,
+					`生命线：${this.pickTxt(summary.lifeLine.dimension, summary.lifeLine.dimensionEn)} / ${this.pickTxt(summary.lifeLine.brief, summary.lifeLine.briefEn)}`,
+					`智慧线：${this.pickTxt(summary.wisdomLine.dimension, summary.wisdomLine.dimensionEn)} / ${this.pickTxt(summary.wisdomLine.brief, summary.wisdomLine.briefEn)}`,
+					`感情线：${this.pickTxt(summary.emotionLine.dimension, summary.emotionLine.dimensionEn)} / ${this.pickTxt(summary.emotionLine.brief, summary.emotionLine.briefEn)}`,
+					`命运线：${this.pickTxt(summary.fateLine.dimension, summary.fateLine.dimensionEn)} / ${this.pickTxt(summary.fateLine.brief, summary.fateLine.briefEn)}`,
+					`整体结论：${this.pickTxt(this.reportData.fullData.overallAnalysis, this.reportData.fullData.overallAnalysisEn)}`,
+					`建议：${this.pickTxt(this.reportData.fullData.suggestions.tip, this.reportData.fullData.suggestions.tipEn)}`,
+					`事业维度：${this.pickTxt(dimensions.career.title, dimensions.career.titleEn)} / ${this.pickTxt(dimensions.career.content, dimensions.career.contentEn)}`,
+					`爱情维度：${this.pickTxt(dimensions.love.title, dimensions.love.titleEn)} / ${this.pickTxt(dimensions.love.content, dimensions.love.contentEn)}`,
+					`健康维度：${this.pickTxt(dimensions.health.title, dimensions.health.titleEn)} / ${this.pickTxt(dimensions.health.content, dimensions.health.contentEn)}`
+				].join('\n');
+			},
+
+			/**
+			 * 生成追问答案
+			 */
+			buildFollowUpAnswer(module: FollowUpModule): string {
+				const selectedLineText = this.selectedLineInfo
+					? this.pickTxt(this.selectedLineInfo.title, this.selectedLineInfo.titleEn)
+					: '';
+				const summaryLine = this.reportData && this.reportData.fullData && this.reportData.fullData.suggestions
+					? this.pickTxt(this.reportData.fullData.suggestions.tip, this.reportData.fullData.suggestions.tipEn)
+					: '';
+				const prompt = this.pickTxt(module.prompt, module.promptEn);
+
+				if (module.id === 'love') {
+					return [
+						`为什么这么判断：结合当前报告里“${selectedLineText}”和整体情感倾向，你的感情模式更像是“先观察、后投入”，而不是一上来就冲得很快。`,
+						`解读结果：你更适合看稳定性、沟通质量和边界感，而不是只看心动强度。若对方长期忽冷忽热、承诺不清，关系很容易被消耗。`,
+						`应对策略：短期先降低期待，把注意力放在对方是否持续投入、是否愿意明确表达、是否能在现实层面配合你。长期则要建立自己的筛选标准，不用情绪替代判断。`,
+						`风险与避坑：最容易踩的坑是过早投入、替对方找借口、为了保住关系不断让步。${summaryLine ? `\n补充提醒：${summaryLine}` : ''}`,
+						`问题原文：${prompt}`
+					].join('\n\n');
+				}
+
+				if (module.id === 'career') {
+					return [
+						`为什么这么判断：从当前报告看，你的事业决策更适合“先收敛，再出手”，说明你不是没有机会，而是容易在节奏没稳住时过早切换方向。`,
+						`解读结果：你接下来的上升路径更依赖执行力、积累和可量化产出，而不是单次冲刺。比起盲目换赛道，你更适合先把一个方向做深、做稳。`,
+						`应对策略：短期优先处理能快速产出结果的事情，减少反复试错；长期要建立自己的能力护城河，比如稳定技能、核心作品、可复用经验和人脉资产。${selectedLineText ? `\n和“${selectedLineText}”相关的部分尤其要注意节奏与执行力。` : ''}`,
+						`风险与避坑：最容易犯的错误是情绪上头就想跳槽、创业或重启，结果方向频繁摇摆。${summaryLine ? `\n补充提醒：${summaryLine}` : ''}`,
+						`问题原文：${prompt}`
+					].join('\n\n');
+				}
+
+				if (module.id === 'health') {
+					return [
+						`为什么这么判断：从当前报告看，你的健康核心问题不是“有没有毛病”，而是压力长期堆积、作息失衡和精力透支。手相里如果生命线起伏、健康区细纹多，通常意味着你对外硬扛、对内消耗太快。`,
+						`解读结果：你当前更需要管理的是生活节奏，而不是单点焦虑。若继续高压硬撑，问题往往会先体现在睡眠、精力、情绪和恢复速度上。`,
+						`应对策略：短期把睡眠、饮食、运动、补水和体检节奏拉回正常；长期建立稳定的身体维护习惯，不要等到明显不适才处理。`,
+						`风险与避坑：最容易踩的坑是忽视早期信号、把疲劳当成小事、靠咖啡因或意志力硬顶。${summaryLine ? `\n补充提醒：${summaryLine}` : ''}`,
+						`问题原文：${prompt}`
+					].join('\n\n');
+				}
+
+				return [
+					`为什么这么判断：当前报告显示你的问题不在“有没有答案”，而在“如何把答案落到具体动作”。`,
+					`解读结果：你需要的不是泛泛结论，而是可执行、可验证、可持续的建议。`,
+					`应对策略：建议把追问聚焦到一个明确场景，再按现实条件做判断。`,
+					`风险与避坑：不要把模糊希望当成确定结果，也不要同时追太多问题导致结论失焦。`,
+					`问题原文：${prompt}`
+				].join('\n\n');
+			},
+
+			/**
+			 * 完成追问解锁后，保存答案到本地
+			 */
+			async completeFollowUpUnlock(provider: string, orderRef: string): Promise<void> {
+				if (!this.reportData || !this.reportSessionId) {
+					return;
+				}
+
+				const module = this.pendingFollowUpModule;
+				this.followUpGeneratingModuleId = module ? module.id : this.followUpBundle.id;
+				const moduleIds = module ? [module.id] : this.followUpBundle.moduleIds;
+				const moduleRecords: Array<{ id: string; title: string; prompt: string; promptEn?: string | null }> = module
+					? [{
+						id: module.id,
+						title: this.pickTxt(module.title, module.titleEn),
+						prompt: this.pickTxt(module.prompt, module.promptEn),
+						promptEn: module.promptEn || null
+					}]
+					: (() => {
+						const result: Array<{ id: string; title: string; prompt: string; promptEn?: string | null }> = [];
+						for (let i = 0; i < this.followUpModules.length; i += 1) {
+							const item = this.followUpModules[i];
+							for (let j = 0; j < this.followUpBundle.moduleIds.length; j += 1) {
+								if (this.followUpBundle.moduleIds[j] === item.id) {
+									result.push({
+										id: item.id,
+										title: this.pickTxt(item.title, item.titleEn),
+										prompt: this.pickTxt(item.prompt, item.promptEn),
+										promptEn: item.promptEn || null
+									});
+									break;
+								}
+							}
+						}
+						return result;
+					})();
+
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				clearPayPalButtonContainer('paypal-button-container');
+
+				try {
+					let imageBase64: string | null = null;
+					try {
+						imageBase64 = await resolveImageForApi(
+							this.capturedImage || '',
+							this.reportData.imagePath || ''
+						);
+					} catch (imageError) {
+						console.warn('追问未附带图片，将仅基于首报摘要生成:', imageError);
+					}
+
+					const apiAnswers = await analyzeFollowUpReading({
+						imagePath: imageBase64,
+						gender: this.gender,
+						handSide: this.handSide,
+						locale: this.locale,
+						reportSummaryText: this.getFollowUpReportSummaryText(),
+						moduleIds,
+						moduleDetails: (() => {
+							const details: Array<{ id: string; title: string; prompt: string }> = [];
+							for (let i = 0; i < moduleRecords.length; i += 1) {
+								details.push({
+									id: moduleRecords[i].id,
+									title: moduleRecords[i].title,
+									prompt: moduleRecords[i].prompt
+								});
+							}
+							return details;
+						})()
+					});
+
+					const now = new Date().toISOString();
+					moduleRecords.forEach((record) => {
+						let apiAnswer = null as any;
+						for (let i = 0; i < apiAnswers.length; i += 1) {
+							if (apiAnswers[i].moduleId === record.id) {
+								apiAnswer = apiAnswers[i];
+								break;
+							}
+						}
+						const answerText = (apiAnswer != null && apiAnswer.answer) ? apiAnswer.answer : this.buildFollowUpAnswer({
+							id: record.id,
+							title: record.title,
+							description: '',
+							priceUsd: '',
+							priceCny: '',
+							prompt: record.prompt,
+							promptEn: record.promptEn || undefined
+						});
+						saveFollowUpAnswer({
+							sessionId: this.reportSessionId,
+							moduleId: record.id,
+							moduleTitle: record.title,
+							question: record.prompt,
+							answer: answerText,
+							paymentProvider: provider,
+							orderRef: orderRef,
+							paidAt: now
+						});
+					});
+				} catch (error) {
+					console.error('追问API失败，使用本地答案作为fallback', error);
+					const now = new Date().toISOString();
+					moduleRecords.forEach((record) => {
+						saveFollowUpAnswer({
+							sessionId: this.reportSessionId,
+							moduleId: record.id,
+							moduleTitle: record.title,
+							question: record.prompt,
+							answer: this.buildFollowUpAnswer({
+								id: record.id,
+								title: record.title,
+								description: '',
+								priceUsd: '',
+								priceCny: '',
+								prompt: record.prompt,
+								promptEn: record.promptEn || undefined
+							}),
+							paymentProvider: provider,
+							orderRef: orderRef,
+							paidAt: now
+						});
+					});
+				}
+
+				this.followUpAnswers = loadFollowUpAnswers(this.reportSessionId);
+				this.followUpGeneratingModuleId = '';
+				this.pendingFollowUpModule = null;
+				this.paymentTarget = null;
+				this.paymentSummaryLabel = '';
+				uni.showToast({
+					title: getCameraUi(this.locale).toastPaymentSuccess,
+					icon: 'success'
+				});
+			},
+
+			selectPaymentMethod(method: PaymentMethod): void {
+				this.paymentMethod = method;
+				clearPayPalButtonContainer('paypal-button-container');
+
+				if (method === 'paypal') {
+					if (PAYMENT_CONFIG.paypalClientId == null || PAYMENT_CONFIG.paypalClientId.length === 0) {
+						uni.showToast({
+							title: getCameraUi(this.locale).toastPayPalNotConfigured,
+							icon: 'none',
+							duration: 4000
+						});
+						this.paymentMethod = 'alipay';
+						this.paymentLoading = false;
+						return;
+					}
+
+					this.paymentLoading = true;
+					setTimeout(() => {
+						this.mountPayPalButtons();
+					}, 250);
+					return;
+				}
+
+				this.paymentLoading = false;
+			},
+
+			/**
+			 * 挂载 PayPal 支付按钮
+			 */
+			mountPayPalButtons(): void {
+				const u = getCameraUi(this.locale);
+				loadPayPalSdk(PAYMENT_CONFIG.paypalClientId)
+					.then(() => {
+						return renderPayPalButtons(
+							'#paypal-button-container',
+							this.paymentPrice,
+							PAYMENT_CONFIG.productName,
+							{
+								onSuccess: (orderId: string) => {
+									this.handlePaymentSuccess(orderId);
+								},
+								onCancel: () => {
+									uni.showToast({
+										title: u.toastPaymentCancelled,
+										icon: 'none'
+									});
+								},
+								onError: (message: string) => {
+									console.error('PayPal error:', message);
+									uni.showToast({
+										title: message,
+										icon: 'none',
+										duration: 4000
+									});
+								}
+							}
+						);
+					})
+					.catch((error: any) => {
+						console.error('PayPal mount failed:', error);
+						uni.showToast({
+							title: u.toastPaymentFailed,
+							icon: 'none',
+							duration: 4000
+						});
+					})
+					.finally(() => {
+						this.paymentLoading = false;
+					});
+			},
+
+			/**
+			 * PayPal 付款成功回调
+			 */
+			handlePaymentSuccess(orderId: string): void {
+				console.log('PayPal payment completed, order:', orderId);
+				try {
+					uni.setStorageSync('paypal_last_order_id', orderId);
+				} catch (e) {
+					console.error('save order id failed', e);
+				}
+				if (this.paymentTarget === 'followup') {
+					this.completeFollowUpUnlock('paypal', orderId);
+					return;
+				}
+
+				this.showPaymentDialog = false;
+				clearPayPalButtonContainer('paypal-button-container');
+				uni.showToast({
+					title: getCameraUi(this.locale).toastPaymentSuccess,
+					icon: 'success'
+				});
+			},
+
+			confirmAlipayPayment(): void {
+				console.log('Alipay manual payment confirmed:', this.manualPaymentCode);
+				try {
+					uni.setStorageSync('alipay_last_order_code', this.manualPaymentCode);
+				} catch (e) {
+					console.error('save alipay order code failed', e);
+				}
+				if (this.paymentTarget === 'followup') {
+					this.completeFollowUpUnlock('alipay', this.manualPaymentCode);
+					return;
+				}
+
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				clearPayPalButtonContainer('paypal-button-container');
+				uni.showToast({
+					title: getCameraUi(this.locale).toastPaymentSuccess,
+					icon: 'success'
+				});
+			},
+
+			/**
+			 * 关闭支付弹窗
+			 */
+			closePaymentDialog(): void {
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				this.paymentTarget = null;
+				this.pendingFollowUpModule = null;
+				this.paymentSummaryLabel = '';
+				clearPayPalButtonContainer('paypal-button-container');
+			},
+
+			/**
+			 * 执行手相 AI 分析（付费成功后调用）
+			 */
+			async runAnalysis(): Promise<void> {
+				if (!this.capturedImage) {
+					return;
+				}
+
+				if (!this.reportSessionId) {
+					this.reportSessionId = this.createReportSessionId();
+				}
 
 				const u = getCameraUi(this.locale);
 				this.isAnalyzing = true;
 				this.analyzingStatus = u.analyzingExtract;
 				this.reportData = null;
-				
-				// 启动动态术语循环
+
 				const scanTerms = this.locale === 'en' ? SCAN_TERMS_EN : SCAN_TERMS_ZH;
 				let termIndex = 0;
 				this.dynamicScanText = scanTerms[0];
-				const termInterval = setInterval(() => {
+				let termInterval = 0;
+				termInterval = setInterval(() => {
 					termIndex = (termIndex + 1) % scanTerms.length;
 					this.dynamicScanText = scanTerms[termIndex];
 				}, 1500);
 
 				try {
-					// 1. 将图片转换为base64（不进行上传）
 					console.log('开始转换图片为base64...');
 					const imageBase64 = await convertImageToBase64(this.capturedImage);
-					
+					// 持久化 base64，避免刷新后 blob URL 失效导致追问接口 400
+					this.capturedImage = imageBase64;
+
 					this.analyzingStatus = getCameraUi(this.locale).analyzingFate;
 
-					// 2. 调用API分析手相（使用base64）
 					const result = await analyzePalmistry({
 						imagePath: imageBase64,
 						gender: this.gender,
@@ -850,7 +1809,6 @@
 						locale: this.locale
 					});
 
-					// 新增：判断图片是否合法
 					if (result.isInvalid === true) {
 						uni.showToast({
 							title: pickLocaleText(
@@ -866,24 +1824,19 @@
 					}
 
 					this.analyzingStatus = getCameraUi(this.locale).analyzingReport;
-					await new Promise(resolve => setTimeout(resolve, 800)); // 增加一点停顿
+					await new Promise((resolve) => setTimeout(resolve, 800));
 
-					// 3. 生成报告数据
 					this.generateReportFromAPI(result);
 
 					this.analyzingStatus = getCameraUi(this.locale).analyzingDone;
-					
+
 					uni.showToast({
 						title: getCameraUi(this.locale).toastSuccess,
 						icon: 'success'
 					});
-
 				} catch (error: any) {
 					console.error('=== 分析失败 ===', error);
-					console.error('错误类型:', typeof error);
-					console.error('错误信息:', error.message || error.errMsg || error);
-					console.error('错误堆栈:', error.stack);
-					
+
 					let errorMessage = '分析失败，请重试';
 					if (error.message) {
 						if (error.message.includes('转换')) {
@@ -903,10 +1856,8 @@
 						duration: 5000
 					});
 
-					// 使用模拟数据作为fallback
 					console.log('使用模拟数据作为fallback');
 					this.generateMockReport();
-
 				} finally {
 					this.isAnalyzing = false;
 					this.analyzingStatus = '';
@@ -976,19 +1927,25 @@
 
 				// 保存完整的API结果到reportData中，以便后续显示详细内容
 				this.reportData = {
-					id: `report_${Date.now()}`,
+					id: this.reportSessionId,
+					sessionId: this.reportSessionId,
 					imagePath: this.capturedImage || '',
 					analyzeTime: timeString,
 					results: results,
 					// 保存完整数据以便显示详细分析
 					fullData: apiResult
 				};
+				this.persistActiveReportSnapshot();
 			},
 
 			/**
 			 * 生成模拟报告数据
 			 */
 			generateMockReport(): void {
+				if (!this.reportSessionId) {
+					this.reportSessionId = this.createReportSessionId();
+				}
+
 				const now = new Date();
 				const year = now.getFullYear();
 				const month = this.formatNumber(now.getMonth() + 1);
@@ -1072,61 +2029,49 @@
 						handType: {
 							title: '五行命格',
 							titleEn: 'Five elements / hand type',
-							content: '【判断依据】掌长指短、掌面偏窄，火型特征明显。\n【命理解读】你属于行动快于思考的类型，遇事先冲再复盘。\n【现实表现】工作中敢接硬任务，但容易因急躁与同事摩擦。\n【简短建议】重大决定前强制停顿 24 小时，把冲动改成有节奏的执行。',
-							contentEn: 'Fire-type hand: fast action; pause before major calls.'
+							content: '你属于典型的"火型手"，性格急躁如烈火，虽有极强的开拓精神和执行力，但也极易因冲动而招致挫败。命格中缺乏"水"的滋润，导致为人处世过于刚硬，缺乏弹性。',
+							contentEn: 'Fire-type hand: driven and impulsive; needs more flexibility.'
 						},
 						palmMounds: {
 							title: '星丘压制',
 							titleEn: 'Mounts',
-							content: '【判断依据】土星丘隆起伴杂纹，太阳丘相对平淡。\n【命理解读】内心孤独感强，才华不易被早期环境看见。\n【现实表现】更习惯独自扛事，不太主动争取曝光。\n【简短建议】每月至少一次主动展示成果，别等别人来发现你。',
-							contentEn: 'Raised Saturn mount; need proactive visibility.'
+							content: '土星丘过度隆起且伴有杂纹，显示你内心深处压抑着巨大的孤独感和不安全感。太阳丘平淡，意味着你的才华往往难以在早期获得对等的社会认可，存在"怀才不遇"的压制。',
+							contentEn: 'Prominent Saturn mount; subdued Sun mount may delay recognition.'
 						},
 						specialMarks: {
 							title: '凶吉征兆',
 							titleEn: 'Signs',
-							content: '【判断依据】智慧线末端见岛纹，事业线中段有横切。\n【命理解读】长期透支后思维会阶段性停滞，35 岁前后易遇职业波动。\n【现实表现】高压期效率下降、决策反复，是身体在报警。\n【简短建议】把睡眠和恢复写进日程，别用意志力硬顶。',
-							contentEn: 'Stress marks on head line; protect recovery time.'
-						},
-						personality: {
-							title: '性格底色',
-							titleEn: 'Personality core',
-							content: '【判断依据】掌形偏火、指节分明，情绪线不够圆滑。\n【命理解读】外刚内急，对人对己都要求偏高。\n【现实表现】熟人眼里可靠，但亲近者会觉得你难取悦。\n【简短建议】沟通时先确认对方需求，再表达你的标准。',
-							contentEn: 'High standards; soften communication under stress.'
+							content: '智慧线末端出现细微岛纹，这是典型的由于过度透支精力导致的思维停滞预兆。事业线中段有横切纹，预示着在35岁左右会遭遇一次重大的职业转型或财务危机。',
+							contentEn: 'Small island on head line; career stress line around mid-30s.'
 						},
 						career: {
 							title: '财官利禄',
 							titleEn: 'Career & wealth',
-							content: '【判断依据】财库线未完全闭合，贵人线断续。\n【命理解读】赚钱能力不差，守财与借力是短板。\n【现实表现】项目前期冲劲足，后期易因资源分散而回落。\n【简短建议】聚焦一条主赛道 12 个月，再考虑扩张。',
-							contentEn: 'Strong earning; focus one track before scaling.'
+							content: '财库线尚不闭合，这意味着你虽然赚钱能力强，但守财极难，开销如流水。贵人线断续，显示你习惯单打独斗，不擅利用人脉资源，这严重制约了你的官禄高度。',
+							contentEn: 'Strong earning but weak saving; underuse of networks.'
 						},
 						love: {
 							title: '红尘情孽',
 							titleEn: 'Love',
-							content: '【判断依据】感情线断续、向食指延伸不足。\n【命理解读】亲密关系中容易先付出后计较，边界感摇摆。\n【现实表现】热恋期投入深，矛盾期要么冷战要么翻旧账。\n【简短建议】把底线写清楚，别用牺牲换安全感。',
-							contentEn: 'Uneven heart line; clarify boundaries early.'
+							content: '感情线断续且向食指延伸不足，这预示着你在亲密关系中极度自私，总希望对方无条件迁就自己。若不改掉这种唯我独尊的性格，二婚风险极大，晚年易生凄凉。',
+							contentEn: 'Relationship pattern skews selfish; work on empathy.'
 						},
 						health: {
 							title: '命元警示',
 							titleEn: 'Health',
-							content: '【判断依据】生命线中段变浅，健康区细纹增多。\n【命理解读】高压和作息失衡已在消耗命元。\n【现实表现】易失眠、易上火、恢复速度变慢。\n【简短建议】固定就寝时间，减少晚间高强度用脑。',
-							contentEn: 'Mid life line fade; prioritize sleep and rhythm.'
-						},
-						recentLuck: {
-							title: '近期提醒',
-							titleEn: 'Recent outlook',
-							content: '【判断依据】命运线近月位有轻微分叉，感情线末端趋稳。\n【命理解读】未来 3-6 个月是调整节奏窗口，不是全面冲刺期。\n【现实表现】适合整理旧项目、修复关系、补技能短板。\n【简短建议】当下最该做的一件事：砍掉一个低回报消耗项。',
-							contentEn: 'Next 3-6 months: consolidate, don\'t overextend.'
+							content: '生命线中段变浅，预示消化系统或心血管方面存在隐患。长期高压工作已严重侵蚀你的命元。',
+							contentEn: 'Mid life line fade suggests stress-related health risks.'
 						},
 						wealth: {
 							title: '财帛福禄',
 							titleEn: 'Windfall',
-							content: '【判断依据】财帛宫见红润，理财线尚浅。\n【命理解读】近期或有小额偏财机会，但不宜投机。\n【现实表现】容易因"试试看"心态参与高风险项目。\n【简短建议】把意外收入先存后花，别立刻加码投入。',
-							contentEn: 'Small windfall possible; avoid impulsive bets.'
+							content: '财帛宫位见红润之色，预示近期将有偏财入账。但需注意守成，不可因一时贪念而陷入投机之险。',
+							contentEn: 'Short-term windfall possible; avoid reckless bets.'
 						}
 					},
-					harshWarning: '你最大的问题在于"狂妄自大"与"自毁灭倾向"。你总是在即将成功时，因为无法控制的情绪暴走或盲目自信而亲手毁掉前程。你习惯把别人的提醒当成束缚，把短期胜利当成永久安全，于是反复在关键节点做出最伤自己的决定。若不学会低头、复盘和节制，你的人生极易陷入"差一点就成功"的循环，中年后代价会更重。',
+					harshWarning: '你最大的问题在于"狂妄自大"与"自毁灭倾向"。你总是在即将成功时，因为无法控制的情绪暴走或盲目自信而亲手毁掉前程。若不学会低头与自省，你的人生终将是一场悲剧性的轮回。',
 					harshWarningEn: 'Your blind spots are pride and self-sabotage right before success.',
-					overallAnalysis: '你的命格属于典型的"先凭天赋占先机，后凭心性定结局"。火型掌让你在前半段容易靠行动力打开局面，但土星丘与岛纹提示：若只靠冲劲、不建系统，中年后会遭遇一次明显的职业或财务重整。感情线断续说明关系里需要更早建立边界，否则情绪消耗会反向拖累事业。未来半年更适合修内功、减消耗、聚焦一条主路径，而不是同时开太多新局。若能稳住节奏、补上恢复与规划，命格仍有上调空间。',
+					overallAnalysis: '你的命格属于典型的"先繁华后凋零"。前半生依仗天赋可占得先机，但若无后天德行的修养，中年后必遇大劫。需修身养性，方可改命。',
 					overallAnalysisEn: 'Early gains from talent need discipline to sustain later life.',
 					lineDetails: [],
 					palmFeatures: {
@@ -1148,12 +2093,14 @@
 				};
 
 				this.reportData = {
-					id: `report_${Date.now()}`,
+					id: this.reportSessionId || `report_${Date.now()}`,
+					sessionId: this.reportSessionId || '',
 					imagePath: this.capturedImage || '',
 					analyzeTime: timeString,
 					results: mockResults,
 					fullData: mockFullData
 				};
+				this.persistActiveReportSnapshot();
 			},
 
 			/**
@@ -1182,6 +2129,20 @@
 			 * 重置（重新拍照）
 			 */
 			handleReset(): void {
+				if (this.reportSessionId) {
+					clearFollowUpAnswers(this.reportSessionId);
+				}
+				clearActiveReportSnapshot();
+				this.reportSessionId = '';
+				this.followUpAnswers = [];
+				this.activeFollowUpModuleId = 'love';
+				this.followUpGeneratingModuleId = '';
+				this.pendingFollowUpModule = null;
+				this.paymentTarget = null;
+				this.paymentSummaryLabel = '';
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				clearPayPalButtonContainer('paypal-button-container');
 				this.capturedImage = null;
 				this.reportData = null;
 				this.imageScale = 1.0;
@@ -2253,6 +3214,258 @@
 		font-style: italic;
 	}
 
+	.followup-section {
+		background-color: #fff;
+		border-radius: 30rpx;
+		padding: 30rpx;
+		margin-top: 20rpx;
+		border: 1rpx solid #f0f0f0;
+		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	}
+
+	.followup-tabs {
+		display: flex;
+		flex-direction: row;
+		gap: 12rpx;
+		margin-bottom: 22rpx;
+		padding: 8rpx;
+		border-radius: 18rpx;
+		background-color: #f8f0e5;
+		box-sizing: border-box;
+	}
+
+	.followup-tab {
+		flex: 1;
+		min-width: 0;
+		height: 68rpx;
+		border-radius: 14rpx;
+		background-color: transparent;
+		border: none;
+		box-shadow: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0 10rpx;
+	}
+
+	.followup-tab.active {
+		background-color: #5a3e2b;
+		box-shadow: 0 8rpx 18rpx rgba(90, 62, 43, 0.18);
+	}
+
+	.followup-tab::after {
+		border: none;
+	}
+
+	.followup-tab-text {
+		display: block;
+		width: 100%;
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #7a6655;
+		text-align: center;
+		line-height: 1;
+		white-space: nowrap;
+	}
+
+	.followup-tab.active .followup-tab-text {
+		color: #fffaf1;
+	}
+
+	.followup-panel {
+		background: linear-gradient(180deg, #fffdf8 0%, #fff 100%);
+		border: 1rpx solid #eadfca;
+		border-radius: 24rpx;
+		padding: 24rpx;
+		box-sizing: border-box;
+	}
+
+	.followup-panel-head {
+		display: flex;
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 18rpx;
+		margin-bottom: 18rpx;
+	}
+
+	.followup-locked-panel {
+		position: relative;
+		min-height: 760rpx;
+		border-radius: 20rpx;
+		overflow: hidden;
+		background-color: #fbf7ef;
+		border: 1rpx solid #eee0c9;
+	}
+
+	.followup-preview-blur {
+		min-height: 760rpx;
+		padding: 36rpx 28rpx;
+		filter: blur(7px);
+		-webkit-filter: blur(7px);
+		opacity: 0.78;
+		transform: scale(1.01);
+	}
+
+	.followup-preview-text {
+		display: block;
+		font-size: 27rpx;
+		color: #2f1d13;
+		line-height: 1.85;
+		margin-bottom: 22rpx;
+	}
+
+	.followup-lock-overlay {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 18rpx;
+		padding: 34rpx;
+		background-color: rgba(255, 250, 241, 0.72);
+		box-sizing: border-box;
+	}
+
+	.followup-lock-overlay .followup-unlock-btn {
+		width: 100%;
+		max-width: 520rpx;
+		margin-top: 0;
+	}
+
+	.followup-generating {
+		min-height: 760rpx;
+		border-radius: 20rpx;
+		border: 1rpx solid #eee0c9;
+		background-color: #fbf7ef;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 48rpx;
+		box-sizing: border-box;
+	}
+
+	.followup-spinner {
+		width: 58rpx;
+		height: 58rpx;
+		border-radius: 50%;
+		border: 6rpx solid #e3d2b5;
+		border-top-color: #5a3e2b;
+		animation: spin 0.9s linear infinite;
+		margin-bottom: 18rpx;
+	}
+
+	.followup-generating-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 8rpx;
+	}
+
+	.followup-generating-desc {
+		font-size: 24rpx;
+		color: #736357;
+		line-height: 1.55;
+		text-align: center;
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.followup-card-title-block {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.followup-card-title {
+		display: block;
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 8rpx;
+	}
+
+	.followup-card-desc {
+		display: block;
+		font-size: 24rpx;
+		color: #736357;
+		line-height: 1.6;
+	}
+
+	.followup-card-price {
+		flex-shrink: 0;
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #2f1d13;
+		background-color: #f8efdf;
+		border-radius: 999rpx;
+		padding: 8rpx 16rpx;
+	}
+
+	.followup-answer-box {
+		padding: 20rpx;
+		border-radius: 18rpx;
+		background-color: #fbf7ef;
+		border-left: 8rpx solid #5a3e2b;
+	}
+
+	.followup-answer-title {
+		display: block;
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 12rpx;
+	}
+
+	.followup-answer-text {
+		display: block;
+		font-size: 26rpx;
+		color: #1c1c1e;
+		line-height: 1.7;
+		white-space: pre-line;
+	}
+
+	.followup-answer-hint {
+		display: block;
+		margin-top: 12rpx;
+		font-size: 22rpx;
+		color: #8c7662;
+	}
+
+	.followup-unlock-btn {
+		width: 100%;
+		height: 76rpx;
+		margin-top: 20rpx;
+		border-radius: 16rpx;
+		background: linear-gradient(135deg, #5a3e2b, #3d2a1d);
+		color: #fffaf1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.followup-unlock-btn .btn-text {
+		font-size: 26rpx;
+		line-height: 1.2;
+		color: #fffaf1;
+		text-align: center;
+	}
+
+	.bundle-btn {
+		background: linear-gradient(135deg, #7a522f, #5a3e2b);
+	}
+
 	/* 现代切换器 */
 	.modern-line-selector {
 		display: flex;
@@ -2461,6 +3674,222 @@
 		justify-content: center;
 		border: none;
 		box-shadow: 0 4rpx 15rpx rgba(90, 62, 43, 0.2);
+	}
+
+	/* 支付弹窗 */
+	.payment-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.65);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.payment-dialog {
+		width: 640rpx;
+		max-width: 92vw;
+		max-height: 88vh;
+		padding: 48rpx 40rpx 36rpx;
+		border-radius: 12rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		border: 4rpx solid #5a3e2b;
+		overflow-y: auto;
+	}
+
+	.payment-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 16rpx;
+		text-align: center;
+	}
+
+	.payment-price {
+		font-size: 52rpx;
+		font-weight: bold;
+		color: #2f1d13;
+		margin-bottom: 12rpx;
+	}
+
+	.payment-desc {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+		text-align: center;
+		margin-bottom: 24rpx;
+	}
+
+	.payment-topic {
+		width: 100%;
+		padding: 18rpx 20rpx;
+		border-radius: 18rpx;
+		background-color: #fbf7ef;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 22rpx;
+		box-sizing: border-box;
+	}
+
+	.payment-topic-label {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		margin-bottom: 6rpx;
+	}
+
+	.payment-topic-name {
+		display: block;
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.payment-method-tabs {
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		gap: 14rpx;
+		margin-bottom: 28rpx;
+	}
+
+	.payment-method-tab {
+		flex: 1;
+		height: 76rpx;
+		border-radius: 10rpx;
+		border: 2rpx solid #d8c8ad;
+		background-color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.payment-method-tab.active {
+		background-color: #5a3e2b;
+		border-color: #5a3e2b;
+	}
+
+	.payment-method-text {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.payment-method-tab.active .payment-method-text {
+		color: #fff;
+	}
+
+	.paypal-panel,
+	.alipay-panel {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.payment-loading {
+		width: 100%;
+		padding: 24rpx 0 32rpx;
+		display: flex;
+		justify-content: center;
+	}
+
+	.payment-loading-text {
+		font-size: 26rpx;
+		color: #8c7662;
+	}
+
+	.paypal-button-host {
+		width: 100%;
+		min-height: 120rpx;
+		margin-bottom: 24rpx;
+	}
+
+	.alipay-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #1677ff;
+		margin-bottom: 18rpx;
+	}
+
+	.alipay-qr {
+		width: 420rpx;
+		max-width: 100%;
+		border-radius: 10rpx;
+		border: 2rpx solid #e5e7eb;
+		background-color: #f7f8fa;
+	}
+
+	.alipay-info {
+		width: 100%;
+		margin-top: 20rpx;
+		padding: 18rpx 20rpx;
+		border-radius: 10rpx;
+		background-color: #f8f3ea;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		gap: 8rpx;
+	}
+
+	.alipay-info-line {
+		font-size: 24rpx;
+		color: #2f1d13;
+		line-height: 1.45;
+		word-break: break-all;
+	}
+
+	.alipay-desc {
+		margin-top: 18rpx;
+		font-size: 24rpx;
+		color: #5f5146;
+		line-height: 1.55;
+		text-align: center;
+	}
+
+	.alipay-notice {
+		margin-top: 10rpx;
+		font-size: 22rpx;
+		color: #9a6b2f;
+		line-height: 1.5;
+		text-align: center;
+	}
+
+	.alipay-paid-btn {
+		width: 100%;
+		height: 84rpx;
+		border-radius: 42rpx;
+		background-color: #1677ff;
+		color: #fff;
+		font-size: 28rpx;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		margin-top: 24rpx;
+		margin-bottom: 18rpx;
+	}
+
+	.payment-cancel-btn {
+		width: 100%;
+		height: 84rpx;
+		border-radius: 42rpx;
+		background-color: #fff;
+		color: #5a3e2b;
+		font-size: 28rpx;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1rpx solid #5a3e2b;
 	}
 
 	/* 分析中状态样式 */
