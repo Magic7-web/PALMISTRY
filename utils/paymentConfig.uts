@@ -15,6 +15,14 @@ export const PAYMENT_CONFIG = {
 	paypalClientId: 'AQj_qTNCKhQCse3z81qWS886wDG2UE0vbW0zAQOayUmWB2a17jISvlwsOCcPY9JghjiOHEoKHI9_t_lX',
 	/** 一次性报告价格（美元） */
 	priceUsd: '4.99',
+	/** 支付宝个人收款码价格（人民币，人工对账 MVP） */
+	priceCny: '9.90',
 	/** 商品描述（PayPal 订单里展示） */
-	productName: 'AI Palm Reading Report'
+	productName: 'AI Palm Reading Report',
+	/** 是否启用支付宝个人收款码 */
+	alipayEnabled: true,
+	/** 支付宝个人收款码图片 */
+	alipayQrCode: '/static/alipay-qr.jpg',
+	/** 支付宝人工对账联系方式 */
+	supportEmail: '2238712285@qq.com'
 };

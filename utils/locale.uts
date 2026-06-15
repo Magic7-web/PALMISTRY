@@ -90,6 +90,15 @@ export type CameraUiKey =
 	| 'paymentDesc'
 	| 'paymentCancel'
 	| 'paymentLoading'
+	| 'paymentPayPalTab'
+	| 'paymentAlipayTab'
+	| 'alipayTitle'
+	| 'alipayDesc'
+	| 'alipayAmountLabel'
+	| 'alipayOrderLabel'
+	| 'alipayEmailLabel'
+	| 'alipayPaidButton'
+	| 'alipayManualNotice'
 	| 'toastPaymentSuccess'
 	| 'toastPaymentCancelled'
 	| 'toastPaymentFailed'
@@ -143,6 +152,15 @@ const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	paymentDesc: '一次性购买，付款成功后立即生成完整报告。',
 	paymentCancel: '取消',
 	paymentLoading: '正在加载 PayPal...',
+	paymentPayPalTab: 'PayPal',
+	paymentAlipayTab: '支付宝',
+	alipayTitle: '支付宝扫码支付',
+	alipayDesc: '请使用支付宝扫码支付。付款备注建议填写下方订单号或邮箱，便于人工对账。',
+	alipayAmountLabel: '支付金额',
+	alipayOrderLabel: '付款备注',
+	alipayEmailLabel: '客服邮箱',
+	alipayPaidButton: '我已支付，继续分析',
+	alipayManualNotice: '个人收款码无法自动验单，异常订单可能需要人工核对。',
 	toastPaymentSuccess: '支付成功',
 	toastPaymentCancelled: '已取消支付',
 	toastPaymentFailed: '支付加载失败，请稍后重试',
@@ -198,6 +216,15 @@ const CAMERA_UI_EN: Record<CameraUiKey, string> = {
 	paymentDesc: 'One-time purchase. Your full report is generated right after payment.',
 	paymentCancel: 'Cancel',
 	paymentLoading: 'Loading PayPal...',
+	paymentPayPalTab: 'PayPal',
+	paymentAlipayTab: 'Alipay',
+	alipayTitle: 'Alipay QR payment',
+	alipayDesc: 'Scan with Alipay to pay. Add the order code or email as the payment note for manual reconciliation.',
+	alipayAmountLabel: 'Amount',
+	alipayOrderLabel: 'Payment note',
+	alipayEmailLabel: 'Support email',
+	alipayPaidButton: 'I have paid, continue',
+	alipayManualNotice: 'Personal QR payments cannot be verified automatically. Suspicious orders may be checked manually.',
 	toastPaymentSuccess: 'Payment successful',
 	toastPaymentCancelled: 'Payment cancelled',
 	toastPaymentFailed: 'Failed to load PayPal. Please try again.',
