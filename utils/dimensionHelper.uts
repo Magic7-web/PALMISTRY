@@ -1,0 +1,35 @@
+import type { DimensionDetail } from '@/types/index';
+
+/** 免费报告维度展示顺序 */
+export const DIMENSION_DISPLAY_ORDER: string[] = [
+	'handType',
+	'palmMounds',
+	'specialMarks',
+	'personality',
+	'career',
+	'love',
+	'health',
+	'wealth',
+	'recentLuck'
+];
+
+/**
+ * 按固定顺序返回当前报告中存在的维度 key
+ */
+export function getOrderedDimensionKeys(
+	dimensions: Record<string, DimensionDetail> | null | undefined
+): string[] {
+	if (dimensions == null) {
+		return [];
+	}
+
+	const ordered: string[] = [];
+	for (let i = 0; i < DIMENSION_DISPLAY_ORDER.length; i += 1) {
+		const key = DIMENSION_DISPLAY_ORDER[i];
+		if (dimensions[key] != null) {
+			ordered.push(key);
+		}
+	}
+
+	return ordered;
+}

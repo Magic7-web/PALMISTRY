@@ -85,29 +85,7 @@ export type CameraUiKey =
 	| 'analyzingExtract'
 	| 'analyzingFate'
 	| 'analyzingReport'
-	| 'analyzingDone'
-	| 'paymentTitle'
-	| 'paymentDesc'
-	| 'paymentCancel'
-	| 'paymentLoading'
-	| 'paymentPayPalTab'
-	| 'paymentAlipayTab'
-	| 'alipayTitle'
-	| 'alipayDesc'
-	| 'alipayAmountLabel'
-	| 'alipayOrderLabel'
-	| 'alipayEmailLabel'
-	| 'alipayPaidButton'
-	| 'alipayManualNotice'
-	| 'followUpSectionTitle'
-	| 'followUpSectionTip'
-	| 'followUpUnlockButton'
-	| 'followUpAnswerTitle'
-	| 'followUpAnswerHint'
-	| 'toastPaymentSuccess'
-	| 'toastPaymentCancelled'
-	| 'toastPaymentFailed'
-	| 'toastPayPalNotConfigured';
+	| 'analyzingDone';
 
 const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	navTitle: '免费看手相 - 林公测算',
@@ -152,29 +130,7 @@ const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	analyzingExtract: '正在通过 AI 提取掌纹信息...',
 	analyzingFate: '掌纹提取成功，正在推演命格...',
 	analyzingReport: '命理推演完成，正在生成报告...',
-	analyzingDone: '分析完成',
-	paymentTitle: '解锁追问模块',
-	paymentDesc: '单独解锁当前模块，或一次性解锁全部深度解读。付款成功后答案会保存到本设备。',
-	paymentCancel: '取消',
-	paymentLoading: '正在打开支付窗口...',
-	paymentPayPalTab: 'PayPal',
-	paymentAlipayTab: '支付宝',
-	alipayTitle: '支付宝扫码支付',
-	alipayDesc: '请使用支付宝扫码支付。付款备注建议填写下方订单号或邮箱，便于人工对账。',
-	alipayAmountLabel: '支付金额',
-	alipayOrderLabel: '付款备注',
-	alipayEmailLabel: '客服邮箱',
-	alipayPaidButton: '我已支付，继续分析',
-	alipayManualNotice: '个人收款码无法自动验单，异常订单可能需要人工核对。',
-	followUpSectionTitle: '继续追问',
-	followUpSectionTip: '爱情、事业、健康已为你预览。切换模块查看内容，付费后生成正式深度解读。',
-	followUpUnlockButton: '解锁深度解读',
-	followUpAnswerTitle: '已解锁回答',
-	followUpAnswerHint: '刷新页面后仍可在本设备查看',
-	toastPaymentSuccess: '支付成功',
-	toastPaymentCancelled: '已取消支付',
-	toastPaymentFailed: '支付加载失败，请稍后重试',
-	toastPayPalNotConfigured: '请先在 paymentConfig.uts 填写 PayPal Client ID'
+	analyzingDone: '分析完成'
 };
 
 const CAMERA_UI_EN: Record<CameraUiKey, string> = {
@@ -221,29 +177,7 @@ const CAMERA_UI_EN: Record<CameraUiKey, string> = {
 	analyzingExtract: 'Extracting palm features...',
 	analyzingFate: 'Reading lines...',
 	analyzingReport: 'Generating report...',
-	analyzingDone: 'Done',
-	paymentTitle: 'Unlock follow-up module',
-	paymentDesc: 'Unlock the current module, or unlock all deep readings in one purchase. The answer is stored on this device.',
-	paymentCancel: 'Cancel',
-	paymentLoading: 'Opening checkout...',
-	paymentPayPalTab: 'PayPal',
-	paymentAlipayTab: 'Alipay',
-	alipayTitle: 'Alipay QR payment',
-	alipayDesc: 'Scan with Alipay to pay. Add the order code or email as the payment note for manual reconciliation.',
-	alipayAmountLabel: 'Amount',
-	alipayOrderLabel: 'Payment note',
-	alipayEmailLabel: 'Support email',
-	alipayPaidButton: 'I have paid, continue',
-	alipayManualNotice: 'Personal QR payments cannot be verified automatically. Suspicious orders may be checked manually.',
-	followUpSectionTitle: 'Follow-up questions',
-	followUpSectionTip: 'Love, career, and health previews are ready. Switch tabs to preview, then pay to generate the full deep reading.',
-	followUpUnlockButton: 'Unlock deep reading',
-	followUpAnswerTitle: 'Unlocked answer',
-	followUpAnswerHint: 'Stored on this device, so it remains after refresh',
-	toastPaymentSuccess: 'Payment successful',
-	toastPaymentCancelled: 'Payment cancelled',
-	toastPaymentFailed: 'Failed to load PayPal. Please try again.',
-	toastPayPalNotConfigured: 'Set your PayPal Client ID in paymentConfig.uts first'
+	analyzingDone: 'Done'
 };
 
 export function getCameraUi(locale: AppLocale): Record<CameraUiKey, string> {

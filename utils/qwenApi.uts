@@ -3,9 +3,8 @@
  */
 
 import { QWEN_CONFIG } from './config';
-import type { PalmistryAnalysisResult, FollowUpReadingResult } from '@/types/index';
+import type { PalmistryAnalysisResult } from '@/types/index';
 import type { AppLocale } from '@/utils/locale';
-import { isApiReadyImage } from '@/utils/imageHelper';
 
 /**
  * Qwen API 消息内容
@@ -74,21 +73,6 @@ interface PalmistryAnalyzeRequest {
 	locale?: AppLocale;
 }
 
-interface FollowUpAnalyzeRequest {
-	/** 可为空：无图时仅基于首报摘要做文本追问 */
-	imagePath?: string | null;
-	gender: 'male' | 'female';
-	handSide: 'left' | 'right';
-	locale?: AppLocale;
-	reportSummaryText: string;
-	moduleIds: string[];
-	moduleDetails?: Array<{
-		id: string;
-		title: string;
-		prompt: string;
-	}>;
-}
-
 /**
  * 构建多语言提示词（中文主文案 + 并行英文字段说明）
  */
@@ -97,10 +81,27 @@ function buildPalmistryPrompt(handSideText: string, genderText: string, locale: 
 		locale === 'en'
 			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
 			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
+
+	const dimensionContentRule = `每个 dimensions 模块的 content / contentEn 必须写成「四段式完整分析」，禁止只写两三句摘要。
+中文 content 总字数 120-220 字，必须依次包含以下四段（每段前保留标签）：
+【判断依据】从掌形、掌丘、线条深浅/断续/分支等可见特征说明为何这样判断。
+【命理解读】给出该维度的核心命理结论，语气犀利、具体，避免空话。
+【现实表现】描述此人在工作、关系、习惯或处事方式上的典型表现。
+【简短建议】给出 1-2 条可执行建议，用"建议/适合/注意"等表达，不做绝对命运论。
+英文 contentEn 用同样四段结构，每段 2-4 句，信息量和中文一致。`;
+
 	return `🪬 你是一位拥有三十年经验、眼神犀利且直击灵魂的专业手相命理大师。你不仅精通传统五行相法，更擅长捕捉掌纹中极其微小的差异。
 
 【语言与输出】${localeHint}
 你必须在 JSON 中同时包含中文主字段与英文平行字段：summary 四条线各含 dimensionEn、briefEn；dimensions 各维度含 titleEn、contentEn；顶层含 harshWarningEn、overallAnalysisEn；palmFeatures 含 palmShapeEn、fingerRatioEn、palmMoundEn；suggestions 含 careerEn、lifeEn、tipEn。无效图时 errorMsg 与 errorMsgEn 均需给出。
+
+【免费报告厚度要求 — 极其重要】
+这是一份「完整免费手相报告」，不是简短摘要。用户应感觉每个模块都读到了具体、有依据、能落地的分析。
+${dimensionContentRule}
+- harshWarning：中文 120-180 字，保留强风格、直指要害，不可过短。
+- overallAnalysis / overallAnalysisEn：中文 180-300 字，综合四条主线、手型与掌丘，给出完整命格判断。
+- summary 中四条线的 brief / briefEn：每条 35-60 字，比一句话摘要更具体。
+- suggestions 中 career / life / tip 及对应 En：每条 40-80 字，给出具体行动方向。
 
 ⚠️ 第一步：图片合法性校验 (极度严格)
 在进行任何分析前，请先判定图片内容：
@@ -120,9 +121,11 @@ function buildPalmistryPrompt(handSideText: string, genderText: string, locale: 
        "handType": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
        "palmMounds": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
        "specialMarks": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
+       "personality": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
        "career": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
        "love": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
-       "health": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" }
+       "health": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" },
+       "recentLuck": { "title": "-", "titleEn": "-", "content": "-", "contentEn": "-" }
      },
      "harshWarning": "-",
      "harshWarningEn": "-",
@@ -148,37 +151,39 @@ function buildPalmistryPrompt(handSideText: string, genderText: string, locale: 
 3. 【结论的唯一性】：每一份报告都必须是“量身定制”的。请根据图片的真实视觉信号，发掘此人与众不同的命理特征，不要再说大白话。
 
 ✨ 第三步：大师身份与语气
-你是一位【激进、犀利且真实】的大师。称呼用户为“你”或“这位${genderText === '男性' ? '先生' : '女士'}”。你的语言应如刀锋般犀利，不恭维、不避讳，直接指出其运势中的【死穴】。英文平行字段（*En）应语气专业、直白，与中文信息一致，不要编造与图片无关的内容。
+你是一位【激进、犀利且真实】的大师。称呼用户为"你"或"这位${genderText === '男性' ? '先生' : '女士'}"。你的语言应如刀锋般犀利，不恭维、不避讳，直接指出其运势中的【死穴】。英文平行字段（*En）应语气专业、直白，与中文信息一致，不要编造与图片无关的内容。禁止医疗/法律/投资保证，用"倾向/更适合/可能/建议"表达。
 
 请返回JSON格式，严格按照以下结构（注意所有 *En 字段必须填写）：
 
 {
   "isInvalid": false,
   "summary": {
-    "lifeLine": { "dimension": "生命能", "dimensionEn": "Vitality (Life Line)", "score": 8.5, "brief": "中文简短", "briefEn": "English brief" },
-    "wisdomLine": { "dimension": "智谋度（事业）", "dimensionEn": "Wisdom (Head Line)", "score": 7.0, "brief": "中文简短", "briefEn": "English brief" },
-    "emotionLine": { "dimension": "情缘力（婚姻）", "dimensionEn": "Emotion (Heart Line)", "score": 6.0, "brief": "中文简短", "briefEn": "English brief" },
-    "fateLine": { "dimension": "天命轨迹", "dimensionEn": "Fate Line", "score": 7.5, "brief": "中文简短", "briefEn": "English brief" }
+    "lifeLine": { "dimension": "生命能", "dimensionEn": "Vitality (Life Line)", "score": 8.5, "brief": "35-60字具体描述", "briefEn": "English brief" },
+    "wisdomLine": { "dimension": "智谋度（事业）", "dimensionEn": "Wisdom (Head Line)", "score": 7.0, "brief": "35-60字具体描述", "briefEn": "English brief" },
+    "emotionLine": { "dimension": "情缘力（婚姻）", "dimensionEn": "Emotion (Heart Line)", "score": 6.0, "brief": "35-60字具体描述", "briefEn": "English brief" },
+    "fateLine": { "dimension": "天命轨迹", "dimensionEn": "Fate Line", "score": 7.5, "brief": "35-60字具体描述", "briefEn": "English brief" }
   },
   "dimensions": {
-    "handType": { "title": "五行命格", "titleEn": "Five Elements / Hand Type", "content": "详细内容...", "contentEn": "English..." },
-    "palmMounds": { "title": "星丘压制", "titleEn": "Mounts", "content": "详细内容...", "contentEn": "English..." },
-    "specialMarks": { "title": "凶吉征兆", "titleEn": "Signs", "content": "详细内容...", "contentEn": "English..." },
-    "career": { "title": "财官利禄", "titleEn": "Career & Wealth", "content": "详细内容...", "contentEn": "English..." },
-    "love": { "title": "红尘情孽", "titleEn": "Love & Relationships", "content": "详细内容...", "contentEn": "English..." },
-    "health": { "title": "命元警示", "titleEn": "Health", "content": "详细内容...", "contentEn": "English..." }
+    "handType": { "title": "五行命格", "titleEn": "Five Elements / Hand Type", "content": "四段式长文120-220字", "contentEn": "Four-part English analysis" },
+    "palmMounds": { "title": "星丘压制", "titleEn": "Mounts", "content": "四段式长文", "contentEn": "Four-part English analysis" },
+    "specialMarks": { "title": "凶吉征兆", "titleEn": "Signs", "content": "四段式长文", "contentEn": "Four-part English analysis" },
+    "personality": { "title": "性格底色", "titleEn": "Personality Core", "content": "四段式长文：核心性格、情绪模式、人际风格、调整建议", "contentEn": "Four-part English analysis" },
+    "career": { "title": "财官利禄", "titleEn": "Career & Wealth", "content": "四段式长文", "contentEn": "Four-part English analysis" },
+    "love": { "title": "红尘情孽", "titleEn": "Love & Relationships", "content": "四段式长文", "contentEn": "Four-part English analysis" },
+    "health": { "title": "命元警示", "titleEn": "Health", "content": "四段式长文", "contentEn": "Four-part English analysis" },
+    "recentLuck": { "title": "近期提醒", "titleEn": "Recent Outlook", "content": "四段式长文：近3-6个月运势节奏、机会窗口、阻力点、当下最该做的一件事", "contentEn": "Four-part English analysis" }
   },
-  "harshWarning": "【致命命理警示】中文约100字。",
-  "harshWarningEn": "English warning, same meaning.",
-  "overallAnalysis": "综合命定结论：中文。",
-  "overallAnalysisEn": "Overall conclusion in English.",
+  "harshWarning": "【致命命理警示】120-180字，犀利具体。",
+  "harshWarningEn": "English warning, same depth.",
+  "overallAnalysis": "综合命定结论：180-300字，整合全局。",
+  "overallAnalysisEn": "Overall conclusion in English, same depth.",
   "lineDetails": [
     {
       "type": "wisdom",
       "typeName": "智慧线",
       "typeNameEn": "Head Line",
-      "description": "...",
-      "descriptionEn": "...",
+      "description": "50-80字线条描述",
+      "descriptionEn": "English line description",
       "interpretation": {
         "thinking": "...",
         "learning": "...",
@@ -195,108 +200,21 @@ function buildPalmistryPrompt(handSideText: string, genderText: string, locale: 
     "palmMoundEn": "..."
   },
   "suggestions": {
-    "career": "...",
+    "career": "40-80字具体事业建议",
     "careerEn": "...",
-    "life": "...",
+    "life": "40-80字具体生活建议",
     "lifeEn": "...",
-    "tip": "...",
+    "tip": "40-80字转运提醒",
     "tipEn": "..."
   }
 }
 
 重要要求：
-1. 必须严格按照上述 JSON 结构返回，且所有 *En 字段必须为有效英文句子或短语（无效图时可用 "-"）。
-2. 分数使用小数，范围在 0-10 之间。
-3. 必须只返回纯 JSON 格式，不要包含任何 markdown 标记、代码块。`;
-}
-
-function buildFollowUpPrompt(
-	handSideText: string,
-	genderText: string,
-	locale: AppLocale,
-	reportSummaryText: string,
-	moduleIds: string[],
-	moduleDetails: Array<{
-		id: string;
-		title: string;
-		prompt: string;
-	}>
-): string {
-	const localeHint =
-		locale === 'en'
-			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
-			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
-
-	const moduleMap: Record<string, string> = {
-		love: '爱情 / Love',
-		career: '事业 / Career',
-		health: '健康 / Health'
-	};
-
-	const detailMap: Record<string, { title: string; prompt: string }> = {};
-	for (let i = 0; i < moduleDetails.length; i += 1) {
-		const item = moduleDetails[i];
-		detailMap[item.id] = {
-			title: item.title,
-			prompt: item.prompt
-		};
-	}
-
-	let moduleList = '';
-	for (let i = 0; i < moduleIds.length; i += 1) {
-		const id = moduleIds[i];
-		const detail = detailMap[id];
-		const title = detail != null ? detail.title : (moduleMap[id] || id);
-		const prompt = detail != null ? detail.prompt : '';
-		if (i > 0) {
-			moduleList += '\n';
-		}
-		moduleList += `${i + 1}. ${title}${prompt ? `\n   用户真正关心的问题：${prompt}` : ''}`;
-	}
-
-	return `🪬 你是一位拥有三十年经验、极其擅长手相深度追问的命理大师。
-
-【语言与输出】${localeHint}
-请基于同一张手相图和已有首报结论，输出一个“追问深度解读”JSON。不要重复首报，而要沿着用户关心的模块给出更长、更实用、更能转化的答案。你必须把内容写成“付费深度解答”的感觉，让用户明显感受到增量信息。
-
-【当前分析对象】
-${genderText}，${handSideText}
-
-【用户已知的首报摘要】
-${reportSummaryText}
-
-【当前追问模块】
-${moduleList}
-
-【分析要求】
-1. 每个模块必须写成完整深度解读，正文中要明确包含以下四段，并且最好用自然段分开：
-   - 为什么这么判断
-   - 解读出来的结果
-   - 应对策略
-   - 风险与避坑
-2. 每个模块的正文必须足够长，建议 700-1000 个中文字符，不得少于 500 个中文字符，不能只写两三句。
-3. 语言必须具体，避免空话。要把“掌纹/手型/掌丘/线条”与“现实建议”串起来，并写出用户可以直接执行的动作。
-4. 不能给医疗、法律、投资保证，也不能写成绝对命运论；要保留“倾向/更适合/可能/建议”这些表达。
-5. 如果模块是爱情，就必须围绕“关系节奏、相处方式、沟通模式、遇到合适对象的窗口、避免烂桃花”展开。
-6. 如果模块是事业，就必须围绕“工作选择、跳槽/转岗时机、上升路径、执行节奏、贵人/阻力、避免错误决策”展开。
-7. 如果模块是健康，就必须围绕“压力、睡眠、体力消耗、作息、体检、生活习惯调整”展开。
-8. 输出要像一个付费深度解答，内容要比首报更细，用户能明显感到信息增量，并且每个模块都要给出至少 1 条短期动作建议 + 1 条长期策略建议 + 1 条避坑提醒。
-
-【输出JSON结构】
-{
-  "answers": [
-    {
-      "moduleId": "love",
-      "moduleTitle": "爱情",
-      "answer": "长文，必须包含为什么、结果、策略、风险四段，且每段都要具体。"
-    }
-  ]
-}
-
-【重要】
-1. 只返回纯JSON，不要markdown，不要代码块。
-2. moduleId 必须与输入模块一一对应。
-3. 如果是多个模块，请按顺序返回多项 answers。`;
+1. 必须严格按照上述 JSON 结构返回，且所有 *En 字段必须为有效英文（无效图时可用 "-"）。
+2. dimensions 必须包含 personality 与 recentLuck，且每个模块 content 必须满足四段式与字数要求。
+3. 分数使用小数，范围在 0-10 之间。
+4. lineDetails 至少包含 2-4 条主要线条解读。
+5. 必须只返回纯 JSON 格式，不要包含任何 markdown 标记、代码块。`;
 }
 
 /**
@@ -340,7 +258,7 @@ export async function analyzePalmistry(
 			},
 			parameters: {
 				temperature: 0.1, // 低温度，更稳定的输出
-				max_tokens: 5000, // 中英双轨需更长输出
+				max_tokens: 8000, // 免费长报告 + 中英双轨需更长输出
 				top_p: 0.8
 			}
 		};
@@ -527,218 +445,6 @@ export async function analyzePalmistry(
 }
 
 /**
- * 追问模块深度解读
- */
-function extractQwenErrorMessage(res: any): string {
-	if (res.data == null) {
-		return res.errMsg || '未知错误';
-	}
-	if (typeof res.data === 'string') {
-		return res.data;
-	}
-	if (res.data.message) {
-		return String(res.data.message);
-	}
-	if (res.data.error) {
-		return typeof res.data.error === 'string' ? res.data.error : JSON.stringify(res.data.error);
-	}
-	return JSON.stringify(res.data);
-}
-
-export async function analyzeFollowUpReading(
-	request: FollowUpAnalyzeRequest
-): Promise<FollowUpReadingResult[]> {
-	try {
-		const imageData =
-			request.imagePath != null && isApiReadyImage(request.imagePath) ? request.imagePath : null;
-		const handSideText = request.handSide === 'left' ? '左手' : '右手';
-		const genderText = request.gender === 'male' ? '男性' : '女性';
-		const locale: AppLocale = request.locale != null ? request.locale : 'en';
-		const prompt = buildFollowUpPrompt(
-			handSideText,
-			genderText,
-			locale,
-			request.reportSummaryText,
-			request.moduleIds,
-			request.moduleDetails != null ? request.moduleDetails : []
-		);
-
-		const messageContent: Array<{
-			type: 'text' | 'image';
-			text?: string;
-			image?: string;
-		}> = [{ type: 'text', text: prompt }];
-		if (imageData != null) {
-			messageContent.push({ type: 'image', image: imageData });
-		}
-
-		const apiRequest: QwenRequest = {
-			model: QWEN_CONFIG.model,
-			input: {
-				messages: [
-					{
-						role: 'user',
-						content: messageContent
-					}
-				]
-			},
-			parameters: {
-				temperature: 0.25,
-				max_tokens: 5000,
-				top_p: 0.85
-			}
-		};
-
-		return new Promise<FollowUpReadingResult[]>((resolve, reject) => {
-			uni.request({
-				url: QWEN_CONFIG.endpoint,
-				method: 'POST',
-				header: {
-					'Authorization': `Bearer ${QWEN_CONFIG.apiKey}`,
-					'Content-Type': 'application/json',
-					'X-DashScope-SSE': 'disable'
-				},
-				data: apiRequest,
-				timeout: QWEN_CONFIG.timeout,
-				success: (res: any) => {
-					if (res.statusCode !== 200) {
-						const detail = extractQwenErrorMessage(res);
-						console.error('追问 API 错误响应:', res.statusCode, detail);
-						reject(new Error(`API调用失败: HTTP ${res.statusCode}, ${detail}`));
-						return;
-					}
-
-					let responseData = res.data;
-					if (typeof responseData === 'string') {
-						try {
-							responseData = JSON.parse(responseData);
-						} catch (error) {
-							reject(new Error('追问接口响应不是合法JSON'));
-							return;
-						}
-					}
-
-					const qwenResponse = responseData as QwenResponse;
-					if (
-						qwenResponse == null ||
-						qwenResponse.output == null ||
-						qwenResponse.output.choices == null ||
-						qwenResponse.output.choices.length === 0 ||
-						qwenResponse.output.choices[0] == null ||
-						qwenResponse.output.choices[0].message == null
-					) {
-						reject(new Error('追问接口返回内容为空'));
-						return;
-					}
-					const content = qwenResponse.output.choices[0].message.content;
-					const answers = parseFollowUpAnswers(content, request.moduleIds);
-					if (answers.length === 0) {
-						console.error('追问接口返回无法解析:', content);
-						reject(new Error('追问接口返回结构不正确'));
-						return;
-					}
-
-					resolve(answers);
-				},
-				fail: (error: any) => {
-					const errorMsg = error.errMsg || '网络错误';
-					reject(new Error(`追问接口调用失败: ${errorMsg}`));
-				}
-			});
-		});
-	} catch (error) {
-		console.error('追问解读失败:', error);
-		throw error;
-	}
-}
-
-function normalizeQwenMessageContent(content: string | any): string {
-	if (typeof content === 'string') {
-		try {
-			const parsed = JSON.parse(content);
-			if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].text != null) {
-				return String(parsed[0].text);
-			}
-		} catch (error) {
-			// 普通字符串直接返回
-		}
-		return content;
-	}
-	if (Array.isArray(content) && content.length > 0 && content[0].text != null) {
-		return String(content[0].text);
-	}
-	if (typeof content === 'object' && content !== null) {
-		return JSON.stringify(content);
-	}
-	return String(content);
-}
-
-function extractFollowUpJson(content: string | any): string {
-	let jsonString = normalizeQwenMessageContent(content);
-	jsonString = jsonString.trim();
-	jsonString = jsonString.replace(/```json\s*/g, '');
-	jsonString = jsonString.replace(/```\s*/g, '');
-	jsonString = jsonString.trim();
-	const startIndex = jsonString.indexOf('{');
-	const endIndex = jsonString.lastIndexOf('}');
-	if (startIndex >= 0 && endIndex > startIndex) {
-		jsonString = jsonString.substring(startIndex, endIndex + 1);
-	}
-	return jsonString;
-}
-
-function parseFollowUpAnswers(content: string | any, moduleIds: string[]): FollowUpReadingResult[] {
-	let parsed: any = null;
-	try {
-		parsed = JSON.parse(extractFollowUpJson(content));
-	} catch (error) {
-		console.error('追问 JSON 解析失败', error);
-		return [];
-	}
-
-	let rawAnswers: any[] = [];
-	if (parsed != null && Array.isArray(parsed.answers)) {
-		rawAnswers = parsed.answers;
-	} else if (Array.isArray(parsed)) {
-		rawAnswers = parsed;
-	} else if (parsed != null && parsed.answer != null) {
-		rawAnswers = [parsed];
-	}
-
-	const answers: FollowUpReadingResult[] = [];
-	for (let i = 0; i < rawAnswers.length; i += 1) {
-		const item = rawAnswers[i];
-		if (item == null) {
-			continue;
-		}
-		const moduleId = String(item.moduleId || item.id || moduleIds[i] || '');
-		const answer = item.answer != null ? item.answer : (item.content != null ? item.content : item.text);
-		if (moduleId.length > 0 && answer != null && String(answer).length > 0) {
-			answers.push({
-				moduleId,
-				moduleTitle: String(item.moduleTitle || item.title || moduleId),
-				answer: String(answer)
-			});
-		}
-	}
-
-	if (answers.length === 0 && moduleIds.length > 0) {
-		const fallbackText = normalizeQwenMessageContent(content).trim();
-		if (fallbackText.length > 120) {
-			for (let i = 0; i < moduleIds.length; i += 1) {
-				answers.push({
-					moduleId: moduleIds[i],
-					moduleTitle: moduleIds[i],
-					answer: fallbackText
-				});
-			}
-		}
-	}
-
-	return answers;
-}
-
-/**
  * 解析Qwen API返回的JSON内容
  * 支持字符串和对象两种格式
  */
@@ -784,10 +490,14 @@ function parseQwenResponse(content: string | any): PalmistryAnalysisResult {
 			hasSuggestions: !!result.suggestions
 		});
 		
-		// 验证结果格式
-		if (!result.summary || !result.dimensions || !result.lineDetails || !result.palmFeatures || !result.suggestions || !result.harshWarning || !result.overallAnalysis) {
+		// 验证结果格式（lineDetails 可为空数组）
+		if (!result.summary || !result.dimensions || !result.palmFeatures || !result.suggestions || !result.harshWarning || !result.overallAnalysis) {
 			console.error('parseQwenResponse: 结果格式验证失败，result:', result);
 			throw new Error('返回结果格式不正确：缺少必要字段');
+		}
+
+		if (result.lineDetails == null) {
+			result.lineDetails = [];
 		}
 		
 		// 验证 summary 字段
@@ -850,6 +560,14 @@ function parseQwenResponse(content: string | any): PalmistryAnalysisResult {
 				},
 				health: {
 					title: '健康维度',
+					content: '识别失败，请重试或检查图片质量'
+				},
+				personality: {
+					title: '性格底色',
+					content: '识别失败，请重试或检查图片质量'
+				},
+				recentLuck: {
+					title: '近期提醒',
 					content: '识别失败，请重试或检查图片质量'
 				}
 			},

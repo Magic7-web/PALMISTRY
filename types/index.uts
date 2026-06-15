@@ -29,8 +29,6 @@ export interface PalmistryReport {
 	imagePath: string
 	analyzeTime: string
 	results: ReportResult[]
-	/** 当前报告会话 ID，用于本地持久化追问结果 */
-	sessionId?: string
 	fullData?: PalmistryAnalysisResult // 保存完整的API返回数据，包含详细分析内容
 }
 
@@ -121,6 +119,10 @@ export interface PalmistryAnalysisResult {
 		career: DimensionDetail;
 		love: DimensionDetail;
 		health: DimensionDetail;
+		/** 性格底色（免费维度） */
+		personality?: DimensionDetail;
+		/** 近期提醒（免费维度） */
+		recentLuck?: DimensionDetail;
 		/** 部分模型可能返回财富维度 */
 		wealth?: DimensionDetail;
 	};
@@ -149,71 +151,4 @@ export interface ReportResult {
 	descriptionEn?: string
 	points?: Array<{x: number, y: number}> // 线条坐标点（可选）
 	clarity?: number // 清晰度 0-100（可选）
-}
-
-/**
- * 追问模块
- */
-export interface FollowUpModule {
-	id: string
-	title: string
-	titleEn?: string
-	description: string
-	descriptionEn?: string
-	previewText: string
-	previewTextEn?: string
-	priceUsd: string
-	priceCny: string
-	prompt: string
-	promptEn?: string
-}
-
-/**
- * 追问模块分组
- */
-export interface FollowUpPack {
-	id: string
-	title: string
-	titleEn?: string
-	description: string
-	descriptionEn?: string
-	priceUsd: string
-	priceCny: string
-	moduleIds: string[]
-}
-
-/**
- * 追问答案
- */
-export interface FollowUpAnswerRecord {
-	sessionId: string
-	moduleId: string
-	moduleTitle: string
-	question: string
-	answer: string
-	paymentProvider: string
-	orderRef: string
-	paidAt: string
-}
-
-/**
- * 追问AI返回项
- */
-export interface FollowUpReadingResult {
-	moduleId: string
-	moduleTitle: string
-	answer: string
-}
-
-/**
- * 当前报告快照
- */
-export interface ActiveReportSnapshot {
-	sessionId: string
-	capturedImage: string
-	gender: 'male' | 'female'
-	handSide: 'left' | 'right'
-	locale: 'zh' | 'en'
-	reportData?: PalmistryReport | null
-	createdAt: string
 }

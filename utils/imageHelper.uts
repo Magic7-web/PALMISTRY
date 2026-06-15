@@ -3,73 +3,13 @@
  */
 
 /**
- * 是否已是可直接传给 Qwen 的图片数据
- */
-/** blob URL 刷新后会失效，不应写入本地快照 */
-export function isEphemeralImagePath(imagePath: string): boolean {
-	return imagePath != null && imagePath.startsWith('blob:');
-}
-
-export function isApiReadyImage(imagePath: string): boolean {
-	if (imagePath == null || imagePath.length === 0) {
-		return false;
-	}
-	return (
-		imagePath.startsWith('data:image/') ||
-		imagePath.startsWith('http://') ||
-		imagePath.startsWith('https://')
-	);
-}
-
-/**
- * 解析可用于 API 的图片：优先 base64，依次尝试主路径与备用路径
- */
-export async function resolveImageForApi(
-	primaryPath: string,
-	fallbackPath?: string | null
-): Promise<string> {
-	const candidates: string[] = [];
-	if (primaryPath != null && primaryPath.length > 0) {
-		candidates.push(primaryPath);
-	}
-	if (fallbackPath != null && fallbackPath.length > 0 && fallbackPath !== primaryPath) {
-		candidates.push(fallbackPath);
-	}
-
-	for (let i = 0; i < candidates.length; i += 1) {
-		const path = candidates[i];
-		if (isEphemeralImagePath(path)) {
-			continue;
-		}
-		if (isApiReadyImage(path)) {
-			return path;
-		}
-		try {
-			const converted = await convertImageToBase64(path);
-			if (isApiReadyImage(converted)) {
-				return converted;
-			}
-		} catch (error) {
-			console.warn('resolveImageForApi 转换失败:', path, error);
-		}
-	}
-
-	throw new Error('无法获取有效图片，请重新拍照后再试');
-}
-
-/**
  * 将图片路径转为base64
  * 注意：uni-app x中需要先获取图片信息，然后读取文件
  * 支持blob URL、网络URL和本地路径
  */
 export function convertImageToBase64(imagePath: string): Promise<string> {
 	return new Promise((resolve, reject) => {
-		console.log('开始转换图片为base64，图片路径:', imagePath.substring(0, 80));
-
-		if (imagePath.startsWith('data:image/')) {
-			resolve(imagePath);
-			return;
-		}
+		console.log('开始转换图片为base64，图片路径:', imagePath);
 		
 		// #ifdef H5
 		// H5平台处理blob URL

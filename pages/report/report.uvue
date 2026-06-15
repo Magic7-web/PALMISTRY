@@ -153,14 +153,14 @@
 					<view class="section-header">
 						<text class="section-title">{{ ui.chapter3 }}</text>
 					</view>
-					<view class="dimension-card" v-for="(dim, key) in reportData.fullData.dimensions" :key="key">
+					<view class="dimension-card" v-for="key in getOrderedDimensionKeys(reportData.fullData.dimensions)" :key="key">
 						<view class="dimension-header">
 							<view class="dim-icon-box" :class="key + '-icon'">
 								<image class="dim-custom-icon" :src="getDimensionIcon(key)" mode="aspectFit"></image>
 							</view>
-							<text class="dimension-title">{{ dimTitle(dim) }}</text>
+							<text class="dimension-title">{{ dimTitle(reportData.fullData.dimensions[key]) }}</text>
 						</view>
-						<text class="dimension-content">{{ dimContent(dim) }}</text>
+						<text class="dimension-content">{{ dimContent(reportData.fullData.dimensions[key]) }}</text>
 					</view>
 				</view>
 
@@ -254,6 +254,7 @@
 		pickLocaleText,
 		type AppLocale
 	} from '@/utils/locale';
+	import { getOrderedDimensionKeys as orderDimensionKeys } from '@/utils/dimensionHelper';
 
 	type Gender = 'male' | 'female';
 	type HandSide = 'left' | 'right';
@@ -357,9 +358,14 @@
 					'love': '/static/感情.png',
 					'health': '/static/健康.png',
 					'wealth': '/static/财富.png',
-					'personality': '/static/命格.png'
+					'personality': '/static/命格.png',
+					'recentLuck': '/static/命格.png'
 				};
 				return icons[key] || '/static/命格.png';
+			},
+
+			getOrderedDimensionKeys(dimensions: Record<string, DimensionDetail> | null | undefined): string[] {
+				return orderDimensionKeys(dimensions);
 			},
 
 			/**
@@ -1394,7 +1400,8 @@
 	.dimension-content {
 		font-size: 28rpx;
 		color: #636366;
-		line-height: 1.7;
+		line-height: 1.75;
+		white-space: pre-line;
 	}
 
 	/* 掌部特征样式 */
