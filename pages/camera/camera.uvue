@@ -170,6 +170,23 @@
 									<view class="tab-item-line" v-if="selectedLine === tab.id"></view>
 								</view>
 							</view>
+
+							<!-- 掌纹线评分：Tab 下方统一模块展示 -->
+							<view class="line-details-panel" v-if="orderedLineResults.length > 0">
+								<view
+									class="line-detail-item"
+									v-for="(line, lineIndex) in orderedLineResults"
+									:key="lineIndex"
+								>
+									<view class="line-detail-header">
+										<view class="line-tag-wrapper">
+											<text class="line-tag-text">「{{ pickTxt(line.type, line.typeEn) }}」</text>
+										</view>
+										<text class="line-score" v-if="line.score != null">{{ line.score }}{{ ui.scoreUnit }}</text>
+									</view>
+									<text class="line-description">{{ pickTxt(line.description, line.descriptionEn) }}</text>
+								</view>
+							</view>
 						</view>
 						
 						<!-- 详细分析内容区域 -->
@@ -183,17 +200,6 @@
 								<view class="warning-content">
 									<text class="warning-text">{{ pickTxt(reportData.fullData.harshWarning, reportData.fullData.harshWarningEn) }}</text>
 								</view>
-							</view>
-
-							<!-- 选中的线条详细信息 -->
-							<view class="line-detail-card" v-if="selectedLineInfo">
-								<view class="line-detail-header">
-									<view class="line-tag-wrapper">
-										<text class="line-tag-text">「{{ pickTxt(selectedLineInfo.type, selectedLineInfo.typeEn) }}」</text>
-									</view>
-									<text class="line-score" v-if="selectedLineInfo.score">{{ selectedLineInfo.score }}{{ ui.scoreUnit }}</text>
-								</view>
-								<text class="line-description">{{ pickTxt(selectedLineInfo.description, selectedLineInfo.descriptionEn) }}</text>
 							</view>
 
 							<!-- 其他 AI 分析内容 -->
@@ -824,12 +830,32 @@
 					}
 				}
 				return null;
+			},
+			/** 按 Tab 顺序排列的全部掌纹线评分 */
+			orderedLineResults(): ReportResult[] {
+				if (!this.reportData || this.reportData.results.length === 0) {
+					return [];
+				}
+				const order = ['生命线', '智慧线', '感情线', '命运线'];
+				const ordered: ReportResult[] = [];
+				for (let i = 0; i < order.length; i += 1) {
+					const typeName = order[i];
+					for (let j = 0; j < this.reportData!.results.length; j += 1) {
+						const item = this.reportData!.results[j];
+						if (item.type === typeName) {
+							ordered.push(item);
+							break;
+						}
+					}
+				}
+				return ordered.length > 0 ? ordered : this.reportData.results;
 			}
 		},
 		onLoad(options: Record<string, any>) {
 			console.log('拍照页面加载', options);
 			this.syncLocaleFromStorage();
 			this.restoreActiveReportSnapshot();
+			this.ensureDefaultSelectedLine();
 		},
 		onShow() {
 			this.syncLocaleFromStorage();
@@ -1145,6 +1171,23 @@
 			},
 
 			/**
+			 * 确保 Tab id 合法，刷新后默认生命线
+			 */
+			ensureDefaultSelectedLine(): void {
+				const validIds = ['life', 'wisdom', 'emotion', 'fate'];
+				let matched = false;
+				for (let i = 0; i < validIds.length; i += 1) {
+					if (this.selectedLine === validIds[i]) {
+						matched = true;
+						break;
+					}
+				}
+				if (!matched) {
+					this.selectedLine = 'life';
+				}
+			},
+
+			/**
 			 * 重置图片变换
 			 */
 			resetTransform(e?: any): void {
@@ -1217,7 +1260,7 @@
 						if (isApiReadyImage(restoredImage || '')) {
 							this.reportData.imagePath = restoredImage as string;
 						}
-						this.selectedLine = this.reportData.results.length > 0 ? this.reportData.results[0].type : 'life';
+						this.selectedLine = 'life';
 						this.followUpAnswers = loadFollowUpAnswers(snapshot.sessionId);
 						this.isAnalyzing = false;
 						console.log('已恢复报告快照:', snapshot.sessionId);
@@ -2956,15 +2999,17 @@
 		border-radius: 2rpx;
 	}
 
-	/* 线条详细信息卡片 */
-	.line-detail-card {
-		background-color: #fff;
-		border-radius: 12rpx;
-		padding: 35rpx;
-		margin-bottom: 30rpx;
-		border: 1rpx solid #e8e0cc;
-		border-left: 8rpx solid #5a3e2b;
-		box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+	.line-details-panel {
+		width: 90%;
+		margin-top: 16rpx;
+	}
+
+	.line-detail-item {
+		padding: 16rpx 8rpx;
+	}
+
+	.line-detail-item:last-child {
+		padding-bottom: 0;
 	}
 
 	.line-detail-header {
@@ -2972,7 +3017,7 @@
 		flex-direction: row;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 25rpx;
+		margin-bottom: 10rpx;
 	}
 
 	.line-tag-wrapper {
