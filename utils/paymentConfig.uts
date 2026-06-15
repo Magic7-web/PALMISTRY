@@ -1,5 +1,5 @@
 /**
- * PayPal 支付配置（前端 MVP）
+ * 追问模块支付配置（前端 MVP）
  *
  * 获取 Client ID 步骤：
  * 1. 打开 https://developer.paypal.com/dashboard/
@@ -9,20 +9,26 @@
  */
 
 export const PAYMENT_CONFIG = {
-	/** 是否启用付费（false 时直接分析，方便本地调试） */
+	/** 是否启用追问付费（false 时直接分析，方便本地调试） */
 	enabled: true,
 	/** Sandbox 或 Live 的 Client ID */
 	paypalClientId: 'AQj_qTNCKhQCse3z81qWS886wDG2UE0vbW0zAQOayUmWB2a17jISvlwsOCcPY9JghjiOHEoKHI9_t_lX',
-	/** 一次性报告价格（美元） */
-	priceUsd: '4.99',
-	/** 支付宝个人收款码价格（人民币，人工对账 MVP） */
-	priceCny: '9.90',
+	/** 单模块追问价格（美元） */
+	priceUsd: '1.99',
+	/** 单模块支付宝个人收款码价格（人民币，人工对账 MVP） */
+	priceCny: '4.99',
+	/** 全部模块打包价格（美元） */
+	bundlePriceUsd: '4.99',
+	/** 全部模块打包价格（人民币） */
+	bundlePriceCny: '9.90',
 	/** 商品描述（PayPal 订单里展示） */
-	productName: 'AI Palm Reading Report',
+	productName: 'AI Palm Follow-up',
 	/** 是否启用支付宝个人收款码 */
 	alipayEnabled: true,
-	/** 支付宝个人收款码图片 */
-	alipayQrCode: '/static/alipay-qr.jpg',
+	/** 单模块支付宝个人收款码图片 */
+	alipayQrCode: '/static/alipay-qr-single.jpg',
+	/** 全部模块支付宝个人收款码图片 */
+	alipayBundleQrCode: '/static/alipay-qr-bundle.jpg',
 	/** 支付宝人工对账联系方式 */
 	supportEmail: '2238712285@qq.com'
 };

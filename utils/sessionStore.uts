@@ -1,0 +1,105 @@
+import type { ActiveReportSnapshot, FollowUpAnswerRecord } from '@/types/index';
+
+const ACTIVE_REPORT_SNAPSHOT_KEY = 'palmistry_active_report_snapshot';
+const FOLLOW_UP_ANSWERS_PREFIX = 'palmistry_follow_up_answers_';
+
+function getFollowUpKey(sessionId: string): string {
+	return `${FOLLOW_UP_ANSWERS_PREFIX}${sessionId}`;
+}
+
+function normalizeFollowUpAnswers(value: any): FollowUpAnswerRecord[] {
+	if (value == null) {
+		return [];
+	}
+
+	if (Array.isArray(value)) {
+		return value as FollowUpAnswerRecord[];
+	}
+
+	if (typeof value === 'object') {
+		const result: FollowUpAnswerRecord[] = [];
+		const maybeLength = (value as any).length;
+		if (typeof maybeLength === 'number' && maybeLength >= 0) {
+			for (let i = 0; i < maybeLength; i += 1) {
+				const item = (value as any)[i];
+				if (item != null) {
+					result.push(item as FollowUpAnswerRecord);
+				}
+			}
+		}
+		return result;
+	}
+
+	return [];
+}
+
+function safeRead<T>(key: string, fallback: T): T {
+	try {
+		const value = uni.getStorageSync(key);
+		if (value != null) {
+			return value as T;
+		}
+	} catch (error) {
+		console.error(`读取本地存储失败: ${key}`, error);
+	}
+	return fallback;
+}
+
+export function saveActiveReportSnapshot(snapshot: ActiveReportSnapshot): void {
+	try {
+		uni.setStorageSync(ACTIVE_REPORT_SNAPSHOT_KEY, snapshot);
+	} catch (error) {
+		console.error('保存报告快照失败', error);
+	}
+}
+
+export function loadActiveReportSnapshot(): ActiveReportSnapshot | null {
+	return safeRead<ActiveReportSnapshot | null>(ACTIVE_REPORT_SNAPSHOT_KEY, null);
+}
+
+export function clearActiveReportSnapshot(): void {
+	try {
+		uni.removeStorageSync(ACTIVE_REPORT_SNAPSHOT_KEY);
+	} catch (error) {
+		console.error('清除报告快照失败', error);
+	}
+}
+
+export function loadFollowUpAnswers(sessionId: string): FollowUpAnswerRecord[] {
+	if (!sessionId) {
+		return [];
+	}
+	return normalizeFollowUpAnswers(safeRead<any>(getFollowUpKey(sessionId), []));
+}
+
+export function saveFollowUpAnswer(record: FollowUpAnswerRecord): void {
+	if (!record.sessionId) {
+		return;
+	}
+	try {
+		const key = getFollowUpKey(record.sessionId);
+		const current = loadFollowUpAnswers(record.sessionId);
+		const next: FollowUpAnswerRecord[] = [];
+		for (let i = 0; i < current.length; i += 1) {
+			const item = current[i];
+			if (item.moduleId !== record.moduleId) {
+				next.push(item);
+			}
+		}
+		next.unshift(record);
+		uni.setStorageSync(key, next);
+	} catch (error) {
+		console.error('保存追问答案失败', error);
+	}
+}
+
+export function clearFollowUpAnswers(sessionId: string): void {
+	if (!sessionId) {
+		return;
+	}
+	try {
+		uni.removeStorageSync(getFollowUpKey(sessionId));
+	} catch (error) {
+		console.error('清除追问答案失败', error);
+	}
+}
