@@ -195,6 +195,8 @@ export interface FollowUpAnswerRecord {
 	moduleTitle: string
 	question: string
 	answer: string
+	/** 英文追问答案 */
+	answerEn?: string
 	paymentProvider: string
 	orderRef: string
 	paidAt: string
@@ -207,6 +209,8 @@ export interface FollowUpReadingResult {
 	moduleId: string
 	moduleTitle: string
 	answer: string
+	/** 英文追问答案 */
+	answerEn?: string
 }
 
 /**

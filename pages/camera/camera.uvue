@@ -1465,7 +1465,30 @@
 
 			getFollowUpAnswerText(moduleId: string): string {
 				const answer = this.getFollowUpAnswer(moduleId);
-				return answer ? answer.answer : '';
+				if (!answer) {
+					return '';
+				}
+				if (this.locale === 'en') {
+					if (answer.answerEn != null && answer.answerEn.length > 0) {
+						return answer.answerEn;
+					}
+					const fallback = this.getFollowUpDimensionFallback(moduleId);
+					if (fallback != null && fallback.length > 0) {
+						return fallback;
+					}
+				}
+				return answer.answer;
+			},
+
+			getFollowUpDimensionFallback(moduleId: string): string | null {
+				if (!this.reportData || !this.reportData.fullData || !this.reportData.fullData.dimensions) {
+					return null;
+				}
+				const dim = this.reportData.fullData.dimensions[moduleId];
+				if (!dim) {
+					return null;
+				}
+				return this.pickTxt(dim.content, dim.contentEn);
 			},
 
 			/**
@@ -1484,14 +1507,29 @@
 			 */
 			getFollowUpReportSummaryText(): string {
 				if (!this.reportData || !this.reportData.fullData) {
-					return '暂无首报摘要。';
+					return this.locale === 'en' ? 'No base report summary yet.' : '暂无首报摘要。';
 				}
 
 				const summary = this.reportData.fullData.summary;
 				const dimensions = this.reportData.fullData.dimensions;
 				const selectedLineText = this.selectedLineInfo
 					? this.pickTxt(this.selectedLineInfo.type, this.selectedLineInfo.typeEn)
-					: '未选择线条';
+					: (this.locale === 'en' ? 'No line selected' : '未选择线条');
+
+				if (this.locale === 'en') {
+					return [
+						`Selected line: ${selectedLineText}`,
+						`Life line: ${this.pickTxt(summary.lifeLine.dimension, summary.lifeLine.dimensionEn)} / ${this.pickTxt(summary.lifeLine.brief, summary.lifeLine.briefEn)}`,
+						`Head line: ${this.pickTxt(summary.wisdomLine.dimension, summary.wisdomLine.dimensionEn)} / ${this.pickTxt(summary.wisdomLine.brief, summary.wisdomLine.briefEn)}`,
+						`Heart line: ${this.pickTxt(summary.emotionLine.dimension, summary.emotionLine.dimensionEn)} / ${this.pickTxt(summary.emotionLine.brief, summary.emotionLine.briefEn)}`,
+						`Fate line: ${this.pickTxt(summary.fateLine.dimension, summary.fateLine.dimensionEn)} / ${this.pickTxt(summary.fateLine.brief, summary.fateLine.briefEn)}`,
+						`Overall: ${this.pickTxt(this.reportData.fullData.overallAnalysis, this.reportData.fullData.overallAnalysisEn)}`,
+						`Tip: ${this.pickTxt(this.reportData.fullData.suggestions.tip, this.reportData.fullData.suggestions.tipEn)}`,
+						`Career: ${this.pickTxt(dimensions.career.title, dimensions.career.titleEn)} / ${this.pickTxt(dimensions.career.content, dimensions.career.contentEn)}`,
+						`Love: ${this.pickTxt(dimensions.love.title, dimensions.love.titleEn)} / ${this.pickTxt(dimensions.love.content, dimensions.love.contentEn)}`,
+						`Health: ${this.pickTxt(dimensions.health.title, dimensions.health.titleEn)} / ${this.pickTxt(dimensions.health.content, dimensions.health.contentEn)}`
+					].join('\n');
+				}
 
 				return [
 					`当前选中线条：${selectedLineText}`,
@@ -1508,16 +1546,23 @@
 			},
 
 			/**
-			 * 生成追问答案
+			 * 生成追问答案（中英双语，用于 API 失败时的本地 fallback）
 			 */
-			buildFollowUpAnswer(module: FollowUpModule): string {
+			buildFollowUpAnswerPair(module: FollowUpModule): { answer: string; answerEn: string } {
+				return {
+					answer: this.buildFollowUpAnswerZh(module),
+					answerEn: this.buildFollowUpAnswerEn(module)
+				};
+			},
+
+			buildFollowUpAnswerZh(module: FollowUpModule): string {
 				const selectedLineText = this.selectedLineInfo
 					? this.pickTxt(this.selectedLineInfo.title, this.selectedLineInfo.titleEn)
 					: '';
 				const summaryLine = this.reportData && this.reportData.fullData && this.reportData.fullData.suggestions
 					? this.pickTxt(this.reportData.fullData.suggestions.tip, this.reportData.fullData.suggestions.tipEn)
 					: '';
-				const prompt = this.pickTxt(module.prompt, module.promptEn);
+				const prompt = module.prompt;
 
 				if (module.id === 'love') {
 					return [
@@ -1556,6 +1601,59 @@
 					`风险与避坑：不要把模糊希望当成确定结果，也不要同时追太多问题导致结论失焦。`,
 					`问题原文：${prompt}`
 				].join('\n\n');
+			},
+
+			buildFollowUpAnswerEn(module: FollowUpModule): string {
+				const selectedLineText = this.selectedLineInfo
+					? this.pickTxt(this.selectedLineInfo.titleEn || this.selectedLineInfo.title, this.selectedLineInfo.titleEn)
+					: '';
+				const summaryLine = this.reportData && this.reportData.fullData && this.reportData.fullData.suggestions
+					? this.pickTxt(this.reportData.fullData.suggestions.tipEn || this.reportData.fullData.suggestions.tip, this.reportData.fullData.suggestions.tipEn)
+					: '';
+				const prompt = module.promptEn || module.prompt;
+
+				if (module.id === 'love') {
+					return [
+						`Why this reading: Based on "${selectedLineText}" and your overall emotional pattern, you tend to observe first and invest later rather than rushing in quickly.`,
+						`What it means: Stability, communication quality, and boundaries matter more than intensity alone. If someone is inconsistent or unclear about commitment, the relationship can drain you.`,
+						`What to do: In the short term, lower expectations and watch whether the other person keeps showing up, communicates clearly, and supports you in real life. Long term, build clear standards instead of letting emotion replace judgment.`,
+						`Risks to avoid: Investing too early, making excuses for the other person, and giving up your boundaries to keep the relationship.${summaryLine ? `\nExtra note: ${summaryLine}` : ''}`,
+						`Original question: ${prompt}`
+					].join('\n\n');
+				}
+
+				if (module.id === 'career') {
+					return [
+						`Why this reading: Your career path works better with "consolidate first, then move" rather than switching direction before momentum is stable.`,
+						`What it means: Growth depends on execution, accumulation, and measurable results more than one dramatic sprint. Deepening one direction is safer than constantly changing lanes.`,
+						`What to do: Focus on tasks that produce visible outcomes soon, and build a long-term moat through skills, portfolio, reusable experience, and relationships.${selectedLineText ? `\nPay special attention to pace and execution around "${selectedLineText}".` : ''}`,
+						`Risks to avoid: Impulsive job changes, side hustles, or restarts driven by emotion rather than evidence.${summaryLine ? `\nExtra note: ${summaryLine}` : ''}`,
+						`Original question: ${prompt}`
+					].join('\n\n');
+				}
+
+				if (module.id === 'health') {
+					return [
+						`Why this reading: The core issue is not a single illness but long-term stress, irregular routines, and energy depletion.`,
+						`What it means: You need rhythm management more than panic. If pressure continues, sleep, mood, recovery speed, and daily energy are usually the first areas affected.`,
+						`What to do: Reset sleep, food, movement, hydration, and checkup routines in the short term. Build sustainable maintenance habits for the long term.`,
+						`Risks to avoid: Ignoring early warning signs, treating fatigue as minor, and relying on caffeine or willpower alone.${summaryLine ? `\nExtra note: ${summaryLine}` : ''}`,
+						`Original question: ${prompt}`
+					].join('\n\n');
+				}
+
+				return [
+					`Why this reading: The report suggests your challenge is turning insight into action.`,
+					`What it means: You need practical, verifiable, sustainable guidance rather than vague reassurance.`,
+					`What to do: Narrow the question to one real scenario and decide based on current constraints.`,
+					`Risks to avoid: Treating hope as certainty or chasing too many questions at once.`,
+					`Original question: ${prompt}`
+				].join('\n\n');
+			},
+
+			/** @deprecated 保留兼容，内部转中文答案 */
+			buildFollowUpAnswer(module: FollowUpModule): string {
+				return this.buildFollowUpAnswerZh(module);
 			},
 
 			/**
@@ -1639,21 +1737,17 @@
 								break;
 							}
 						}
-						const answerText = (apiAnswer != null && apiAnswer.answer) ? apiAnswer.answer : this.buildFollowUpAnswer({
-							id: record.id,
-							title: record.title,
-							description: '',
-							priceUsd: '',
-							priceCny: '',
-							prompt: record.prompt,
-							promptEn: record.promptEn || undefined
-						});
+						const sourceModule = this.getFollowUpModuleById(record.id);
+						const fallbackPair = this.buildFollowUpAnswerPair(sourceModule);
+						const answerText = (apiAnswer != null && apiAnswer.answer) ? apiAnswer.answer : fallbackPair.answer;
+						const answerEnText = (apiAnswer != null && apiAnswer.answerEn) ? apiAnswer.answerEn : fallbackPair.answerEn;
 						saveFollowUpAnswer({
 							sessionId: this.reportSessionId,
 							moduleId: record.id,
 							moduleTitle: record.title,
 							question: record.prompt,
 							answer: answerText,
+							answerEn: answerEnText,
 							paymentProvider: provider,
 							orderRef: orderRef,
 							paidAt: now
@@ -1663,20 +1757,15 @@
 					console.error('追问API失败，使用本地答案作为fallback', error);
 					const now = new Date().toISOString();
 					moduleRecords.forEach((record) => {
+						const sourceModule = this.getFollowUpModuleById(record.id);
+						const fallbackPair = this.buildFollowUpAnswerPair(sourceModule);
 						saveFollowUpAnswer({
 							sessionId: this.reportSessionId,
 							moduleId: record.id,
 							moduleTitle: record.title,
 							question: record.prompt,
-							answer: this.buildFollowUpAnswer({
-								id: record.id,
-								title: record.title,
-								description: '',
-								priceUsd: '',
-								priceCny: '',
-								prompt: record.prompt,
-								promptEn: record.promptEn || undefined
-							}),
+							answer: fallbackPair.answer,
+							answerEn: fallbackPair.answerEn,
 							paymentProvider: provider,
 							orderRef: orderRef,
 							paidAt: now

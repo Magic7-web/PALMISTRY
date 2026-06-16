@@ -247,8 +247,8 @@ function buildFollowUpPrompt(
 ): string {
 	const localeHint =
 		locale === 'en'
-			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
-			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
+			? 'The user prefers English UI. You MUST output both Chinese answer and English answerEn for each module; answerEn must be a full parallel translation with the same structure and depth as answer.'
+			: '用户界面偏好为中文。你必须为每个模块同时输出中文 answer 与英文 answerEn，两者信息量一致，便于界面双语切换。';
 
 	const moduleMap: Record<string, string> = {
 		love: '爱情 / Love',
@@ -311,7 +311,8 @@ ${moduleList}
     {
       "moduleId": "love",
       "moduleTitle": "爱情",
-      "answer": "长文，必须包含为什么、结果、策略、风险四段，且每段都要具体。"
+      "answer": "中文长文，必须包含为什么、结果、策略、风险四段，且每段都要具体。",
+      "answerEn": "English long text with the same four sections: why, result, strategy, risks."
     }
   ]
 }
@@ -319,7 +320,8 @@ ${moduleList}
 【重要】
 1. 只返回纯JSON，不要markdown，不要代码块。
 2. moduleId 必须与输入模块一一对应。
-3. 如果是多个模块，请按顺序返回多项 answers。`;
+3. 每个模块必须同时填写 answer 与 answerEn，不得省略。
+4. 如果是多个模块，请按顺序返回多项 answers。`;
 }
 
 /**
@@ -737,10 +739,12 @@ function parseFollowUpAnswers(content: string | any, moduleIds: string[]): Follo
 		const moduleId = String(item.moduleId || item.id || moduleIds[i] || '');
 		const answer = item.answer != null ? item.answer : (item.content != null ? item.content : item.text);
 		if (moduleId.length > 0 && answer != null && String(answer).length > 0) {
+			const answerEn = item.answerEn != null ? String(item.answerEn) : '';
 			answers.push({
 				moduleId,
 				moduleTitle: String(item.moduleTitle || item.title || moduleId),
-				answer: String(answer)
+				answer: String(answer),
+				answerEn: answerEn.length > 0 ? answerEn : undefined
 			});
 		}
 	}
