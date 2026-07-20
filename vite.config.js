@@ -6,13 +6,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/qwen': {
-        target: 'https://dashscope.aliyuncs.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/qwen/, '/api/v1/services/aigc/multimodal-generation/generation'),
-        secure: true,
-        headers: {
-          'Origin': 'https://dashscope.aliyuncs.com'
-        }
+        target: 'http://localhost:3001',
+        changeOrigin: true
       }
     }
   }

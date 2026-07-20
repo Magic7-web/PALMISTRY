@@ -37,6 +37,7 @@
 			<view class="analyzing-area" v-if="isAnalyzing">
 				<view class="analyzing-content">
 					<text class="analyzing-text">{{ ui.analyzing }}</text>
+					<text class="analyzing-patience-hint">{{ ui.analyzingPatienceHint }}</text>
 				</view>
 			</view>
 
@@ -1568,9 +1569,35 @@
 		border: 1rpx solid #e8e0cc;
 	}
 
+	.analyzing-area {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 400rpx;
+		background-color: #fff;
+		border-radius: 12rpx;
+		border: 1rpx solid #e8e0cc;
+		padding: 40rpx 32rpx;
+	}
+
+	.analyzing-content {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 20rpx;
+	}
+
 	.analyzing-text {
 		font-size: 30rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.analyzing-patience-hint {
+		font-size: 26rpx;
 		color: #8c7662;
+		text-align: center;
+		line-height: 1.6;
 	}
 
 	.btn-text {

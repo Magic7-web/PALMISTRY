@@ -1,33 +1,11 @@
 /**
  * API 配置
- * 注意：生产环境建议使用环境变量或后端代理，避免API Key暴露在前端
+ * API Key 由后端 server/ 代理持有，前端仅请求 /api/qwen
  */
 
-// 运行时判断平台
-// #ifdef H5
-const isH5 = true;
-// #endif
-
-// #ifndef H5
-const isH5 = false;
-// #endif
-
-// 判断是否为开发环境
-// 在 Vite 中，process.env.NODE_ENV 在开发为 'development'，生产构建为 'production'
-const isDev = process.env.NODE_ENV !== 'production';
-
 export const QWEN_CONFIG = {
-	apiKey: 'sk-d91b0f8074d242b7ab8d16bd12823731',
-	/**
-	 * endpoint 说明：
-	 * - H5 平台（开发 + 生产）：统一走代理 /api/qwen，避免 CORS 跨域问题
-	 *   - 开发环境：走 Vite dev server 的 proxy（vite.config.js）
-	 *   - 生产环境：走 Nginx 反向代理
-	 * - 非 H5 平台：直接调用 API（小程序/App 不受 CORS 限制）
-	 */
-	endpoint: isH5
-		? '/api/qwen' // H5 平台：统一使用代理路径（避免 CORS）
-		: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation', // 非 H5 平台：直接调用 API
-	model: 'qwen-vl-plus', // 使用视觉模型：qwen-vl-plus 或 qwen-vl-max
-	timeout: 60000 // 60秒超时（AI分析可能需要更长时间）
+	/** H5 开发与生产均走 /api/qwen（Vite proxy 或 Nginx 反代到 server） */
+	endpoint: '/api/qwen',
+	model: 'qwen3.6-flash-2026-04-16',
+	timeout: 120000 // 手相多模态分析 + 长输出，预留 2 分钟
 };

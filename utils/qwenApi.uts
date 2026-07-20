@@ -8,6 +8,38 @@ import type { AppLocale } from '@/utils/locale';
 import { isApiReadyImage } from '@/utils/imageHelper';
 
 /**
+ * 代理请求头（Authorization 由后端 server/ 添加）
+ */
+function buildQwenRequestHeaders(): UTSJSONObject {
+	return {
+		'Content-Type': 'application/json',
+		'X-DashScope-SSE': 'disable'
+	};
+}
+
+/**
+ * 解析代理或 DashScope 错误信息
+ */
+function extractProxyErrorMessage(res: any): string {
+	if (res.data == null) {
+		return res.errMsg || '未知错误';
+	}
+	if (typeof res.data === 'string') {
+		return res.data;
+	}
+	if (res.data.success === false && res.data.message) {
+		return String(res.data.message);
+	}
+	if (res.data.message) {
+		return String(res.data.message);
+	}
+	if (res.data.error) {
+		return typeof res.data.error === 'string' ? res.data.error : JSON.stringify(res.data.error);
+	}
+	return JSON.stringify(res.data);
+}
+
+/**
  * Qwen API 消息内容
  */
 interface QwenMessage {
@@ -376,7 +408,6 @@ export async function analyzePalmistry(
 		console.log('完整配置:', {
 			endpoint: QWEN_CONFIG.endpoint,
 			model: QWEN_CONFIG.model,
-			apiKey: QWEN_CONFIG.apiKey ? `${QWEN_CONFIG.apiKey.substring(0, 10)}...` : '未设置',
 			imageDataType: isBase64 ? 'base64' : 'URL',
 			requestSize: JSON.stringify(apiRequest).length
 		});
@@ -388,11 +419,7 @@ export async function analyzePalmistry(
 			uni.request({
 				url: QWEN_CONFIG.endpoint,
 				method: 'POST',
-				header: {
-					'Authorization': `Bearer ${QWEN_CONFIG.apiKey}`,
-					'Content-Type': 'application/json',
-					'X-DashScope-SSE': 'disable'
-				},
+				header: buildQwenRequestHeaders(),
 				data: apiRequest,
 				timeout: QWEN_CONFIG.timeout,
 				success: (res: any) => {
@@ -402,22 +429,15 @@ export async function analyzePalmistry(
 					
 					// 5. 解析响应
 					if (res.statusCode !== 200) {
-						let errorMsg = '未知错误';
-						// 尝试从不同位置提取错误信息
-						if (res.data) {
-							if (typeof res.data === 'string') {
-								errorMsg = res.data;
-							} else if (res.data.message) {
-								errorMsg = res.data.message;
-							} else if (res.data.error) {
-								errorMsg = res.data.error;
-							} else {
-								errorMsg = JSON.stringify(res.data);
-							}
-						} else if (res.errMsg) {
-							errorMsg = res.errMsg;
-						}
+						const errorMsg = extractProxyErrorMessage(res);
+						console.error('API调用失败:', res.statusCode, errorMsg);
 						reject(new Error(`API调用失败: HTTP ${res.statusCode}, ${errorMsg}`));
+						return;
+					}
+
+					if (res.data != null && res.data.success === false) {
+						const errorMsg = extractProxyErrorMessage(res);
+						reject(new Error(errorMsg));
 						return;
 					}
 
@@ -618,18 +638,19 @@ export async function analyzeFollowUpReading(
 			uni.request({
 				url: QWEN_CONFIG.endpoint,
 				method: 'POST',
-				header: {
-					'Authorization': `Bearer ${QWEN_CONFIG.apiKey}`,
-					'Content-Type': 'application/json',
-					'X-DashScope-SSE': 'disable'
-				},
+				header: buildQwenRequestHeaders(),
 				data: apiRequest,
 				timeout: QWEN_CONFIG.timeout,
 				success: (res: any) => {
 					if (res.statusCode !== 200) {
-						const detail = extractQwenErrorMessage(res);
+						const detail = extractProxyErrorMessage(res);
 						console.error('追问 API 错误响应:', res.statusCode, detail);
 						reject(new Error(`API调用失败: HTTP ${res.statusCode}, ${detail}`));
+						return;
+					}
+
+					if (res.data != null && res.data.success === false) {
+						reject(new Error(extractProxyErrorMessage(res)));
 						return;
 					}
 

@@ -455,6 +455,7 @@
 				</view>
 				<view class="analyzing-content">
 					<text class="analyzing-text">{{ ui.analyzingMain }}</text>
+					<text class="analyzing-patience-hint">{{ ui.analyzingPatienceHint }}</text>
 					<text class="analyzing-status">{{ analyzingStatus }}</text>
 				</view>
 			</view>
@@ -4116,6 +4117,14 @@
 		color: #5a3e2b;
 		font-weight: bold;
 		letter-spacing: 2rpx;
+	}
+
+	.analyzing-patience-hint {
+		font-size: 26rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.6;
+		padding: 0 40rpx;
 	}
 
 	.analyzing-status {

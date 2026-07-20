@@ -63,6 +63,7 @@ export type CameraUiKey =
 	| 'wechatDesc'
 	| 'wechatOk'
 	| 'analyzingMain'
+	| 'analyzingPatienceHint'
 	| 'scanTermPlaceholder'
 	| 'previewRetake'
 	| 'previewConfirm'
@@ -130,6 +131,7 @@ const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 		'你现在看到的只是手相命理的一角。若想进一步洞察姻缘、财运、事业走向，以及关键年份的福祸转折，请添加小助手微信。小助手会帮你对接资深命理老师，从手相、八字等多维度为你推演全局运势。',
 	wechatOk: '我知道了',
 	analyzingMain: '正在通过 AI 识纹推演...',
+	analyzingPatienceHint: '分析手相需要1到2分钟的时间，请您耐心等待',
 	scanTermPlaceholder: '推演中...',
 	previewRetake: '重新拍照',
 	previewConfirm: '确认使用',
@@ -199,6 +201,7 @@ const CAMERA_UI_EN: Record<CameraUiKey, string> = {
 		'This is only part of your reading. For love, wealth, career and turning points, add our assistant on WeChat to connect with a senior reader for palmistry and BaZi.',
 	wechatOk: 'OK',
 	analyzingMain: 'AI is reading your palm lines...',
+	analyzingPatienceHint: 'Palm analysis takes 1–2 minutes. Please wait patiently.',
 	scanTermPlaceholder: 'Analyzing...',
 	previewRetake: 'Retake',
 	previewConfirm: 'Use photo',
@@ -267,6 +270,7 @@ export type ReportUiKey =
 	| 'lifeSuggest'
 	| 'empty'
 	| 'analyzing'
+	| 'analyzingPatienceHint'
 	| 'download'
 	| 'backCamera'
 	| 'wechatTitle'
@@ -294,6 +298,7 @@ const REPORT_UI_ZH: Record<ReportUiKey, string> = {
 	lifeSuggest: '生活建议',
 	empty: '暂无分析结果',
 	analyzing: '正在推演命理，请稍候...',
+	analyzingPatienceHint: '分析手相需要1到2分钟的时间，请您耐心等待',
 	download: '下载报告',
 	backCamera: '返回拍照',
 	wechatTitle: '获取完整手相命理推演',
@@ -302,7 +307,7 @@ const REPORT_UI_ZH: Record<ReportUiKey, string> = {
 	wechatOk: '我知道了',
 	toastNeedImage: '缺少图片参数，请先拍照',
 	toastSuccess: '识别成功',
-	loadingAnalyzing: '正在分析中...',
+	loadingAnalyzing: '正在分析中，约需1-2分钟',
 	toastMissingParams: '缺少必要参数',
 	scoreUnit: '分'
 };
@@ -323,6 +328,7 @@ const REPORT_UI_EN: Record<ReportUiKey, string> = {
 	lifeSuggest: 'Life',
 	empty: 'No report yet',
 	analyzing: 'Analyzing...',
+	analyzingPatienceHint: 'Palm analysis takes 1–2 minutes. Please wait patiently.',
 	download: 'Download',
 	backCamera: 'Back',
 	wechatTitle: 'Full reading via WeChat',
@@ -331,7 +337,7 @@ const REPORT_UI_EN: Record<ReportUiKey, string> = {
 	wechatOk: 'OK',
 	toastNeedImage: 'Missing image. Take a photo first.',
 	toastSuccess: 'Success',
-	loadingAnalyzing: 'Analyzing...',
+	loadingAnalyzing: 'Analyzing... about 1–2 min',
 	toastMissingParams: 'Missing parameters',
 	scoreUnit: 'pts'
 };
