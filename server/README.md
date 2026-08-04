@@ -18,6 +18,10 @@ cp .env.example .env
 | `DASHSCOPE_API_KEY` | 通义千问 DashScope API Key（仅保存在服务端） |
 | `PORT` | 本地服务端口，默认 `3001` |
 | `ALLOWED_ORIGIN` | 允许跨域的前端域名，逗号分隔 |
+| `PAYMENT_NOTIFY_SECRET` | Android 上报 `/api/payment/notify` 的密钥（请求头 `x-payment-secret`） |
+| `PAYMENT_TEST_MODE` | 设为 `true` 时仅标记测试模式（前端 `paymentConfig.testMode` 可跳过验单） |
+| `ALIPAY_QR_SINGLE_URL` | 单模块收款码路径，默认 `/static/alipay-qr-single.jpg` |
+| `ALIPAY_QR_BUNDLE_URL` | 打包收款码路径，默认 `/static/alipay-qr-bundle.jpg` |
 
 示例：
 
@@ -50,7 +54,7 @@ npm run dev
 npm start
 ```
 
-4. 启动前端 H5 开发服务（项目根目录）。`vite.config.js` 会把 `/api/qwen` 代理到 `http://localhost:3001`。
+4. 启动前端 H5 开发服务（项目根目录）。`vite.config.js` 会把 `/api/qwen` 和 `/api/payment` 代理到 `http://localhost:3001`。
 
 5. 健康检查：
 
@@ -79,6 +83,22 @@ curl http://localhost:3001/health
 - 请求体上限：`10mb`
 - CORS：仅 `ALLOWED_ORIGIN` 中配置的域名
 - 限流：每个 IP 每分钟最多 8 次
+
+## 支付闭环接口
+
+### `POST /api/payment/orders`
+
+创建待支付订单，返回唯一付款金额。订单 5 分钟内有效。
+
+### `GET /api/payment/orders/:orderId`
+
+查询订单状态：`pending` / `paid` / `expired`
+
+### `POST /api/payment/notify`
+
+Android 上报收款通知。请求头：`x-payment-secret`
+
+详细联调步骤见项目根目录 [PAYMENT_LOOP.md](../PAYMENT_LOOP.md)。
 
 ## 生产部署
 

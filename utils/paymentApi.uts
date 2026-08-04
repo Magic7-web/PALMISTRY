@@ -1,0 +1,87 @@
+/**
+ * 支付订单 API（支付宝唯一金额闭环）
+ */
+
+export type PaymentOrderStatus = 'pending' | 'paid' | 'expired';
+
+export type CreatePaymentOrderRequest = {
+	displayPrice: string;
+	productType: 'single' | 'bundle';
+	sessionId: string;
+	moduleIds: string[];
+};
+
+export type CreatePaymentOrderResponse = {
+	orderId: string;
+	amount: string;
+	displayPrice: string;
+	expiresAt: number;
+	qrCodeUrl: string;
+};
+
+export type PaymentOrderDetail = {
+	orderId: string;
+	status: PaymentOrderStatus;
+	amount: string;
+	displayPrice: string;
+	expiresAt: number;
+	paidAt: number | null;
+	moduleIds: string[];
+	sessionId: string;
+};
+
+type ApiEnvelope<T> = {
+	success?: boolean;
+	message?: string;
+} & T;
+
+function parseResponse<T>(res: UniApp.RequestSuccessCallbackResult): T {
+	const data = res.data as ApiEnvelope<T>;
+	if (res.statusCode >= 400 || data.success === false) {
+		const message = data.message != null ? data.message : `Request failed (${res.statusCode})`;
+		throw new Error(message);
+	}
+	return data as T;
+}
+
+export function createPaymentOrder(payload: CreatePaymentOrderRequest): Promise<CreatePaymentOrderResponse> {
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: '/api/payment/orders',
+			method: 'POST',
+			header: {
+				'Content-Type': 'application/json'
+			},
+			data: payload,
+			success: (res) => {
+				try {
+					resolve(parseResponse<CreatePaymentOrderResponse>(res));
+				} catch (error) {
+					reject(error);
+				}
+			},
+			fail: (error) => {
+				reject(error);
+			}
+		});
+	});
+}
+
+export function fetchPaymentOrder(orderId: string): Promise<PaymentOrderDetail> {
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: `/api/payment/orders/${orderId}`,
+			method: 'GET',
+			success: (res) => {
+				try {
+					resolve(parseResponse<PaymentOrderDetail>(res));
+				} catch (error) {
+					reject(error);
+				}
+			},
+			fail: (error) => {
+				reject(error);
+			}
+		});
+	});
+}

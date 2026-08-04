@@ -11,6 +11,10 @@
 export const PAYMENT_CONFIG = {
 	/** 是否启用追问付费（false 时直接分析，方便本地调试） */
 	enabled: true,
+	/** 测试模式：跳过支付宝验单，点击解锁后直接分析（仅本地开发） */
+	testMode: false,
+	/** 支付宝订单轮询间隔（毫秒） */
+	pollIntervalMs: 2000,
 	/** Sandbox 或 Live 的 Client ID */
 	paypalClientId: 'AQj_qTNCKhQCse3z81qWS886wDG2UE0vbW0zAQOayUmWB2a17jISvlwsOCcPY9JghjiOHEoKHI9_t_lX',
 	/** 单模块追问价格（美元） */
@@ -26,9 +30,9 @@ export const PAYMENT_CONFIG = {
 	/** 是否启用支付宝个人收款码 */
 	alipayEnabled: true,
 	/** 单模块支付宝个人收款码图片 */
-	alipayQrCode: '/static/alipay-qr-single.jpg',
+	alipayQrCode: '/static/alipay-qr.png',
 	/** 全部模块支付宝个人收款码图片 */
-	alipayBundleQrCode: '/static/alipay-qr-bundle.jpg',
+	alipayBundleQrCode: '/static/alipay-qr.png',
 	/** 支付宝人工对账联系方式 */
 	supportEmail: '2238712285@qq.com'
 };

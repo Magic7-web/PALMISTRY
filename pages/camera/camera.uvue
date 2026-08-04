@@ -585,16 +585,51 @@
 
 				<view class="alipay-panel" v-if="paymentMethod === 'alipay'">
 					<text class="alipay-title">{{ ui.alipayTitle }}</text>
-					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
-					<view class="alipay-info">
-						<text class="alipay-info-line">{{ ui.alipayAmountLabel }}: ¥{{ alipayPrice }}</text>
-						<text class="alipay-info-line">{{ ui.alipayOrderLabel }}: {{ manualPaymentCode }}</text>
-						<text class="alipay-info-line">{{ ui.alipayEmailLabel }}: {{ supportEmail }}</text>
+
+					<view class="alipay-pay-block" v-if="!paymentTestMode">
+						<view v-if="paymentOrderStatus === 'creating'" class="alipay-pay-loading">
+							<text class="alipay-pay-loading-text">{{ ui.alipayOrderCreating }}</text>
+						</view>
+						<view v-else-if="alipayPrice.length > 0">
+							<text class="alipay-pay-label">{{ ui.alipayUniqueBadge }}</text>
+							<view class="alipay-amount-row">
+								<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+								<button class="alipay-copy-btn" @click="copyUniquePaymentAmount">
+									<text class="alipay-copy-text">{{ ui.alipayCopyAmount }}</text>
+								</button>
+							</view>
+							<text class="alipay-pay-hint">{{ ui.alipayUniquePayHint }}</text>
+							<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
+							<view
+								class="alipay-countdown-row"
+								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+							>
+								<text class="alipay-countdown-label">{{ ui.alipayCountdownLabel }}</text>
+								<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
+							</view>
+							<text
+								class="alipay-countdown-hint"
+								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+							>
+								{{ ui.alipayCountdownHint }}
+							</text>
+						</view>
 					</view>
-					<text class="alipay-desc">{{ ui.alipayDesc }}</text>
-					<text class="alipay-notice">{{ ui.alipayManualNotice }}</text>
-					<button class="alipay-paid-btn" @click="confirmAlipayPayment">
-						<text class="btn-text">{{ ui.alipayPaidButton }}</text>
+
+					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
+
+					<text class="alipay-notice">{{ getAlipayStatusText() }}</text>
+					<text class="alipay-meta" v-if="paymentOrderId && !paymentTestMode">
+						{{ ui.alipayOrderLabel }}: {{ paymentOrderId }}
+					</text>
+					<text class="alipay-meta" v-if="!paymentTestMode">{{ ui.alipayEmailLabel }}: {{ supportEmail }}</text>
+
+					<button
+						v-if="paymentTestMode"
+						class="alipay-paid-btn"
+						@click="confirmAlipayTestUnlock"
+					>
+						<text class="btn-text">{{ ui.alipayTestUnlockButton }}</text>
 					</button>
 				</view>
 
@@ -626,6 +661,7 @@
 	} from '@/utils/imageHelper';
 	import { getOrderedDimensionKeys as orderDimensionKeys } from '@/utils/dimensionHelper';
 	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
+	import { createPaymentOrder, fetchPaymentOrder } from '@/utils/paymentApi';
 	import {
 		saveActiveReportSnapshot,
 		loadActiveReportSnapshot,
@@ -693,6 +729,14 @@
 		supportEmail: string;
 		paymentMethod: PaymentMethod;
 		manualPaymentCode: string;
+		paymentOrderId: string;
+		paymentOrderStatus: string;
+		paymentDisplayPrice: string;
+		paymentExpiresAt: number;
+		paymentPollTimer: number | null;
+		paymentCountdownTimer: number | null;
+		countdownTick: number;
+		paymentTestMode: boolean;
 	}
 
 	export default {
@@ -783,13 +827,26 @@
 				alipayQrCode: PAYMENT_CONFIG.alipayQrCode,
 				supportEmail: PAYMENT_CONFIG.supportEmail,
 				paymentMethod: 'paypal',
-				manualPaymentCode: ''
+				manualPaymentCode: '',
+				paymentOrderId: '',
+				paymentOrderStatus: '',
+				paymentDisplayPrice: '',
+				paymentExpiresAt: 0,
+				paymentPollTimer: null,
+				paymentCountdownTimer: null,
+				countdownTick: 0,
+				paymentTestMode: PAYMENT_CONFIG.testMode
 			};
 		},
 		computed: {
 			/** 当前语言下的界面文案 */
 			ui(): Record<string, string> {
 				return getCameraUi(this.locale);
+			},
+			/** 支付倒计时 mm:ss */
+			paymentCountdownText(): string {
+				void this.countdownTick;
+				return this.getPaymentCountdownText();
 			},
 			/**
 			 * 线条 Tab 配置
@@ -1301,6 +1358,9 @@
 				this.followUpAnswers = loadFollowUpAnswers(this.reportSessionId);
 			},
 
+			/**
+			 * @deprecated 旧版人工备注码，支付闭环改用后端 orderId
+			 */
 			createManualPaymentCode(): string {
 				const now = new Date();
 				const year = now.getFullYear();
@@ -1407,8 +1467,10 @@
 				this.paymentSummaryLabel = this.pickTxt(module.title, module.titleEn);
 				this.paymentPrice = module.priceUsd;
 				this.alipayPrice = module.priceCny;
+				this.paymentDisplayPrice = module.priceCny;
 				this.alipayQrCode = PAYMENT_CONFIG.alipayQrCode;
-				this.manualPaymentCode = this.createManualPaymentCode();
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
 				this.showPaymentDialog = true;
 				clearPayPalButtonContainer('paypal-button-container');
 
@@ -1436,8 +1498,10 @@
 				this.paymentSummaryLabel = this.pickTxt(this.followUpBundle.title, this.followUpBundle.titleEn);
 				this.paymentPrice = this.followUpBundle.priceUsd;
 				this.alipayPrice = this.followUpBundle.priceCny;
+				this.paymentDisplayPrice = this.followUpBundle.priceCny;
 				this.alipayQrCode = PAYMENT_CONFIG.alipayBundleQrCode;
-				this.manualPaymentCode = this.createManualPaymentCode();
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
 				this.showPaymentDialog = true;
 				clearPayPalButtonContainer('paypal-button-container');
 
@@ -1790,6 +1854,7 @@
 				clearPayPalButtonContainer('paypal-button-container');
 
 				if (method === 'paypal') {
+					this.stopPaymentPolling();
 					if (PAYMENT_CONFIG.paypalClientId == null || PAYMENT_CONFIG.paypalClientId.length === 0) {
 						uni.showToast({
 							title: getCameraUi(this.locale).toastPayPalNotConfigured,
@@ -1798,6 +1863,7 @@
 						});
 						this.paymentMethod = 'alipay';
 						this.paymentLoading = false;
+						this.startAlipayOrder();
 						return;
 					}
 
@@ -1809,6 +1875,170 @@
 				}
 
 				this.paymentLoading = false;
+				this.startAlipayOrder();
+			},
+
+			getAlipayListedPriceHint(): string {
+				const u = getCameraUi(this.locale);
+				return u.alipayListedPriceHint.replace('{price}', this.paymentDisplayPrice);
+			},
+
+			copyUniquePaymentAmount(): void {
+				if (this.alipayPrice.length === 0) {
+					return;
+				}
+				uni.setClipboardData({
+					data: this.alipayPrice,
+					success: () => {
+						uni.showToast({
+							title: getCameraUi(this.locale).toastAmountCopied,
+							icon: 'none'
+						});
+					}
+				});
+			},
+
+			getPaymentCountdownText(): string {
+				if (this.paymentExpiresAt <= 0) {
+					return '--:--';
+				}
+				const remainingMs = this.paymentExpiresAt - Date.now();
+				if (remainingMs <= 0) {
+					return '00:00';
+				}
+				const totalSeconds = Math.floor(remainingMs / 1000);
+				const minutes = Math.floor(totalSeconds / 60);
+				const seconds = totalSeconds % 60;
+				const minuteText = minutes < 10 ? `0${minutes}` : `${minutes}`;
+				const secondText = seconds < 10 ? `0${seconds}` : `${seconds}`;
+				return `${minuteText}:${secondText}`;
+			},
+
+			getAlipayStatusText(): string {
+				const u = getCameraUi(this.locale);
+				if (this.paymentTestMode) {
+					return u.alipayManualNotice;
+				}
+				if (this.paymentOrderStatus === 'creating') {
+					return u.alipayOrderCreating;
+				}
+				if (this.paymentOrderStatus === 'pending') {
+					return u.alipayWaitingPayment;
+				}
+				if (this.paymentOrderStatus === 'paid') {
+					return u.alipayOrderPaid;
+				}
+				if (this.paymentOrderStatus === 'expired') {
+					return u.alipayOrderExpired;
+				}
+				if (this.paymentOrderStatus === 'error') {
+					return u.alipayOrderError;
+				}
+				return u.alipayWaitingPayment;
+			},
+
+			async startAlipayOrder(): Promise<void> {
+				if (this.paymentTestMode) {
+					this.paymentOrderStatus = 'test';
+					return;
+				}
+				if (!this.reportSessionId) {
+					return;
+				}
+
+				this.stopPaymentPolling();
+				this.paymentOrderStatus = 'creating';
+				this.paymentOrderId = '';
+
+				const isBundle = this.pendingFollowUpModule == null;
+				const moduleIds: string[] = isBundle
+					? this.followUpBundle.moduleIds
+					: [this.pendingFollowUpModule!.id];
+				const displayPrice = isBundle
+					? this.followUpBundle.priceCny
+					: this.pendingFollowUpModule!.priceCny;
+
+				try {
+					const order = await createPaymentOrder({
+						displayPrice,
+						productType: isBundle ? 'bundle' : 'single',
+						sessionId: this.reportSessionId,
+						moduleIds
+					});
+					this.paymentOrderId = order.orderId;
+					this.alipayPrice = order.amount;
+					this.paymentDisplayPrice = order.displayPrice;
+					this.paymentExpiresAt = order.expiresAt;
+					if (order.qrCodeUrl != null && order.qrCodeUrl.length > 0) {
+						this.alipayQrCode = order.qrCodeUrl;
+					}
+					this.paymentOrderStatus = 'pending';
+					this.startPaymentPolling();
+				} catch (error) {
+					console.error('Create payment order failed:', error);
+					this.paymentOrderStatus = 'error';
+					uni.showToast({
+						title: getCameraUi(this.locale).alipayOrderError,
+						icon: 'none'
+					});
+				}
+			},
+
+			startPaymentPolling(): void {
+				this.stopPaymentPolling();
+				this.countdownTick = 0;
+				this.pollPaymentOrderOnce();
+				this.paymentPollTimer = setInterval(() => {
+					this.pollPaymentOrderOnce();
+				}, PAYMENT_CONFIG.pollIntervalMs) as number;
+				this.paymentCountdownTimer = setInterval(() => {
+					this.countdownTick += 1;
+					if (this.paymentExpiresAt > 0 && Date.now() >= this.paymentExpiresAt) {
+						this.paymentOrderStatus = 'expired';
+						this.stopPaymentPolling();
+					}
+				}, 1000) as number;
+			},
+
+			stopPaymentPolling(): void {
+				if (this.paymentPollTimer != null) {
+					clearInterval(this.paymentPollTimer);
+					this.paymentPollTimer = null;
+				}
+				if (this.paymentCountdownTimer != null) {
+					clearInterval(this.paymentCountdownTimer);
+					this.paymentCountdownTimer = null;
+				}
+			},
+
+			async pollPaymentOrderOnce(): Promise<void> {
+				if (this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
+					return;
+				}
+
+				try {
+					const order = await fetchPaymentOrder(this.paymentOrderId);
+					if (order.status === 'paid') {
+						this.paymentOrderStatus = 'paid';
+						this.stopPaymentPolling();
+						this.completeFollowUpUnlock('alipay', order.orderId);
+						return;
+					}
+					if (order.status === 'expired' || order.status === 'conflict') {
+						this.paymentOrderStatus = 'expired';
+						this.stopPaymentPolling();
+					}
+				} catch (error) {
+					console.error('Poll payment order failed:', error);
+				}
+			},
+
+			confirmAlipayTestUnlock(): void {
+				if (!this.paymentTestMode) {
+					return;
+				}
+				this.stopPaymentPolling();
+				this.completeFollowUpUnlock('alipay', `TEST-${Date.now()}`);
 			},
 
 			/**
@@ -1879,36 +2109,18 @@
 				});
 			},
 
-			confirmAlipayPayment(): void {
-				console.log('Alipay manual payment confirmed:', this.manualPaymentCode);
-				try {
-					uni.setStorageSync('alipay_last_order_code', this.manualPaymentCode);
-				} catch (e) {
-					console.error('save alipay order code failed', e);
-				}
-				if (this.paymentTarget === 'followup') {
-					this.completeFollowUpUnlock('alipay', this.manualPaymentCode);
-					return;
-				}
-
-				this.showPaymentDialog = false;
-				this.paymentLoading = false;
-				clearPayPalButtonContainer('paypal-button-container');
-				uni.showToast({
-					title: getCameraUi(this.locale).toastPaymentSuccess,
-					icon: 'success'
-				});
-			},
-
 			/**
 			 * 关闭支付弹窗
 			 */
 			closePaymentDialog(): void {
 				this.showPaymentDialog = false;
 				this.paymentLoading = false;
+				this.stopPaymentPolling();
 				this.paymentTarget = null;
 				this.pendingFollowUpModule = null;
 				this.paymentSummaryLabel = '';
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
 				clearPayPalButtonContainer('paypal-button-container');
 			},
 
@@ -3959,18 +4171,146 @@
 	}
 
 	.alipay-title {
-		font-size: 30rpx;
+		font-size: 28rpx;
 		font-weight: bold;
-		color: #1677ff;
-		margin-bottom: 18rpx;
+		color: #5a3e2b;
+		margin-bottom: 14rpx;
+		align-self: flex-start;
+		width: 100%;
+		text-align: center;
+	}
+
+	.alipay-pay-block {
+		width: 100%;
+		padding: 20rpx 22rpx;
+		border-radius: 18rpx;
+		background-color: #fbf7ef;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 16rpx;
+		box-sizing: border-box;
+	}
+
+	.alipay-pay-loading {
+		padding: 8rpx 0;
+	}
+
+	.alipay-pay-loading-text {
+		font-size: 26rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.5;
+	}
+
+	.alipay-pay-label {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		margin-bottom: 10rpx;
+		text-align: center;
+	}
+
+	.alipay-amount-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 12rpx;
+		margin-bottom: 10rpx;
+	}
+
+	.alipay-hero-amount {
+		font-size: 44rpx;
+		font-weight: 700;
+		color: #5a3e2b;
+		line-height: 1.1;
+	}
+
+	.alipay-copy-btn {
+		height: 48rpx;
+		padding: 0 18rpx;
+		border-radius: 24rpx;
+		background-color: #fff;
+		border: 1rpx solid #d8c8ad;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 0;
+	}
+
+	.alipay-copy-text {
+		font-size: 22rpx;
+		color: #5a3e2b;
+		font-weight: 600;
+		line-height: 1;
+	}
+
+	.alipay-pay-hint {
+		display: block;
+		font-size: 24rpx;
+		color: #5f5146;
+		text-align: center;
+		line-height: 1.5;
+	}
+
+	.alipay-pay-sub {
+		display: block;
+		margin-top: 6rpx;
+		font-size: 22rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.45;
+	}
+
+	.alipay-countdown-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 16rpx;
+		margin-top: 16rpx;
+		padding-top: 16rpx;
+		border-top: 1rpx solid #eadfca;
+	}
+
+	.alipay-countdown-label {
+		font-size: 24rpx;
+		color: #8c7662;
+		line-height: 1.4;
+	}
+
+	.alipay-countdown-time {
+		font-size: 36rpx;
+		font-weight: 700;
+		color: #5a3e2b;
+		line-height: 1.2;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.alipay-countdown-hint {
+		display: block;
+		margin-top: 6rpx;
+		font-size: 22rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.45;
 	}
 
 	.alipay-qr {
-		width: 420rpx;
+		width: 400rpx;
 		max-width: 100%;
 		border-radius: 10rpx;
-		border: 2rpx solid #e5e7eb;
-		background-color: #f7f8fa;
+		border: 1rpx solid #eadfca;
+		background-color: #fff;
+		margin-bottom: 12rpx;
+	}
+
+	.alipay-meta {
+		margin-top: 8rpx;
+		font-size: 20rpx;
+		color: #8c7662;
+		line-height: 1.45;
+		text-align: center;
+		word-break: break-all;
 	}
 
 	.alipay-info {
@@ -3990,6 +4330,20 @@
 		color: #2f1d13;
 		line-height: 1.45;
 		word-break: break-all;
+	}
+
+	.alipay-unique-amount {
+		font-size: 30rpx;
+		font-weight: 700;
+		color: #1677ff;
+	}
+
+	.alipay-countdown {
+		margin-top: 12rpx;
+		font-size: 28rpx;
+		font-weight: 600;
+		color: #e67e22;
+		line-height: 1.4;
 	}
 
 	.alipay-desc {

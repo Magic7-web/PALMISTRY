@@ -100,6 +100,22 @@ export type CameraUiKey =
 	| 'alipayEmailLabel'
 	| 'alipayPaidButton'
 	| 'alipayManualNotice'
+	| 'alipayDisplayPriceLabel'
+	| 'alipayUniqueAmountLabel'
+	| 'alipayUniqueNotice'
+	| 'alipayWaitingPayment'
+	| 'alipayOrderCreating'
+	| 'alipayOrderExpired'
+	| 'alipayOrderPaid'
+	| 'alipayOrderError'
+	| 'alipayTestUnlockButton'
+	| 'alipayCountdownLabel'
+	| 'alipayUniqueBadge'
+	| 'alipayUniquePayHint'
+	| 'alipayListedPriceHint'
+	| 'alipayCountdownHint'
+	| 'alipayCopyAmount'
+	| 'toastAmountCopied'
 	| 'followUpSectionTitle'
 	| 'followUpSectionTip'
 	| 'followUpUnlockButton'
@@ -162,12 +178,28 @@ const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	paymentPayPalTab: 'PayPal',
 	paymentAlipayTab: '支付宝',
 	alipayTitle: '支付宝扫码支付',
-	alipayDesc: '请使用支付宝扫码支付。付款备注建议填写下方订单号或邮箱，便于人工对账。',
+	alipayDesc: '请使用支付宝扫码，并支付下方唯一金额。系统会按到账金额自动核销订单。',
 	alipayAmountLabel: '支付金额',
-	alipayOrderLabel: '付款备注',
+	alipayOrderLabel: '订单号',
 	alipayEmailLabel: '客服邮箱',
 	alipayPaidButton: '我已支付，继续分析',
-	alipayManualNotice: '个人收款码无法自动验单，异常订单可能需要人工核对。',
+	alipayManualNotice: '请勿修改付款金额，否则系统无法自动核销。',
+	alipayDisplayPriceLabel: '商品标价',
+	alipayUniqueAmountLabel: '请支付唯一金额',
+	alipayUniqueNotice: '请支付这个唯一金额，系统按到账金额自动核销。不要四舍五入，也不要改成标价。',
+	alipayUniqueBadge: '唯一核销金额',
+	alipayUniquePayHint: '请只支付这个唯一金额，系统会按它自动核销到账。',
+	alipayListedPriceHint: '标价 ¥{price} 仅作商品展示，到账识别以上方唯一金额为准。',
+	alipayWaitingPayment: '等待支付确认中，请勿关闭页面…',
+	alipayOrderCreating: '正在创建订单…',
+	alipayOrderExpired: '订单已过期，请关闭后重新打开支付。',
+	alipayOrderPaid: '支付已确认，正在解锁…',
+	alipayOrderError: '创建订单失败，请稍后重试。',
+	alipayTestUnlockButton: '测试模式：跳过验单直接解锁',
+	alipayCountdownLabel: '剩余付款时间',
+	alipayCountdownHint: '请在 5 分钟内完成付款。',
+	alipayCopyAmount: '复制',
+	toastAmountCopied: '金额已复制',
 	followUpSectionTitle: '继续追问',
 	followUpSectionTip: '爱情、事业、健康已为你预览。切换模块查看内容，付费后生成正式深度解读。',
 	followUpUnlockButton: '解锁深度解读',
@@ -232,12 +264,28 @@ const CAMERA_UI_EN: Record<CameraUiKey, string> = {
 	paymentPayPalTab: 'PayPal',
 	paymentAlipayTab: 'Alipay',
 	alipayTitle: 'Alipay QR payment',
-	alipayDesc: 'Scan with Alipay to pay. Add the order code or email as the payment note for manual reconciliation.',
+	alipayDesc: 'Scan with Alipay and pay the exact unique amount below. The order is confirmed by the received amount.',
 	alipayAmountLabel: 'Amount',
-	alipayOrderLabel: 'Payment note',
+	alipayOrderLabel: 'Order ID',
 	alipayEmailLabel: 'Support email',
 	alipayPaidButton: 'I have paid, continue',
-	alipayManualNotice: 'Personal QR payments cannot be verified automatically. Suspicious orders may be checked manually.',
+	alipayManualNotice: 'Do not change the payment amount, or automatic verification will fail.',
+	alipayDisplayPriceLabel: 'Listed price',
+	alipayUniqueAmountLabel: 'Pay this exact amount',
+	alipayUniqueNotice: 'Pay this unique amount only. The system verifies by the received amount, not the listed price.',
+	alipayUniqueBadge: 'Unique verification amount',
+	alipayUniquePayHint: 'Pay only this exact amount. The system verifies payment by this number.',
+	alipayListedPriceHint: 'Listed price ¥{price} is for display only. Verification uses the unique amount above.',
+	alipayWaitingPayment: 'Waiting for payment confirmation. Please keep this page open…',
+	alipayOrderCreating: 'Creating order…',
+	alipayOrderExpired: 'Order expired. Close and open payment again.',
+	alipayOrderPaid: 'Payment confirmed. Unlocking…',
+	alipayOrderError: 'Failed to create order. Please try again.',
+	alipayTestUnlockButton: 'Test mode: unlock without verification',
+	alipayCountdownLabel: 'Time remaining',
+	alipayCountdownHint: 'Please complete payment within 5 minutes.',
+	alipayCopyAmount: 'Copy',
+	toastAmountCopied: 'Amount copied',
 	followUpSectionTitle: 'Follow-up questions',
 	followUpSectionTip: 'Love, career, and health previews are ready. Switch tabs to preview, then pay to generate the full deep reading.',
 	followUpUnlockButton: 'Unlock deep reading',

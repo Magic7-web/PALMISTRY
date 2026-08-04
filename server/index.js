@@ -2,6 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { registerPaymentRoutes } from './paymentRoutes.js';
 
 dotenv.config();
 
@@ -9,6 +10,8 @@ const DASHSCOPE_ENDPOINT =
   'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
 const PORT = Number(process.env.PORT || 3001);
 const API_KEY = process.env.DASHSCOPE_API_KEY;
+const PAYMENT_NOTIFY_SECRET = process.env.PAYMENT_NOTIFY_SECRET || 'dev-payment-secret';
+const PAYMENT_TEST_MODE = process.env.PAYMENT_TEST_MODE === 'true';
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || '')
   .split(',')
   .map((item) => item.trim())
@@ -124,8 +127,16 @@ app.get('/health', (_req, res) => {
     ok: true,
     apiKeyConfigured: Boolean(
       API_KEY && API_KEY.length > 0 && API_KEY !== 'your_dashscope_api_key_here'
-    )
+    ),
+    paymentTestMode: PAYMENT_TEST_MODE,
+    paymentNotifyConfigured: Boolean(PAYMENT_NOTIFY_SECRET)
   });
+});
+
+registerPaymentRoutes(app, {
+  notifySecret: PAYMENT_NOTIFY_SECRET,
+  alipayQrSingleUrl: process.env.ALIPAY_QR_SINGLE_URL || '/static/alipay-qr.png',
+  alipayQrBundleUrl: process.env.ALIPAY_QR_BUNDLE_URL || '/static/alipay-qr.png'
 });
 
 app.use((error, _req, res, next) => {

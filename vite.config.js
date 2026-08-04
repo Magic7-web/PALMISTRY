@@ -8,6 +8,10 @@ export default defineConfig({
       '/api/qwen': {
         target: 'http://localhost:3001',
         changeOrigin: true
+      },
+      '/api/payment': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
       }
     }
   }

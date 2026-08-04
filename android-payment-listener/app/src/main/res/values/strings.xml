@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">支付通知诊断</string>
+    <string name="main_title">支付宝通知诊断版</string>
+    <string name="status_enabled">监听状态：已开启通知使用权</string>
+    <string name="status_disabled">监听状态：未开启通知使用权</string>
+    <string name="open_listener_settings">打开通知使用权设置</string>
+    <string name="refresh_status">刷新状态</string>
+    <string name="clear_records">清空记录</string>
+    <string name="recent_records_title">最近支付宝通知</string>
+    <string name="summary_format">本地记录 %1$d 条，其中支付匹配 %2$d 条</string>
+    <string name="empty_records_hint">暂无支付宝通知。\n\n请先点击上方按钮开启通知使用权，再用另一支付宝账号支付一笔测试金额，然后点“刷新状态”。</string>
+    <string name="notify_config_title">后端上报配置</string>
+    <string name="notify_backend_url_label">后端地址</string>
+    <string name="notify_secret_label">上报密钥</string>
+    <string name="save_notify_config">保存上报配置</string>
+    <string name="notify_last_result">最近上报：%1$s</string>
+    <string name="notify_config_saved">上报配置已保存</string>
+    <string name="default_notify_backend_url">http://192.168.1.100:3001</string>
+    <string name="default_notify_secret">dev-payment-secret</string>
+</resources>
