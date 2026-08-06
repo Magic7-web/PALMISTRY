@@ -6,11 +6,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/qwen': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3000',
         changeOrigin: true
       },
       '/api/payment': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3000',
         changeOrigin: true
       }
     }
