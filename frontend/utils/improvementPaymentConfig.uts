@@ -1,0 +1,18 @@
+/**
+ * 形象开运深度方案定价
+ */
+
+export const IMPROVEMENT_PAYMENT = {
+	moduleId: 'face_improvement',
+	priceCny: '4.90',
+	priceUsd: '1.99',
+	titleZh: '形象开运完整方案',
+	titleEn: 'Full Image Enhancement Plan'
+};
+
+export function formatImprovementPriceLabel(locale: string): string {
+	if (locale === 'en') {
+		return `$${IMPROVEMENT_PAYMENT.priceUsd}`;
+	}
+	return '¥4.9';
+}

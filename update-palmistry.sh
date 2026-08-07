@@ -12,6 +12,9 @@ ssh root@104.225.236.196 "mkdir -p /var/www/palmistry/frontend && rm -rf /var/ww
 echo "📤 正在上传新打包文件..."
 scp -r frontend/unpackage/dist/build/web/* root@104.225.236.196:/var/www/palmistry/frontend/
 
+echo "🔍 上传 SEO 文件（robots.txt + sitemap.xml）到服务器根目录..."
+scp frontend/robots.txt frontend/sitemap.xml root@104.225.236.196:/var/www/palmistry/frontend/
+
 echo "♻️  重启 Nginx..."
 ssh root@104.225.236.196 "nginx -t && systemctl reload nginx"
 

@@ -17,6 +17,14 @@
 			}
 		},
 		{
+			"path": "pages/face/match",
+			"style": {
+				"navigationBarTitleText": "情侣合婚 - 林公测算",
+				"navigationBarBackgroundColor": "#fdf7ee",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/bazi/bazi",
 			"style": {
 				"navigationBarTitleText": "八字排盘 - 林公测算",
@@ -48,20 +56,20 @@
 			{
 				"pagePath": "pages/camera/camera",
 				"text": "手相",
-				"iconPath": "static/tab/palm.png",
-				"selectedIconPath": "static/tab/palm-active.png"
+				"iconPath": "static/hand.png",
+				"selectedIconPath": "static/handRed.png"
 			},
 			{
 				"pagePath": "pages/face/face",
 				"text": "面相",
-				"iconPath": "static/tab/face.png",
-				"selectedIconPath": "static/tab/face-active.png"
+				"iconPath": "static/face.png",
+				"selectedIconPath": "static/faceRed.png"
 			},
 			{
 				"pagePath": "pages/bazi/bazi",
 				"text": "八字",
-				"iconPath": "static/tab/bazi.png",
-				"selectedIconPath": "static/tab/bazi-active.png"
+				"iconPath": "static/bazi.png",
+				"selectedIconPath": "static/baziRed.png"
 			}
 		]
 	},

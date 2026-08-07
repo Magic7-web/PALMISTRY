@@ -41,6 +41,9 @@
 					<button class="face-btn btn-secondary" @click="handleChooseFromAlbum">
 						<text class="btn-text">{{ ui.footerAlbum }}</text>
 					</button>
+					<button class="face-btn btn-match" @click="handleGoMatch">
+						<text class="btn-text match-btn-text">{{ ui.matchEntryBtn }}</text>
+					</button>
 				</view>
 			</template>
 
@@ -368,6 +371,111 @@
 								</view>
 							</view>
 
+							<!-- 深度解读：合婚 + 开运（大卡片入口） -->
+							<view class="premium-services-section">
+								<view class="premium-section-head">
+									<view class="section-header premium-header">
+										<text class="section-title">{{ ui.premiumSectionTitle }}</text>
+									</view>
+									<text class="premium-section-subtitle">{{ ui.premiumSectionSubtitle }}</text>
+								</view>
+
+								<view class="premium-feature-stack">
+									<view
+										v-if="showMatchResumeBanner"
+										class="feature-card feature-card-match feature-card-resume"
+										@click="handleResumeMatch"
+									>
+										<view class="feature-card-bg-deco"></view>
+										<text class="feature-deco-icon">♥</text>
+										<view class="feature-badge feature-badge-match">
+											<text class="feature-badge-text">{{ matchResumeBadgeText }}</text>
+										</view>
+										<text class="feature-title">{{ ui.matchEntryBtn }}</text>
+										<text class="feature-desc">{{ matchResumeHasReport ? ui.matchResumeReport : ui.matchResumeProgress }}</text>
+										<view class="feature-cta feature-cta-match">
+											<text class="feature-cta-text">{{ ui.matchResumeCta }}</text>
+											<text class="feature-cta-arrow">›</text>
+										</view>
+									</view>
+
+									<view v-else class="feature-card feature-card-match" @click="handleGoMatchFromReport">
+										<view class="feature-card-bg-deco"></view>
+										<text class="feature-deco-icon">♥</text>
+										<view class="feature-badge feature-badge-match">
+											<text class="feature-badge-text">{{ locale === 'en' ? 'Love' : '姻缘' }}</text>
+										</view>
+										<text class="feature-title">{{ ui.matchEntryBtn }}</text>
+										<text class="feature-desc">{{ ui.matchFromReportShort }}</text>
+										<view class="feature-cta feature-cta-match">
+											<text class="feature-cta-text">{{ ui.matchCta }}</text>
+											<text class="feature-cta-arrow">›</text>
+										</view>
+									</view>
+
+									<view
+										v-if="improvementData == null && !improvementLoading"
+										class="feature-card feature-card-improve"
+										@click="handleGenerateImprovement"
+									>
+										<view class="feature-card-bg-deco improve-deco"></view>
+										<text class="feature-deco-icon improve-icon">✦</text>
+										<view class="feature-badge feature-badge-improve">
+											<text class="feature-badge-text">{{ locale === 'en' ? 'Custom' : '定制' }}</text>
+										</view>
+										<text class="feature-title">{{ ui.improvementEntryBtn }}</text>
+										<text class="feature-desc">{{ ui.improvementEntryShort }}</text>
+										<view class="feature-cta feature-cta-improve">
+											<text class="feature-cta-text">{{ ui.improvementCta }}</text>
+											<text class="feature-cta-arrow">›</text>
+										</view>
+									</view>
+
+									<view v-else-if="improvementLoading" class="feature-card feature-card-improve feature-card-loading">
+										<view class="feature-card-bg-deco improve-deco"></view>
+										<text class="feature-deco-icon improve-icon">✦</text>
+										<view class="feature-badge feature-badge-improve">
+											<text class="feature-badge-text">{{ locale === 'en' ? 'Custom' : '定制' }}</text>
+										</view>
+										<text class="feature-title">{{ ui.improvementEntryBtn }}</text>
+										<text class="feature-desc loading-desc">{{ ui.improvementLoading }}</text>
+										<view class="feature-loading-row">
+											<view class="feature-spinner-lg"></view>
+										</view>
+									</view>
+
+									<view v-else class="feature-card feature-card-improve feature-card-done">
+										<view class="feature-card-bg-deco improve-deco"></view>
+										<text class="feature-deco-icon improve-icon">✦</text>
+										<view class="feature-badge feature-badge-improve">
+											<text class="feature-badge-text">{{ locale === 'en' ? 'Done' : '已生成' }}</text>
+										</view>
+										<text class="feature-title">{{ ui.improvementEntryBtn }}</text>
+										<text class="feature-desc">{{ locale === 'en' ? 'Scroll down for your plan' : '开运方案已生成，见下方详情' }}</text>
+									</view>
+								</view>
+
+								<view v-if="improvementData != null" class="improvement-result-panel">
+									<view class="preview-card improvement-preview">
+										<text class="preview-tag">{{ locale === 'en' ? 'Free preview' : '免费预览' }}</text>
+										<text class="preview-text">{{ pickTxt(improvementData.premiumSummary, improvementData.premiumSummaryEn) }}</text>
+									</view>
+									<view class="locked-section" :class="{ unlocked: improvementUnlocked }">
+										<view class="improvement-item" v-for="item in improvementItems" :key="item.key">
+											<text class="improvement-label">{{ item.label }}</text>
+											<text class="improvement-value">{{ item.value }}</text>
+										</view>
+										<view v-if="avoidItemsList.length > 0" class="improvement-item">
+											<text class="improvement-label">{{ ui.improvementAvoid }}</text>
+											<text class="improvement-value" v-for="(line, idx) in avoidItemsList" :key="'avoid-' + idx">· {{ line }}</text>
+										</view>
+										<view v-if="!improvementUnlocked" class="lock-overlay" @click.stop="handleUnlockImprovement">
+											<text class="lock-text">{{ ui.improvementUnlockFull }}</text>
+										</view>
+									</view>
+								</view>
+							</view>
+
 							<view class="result-actions">
 								<button class="result-btn btn-primary" @click="handleDownloadReport">
 									<text class="btn-text">{{ ui.downloadReport }}</text>
@@ -382,11 +490,86 @@
 			</view>
 		</view>
 
+		<view class="payment-mask" v-if="showPaymentDialog">
+			<view class="payment-dialog">
+				<text class="payment-title">{{ paymentUi.paymentTitle }}</text>
+				<text class="payment-desc">{{ paymentUi.paymentDesc }}</text>
+				<view class="payment-topic" v-if="paymentSummaryLabel">
+					<text class="payment-topic-label">{{ locale === 'en' ? 'Product' : '解锁内容' }}</text>
+					<text class="payment-topic-name">{{ paymentSummaryLabel }}</text>
+				</view>
+				<view class="payment-method-tabs">
+					<button
+						class="payment-method-tab"
+						:class="{ active: paymentMethod === 'paypal' }"
+						@click.stop="selectPaymentMethod('paypal')"
+					>
+						<text class="payment-method-text">{{ paymentUi.paymentPayPalTab }}</text>
+					</button>
+					<button
+						class="payment-method-tab"
+						:class="{ active: paymentMethod === 'alipay' }"
+						@click.stop="selectPaymentMethod('alipay')"
+					>
+						<text class="payment-method-text">{{ paymentUi.paymentAlipayTab }}</text>
+					</button>
+				</view>
+
+				<view class="paypal-panel" v-if="paymentMethod === 'paypal'">
+					<text class="payment-price">US$ {{ paymentPrice }}</text>
+					<view v-if="paymentLoading" class="payment-loading">
+						<text class="payment-loading-text">{{ paymentUi.paymentLoading }}</text>
+					</view>
+					<view id="face-improvement-paypal-container" class="paypal-button-host" v-show="!paymentLoading"></view>
+				</view>
+
+				<view class="alipay-panel" v-if="paymentMethod === 'alipay'">
+					<text class="alipay-title">{{ paymentUi.alipayTitle }}</text>
+					<view class="alipay-pay-block" v-if="!paymentTestMode">
+						<view v-if="paymentOrderStatus === 'creating'" class="alipay-pay-loading">
+							<text class="alipay-pay-loading-text">{{ paymentUi.alipayOrderCreating }}</text>
+						</view>
+						<view v-else-if="alipayPrice.length > 0">
+							<text class="alipay-pay-label">{{ paymentUi.alipayUniqueBadge }}</text>
+							<view class="alipay-amount-row">
+								<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+								<view class="alipay-copy-btn" @click.stop="copyUniquePaymentAmount">
+									<text class="alipay-copy-text">{{ paymentUi.alipayCopyAmount }}</text>
+								</view>
+							</view>
+							<text class="alipay-pay-hint">{{ paymentUi.alipayUniquePayHint }}</text>
+							<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
+							<view
+								class="alipay-countdown-row"
+								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+							>
+								<text class="alipay-countdown-label">{{ paymentUi.alipayCountdownLabel }}</text>
+								<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
+							</view>
+						</view>
+					</view>
+					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
+					<text class="alipay-notice">{{ getAlipayStatusText() }}</text>
+					<button
+						v-if="paymentTestMode"
+						class="alipay-paid-btn"
+						@click.stop="confirmAlipayTestUnlock"
+					>
+						<text class="btn-primary-text">{{ paymentUi.alipayTestUnlockButton }}</text>
+					</button>
+				</view>
+
+				<button class="payment-cancel-btn" @click.stop="closePaymentDialog">
+					<text class="btn-outline-text">{{ paymentUi.paymentCancel }}</text>
+				</button>
+			</view>
+		</view>
+
 		<view class="wechat-mask" v-if="showWechatDialog">
 			<view class="wechat-dialog">
-				<text class="wechat-title">{{ ui.wechatTitle }}</text>
+				<text class="wechat-title">{{ wechatDialogTitle }}</text>
 				<image class="wechat-qrcode" src="/static/wechact.jpg" mode="widthFix"></image>
-				<text class="wechat-desc">{{ ui.wechatDesc }}</text>
+				<text class="wechat-desc">{{ wechatDialogDesc }}</text>
 				<button class="wechat-close-btn" @click="showWechatDialog = false">
 					<text class="btn-text">{{ ui.wechatOk }}</text>
 				</button>
@@ -399,20 +582,32 @@
 
 <script lang="uts">
 	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
-	import type { FaceReport, FaceAnalysisResult, FaceThreeSection, FaceFortuneScore } from '@/types/index';
-	import { analyzeFace } from '@/utils/qwenApi';
+	import type { FaceReport, FaceAnalysisResult, FaceThreeSection, FaceFortuneScore, FaceImprovementResult } from '@/types/index';
+	import { analyzeFace, analyzeFaceImprovement } from '@/utils/qwenApi';
 	import { convertImageToBase64ForApi } from '@/utils/imageHelper';
 	import { uploadImageToServer } from '@/utils/imageUpload';
 	import { saveFaceSession, loadFaceSession, clearFaceSession } from '@/utils/faceSessionStore';
+	import { createMatchId, saveFaceMatchSession, loadActiveFaceMatchSession } from '@/utils/faceMatchSessionStore';
 	import {
 		getAppLocale,
 		setAppLocale,
 		getFaceUi,
+		getCameraUi,
 		pickLocaleText,
 		FACE_SCAN_TERMS_ZH,
 		FACE_SCAN_TERMS_EN,
 		type AppLocale
 	} from '@/utils/locale';
+	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
+	import { IMPROVEMENT_PAYMENT } from '@/utils/improvementPaymentConfig';
+	import { createPaymentOrder, fetchPaymentOrder } from '@/utils/paymentApi';
+	import {
+		loadPayPalSdk,
+		renderPayPalButtons,
+		clearPayPalButtonContainer
+	} from '@/utils/paypalPayment';
+
+	type PaymentMethod = 'paypal' | 'alipay';
 
 	interface ThreeSectionDisplayItem {
 		key: string;
@@ -434,6 +629,12 @@
 		status: 'done' | 'active' | 'pending';
 	}
 
+	interface ImprovementDisplayItem {
+		key: string;
+		label: string;
+		value: string;
+	}
+
 	interface FacePageData {
 		locale: AppLocale;
 		capturedImage: string | null;
@@ -445,6 +646,10 @@
 		analyzingStatus: string;
 		dynamicScanText: string;
 		showWechatDialog: boolean;
+		wechatDialogMode: 'report' | 'improvement';
+		improvementData: FaceImprovementResult | null;
+		improvementLoading: boolean;
+		improvementUnlocked: boolean;
 		imageScale: number;
 		imageOffsetX: number;
 		imageOffsetY: number;
@@ -453,6 +658,25 @@
 		lastTouchY: number;
 		isMoving: boolean;
 		isScaling: boolean;
+		showMatchResumeBanner: boolean;
+		matchResumeHasReport: boolean;
+		matchResumeMatchId: string;
+		matchResumeFromReport: boolean;
+		showPaymentDialog: boolean;
+		paymentLoading: boolean;
+		paymentPrice: string;
+		alipayPrice: string;
+		alipayQrCode: string;
+		paymentMethod: PaymentMethod;
+		paymentSummaryLabel: string;
+		paymentDisplayPrice: string;
+		paymentOrderId: string;
+		paymentOrderStatus: string;
+		paymentExpiresAt: number;
+		paymentPollTimer: number | null;
+		paymentCountdownTimer: number | null;
+		countdownTick: number;
+		paymentTestMode: boolean;
 	}
 
 	export default {
@@ -472,6 +696,10 @@
 				analyzingStatus: '',
 				dynamicScanText: '',
 				showWechatDialog: false,
+				wechatDialogMode: 'report',
+				improvementData: null,
+				improvementLoading: false,
+				improvementUnlocked: false,
 				imageScale: 1.0,
 				imageOffsetX: 0,
 				imageOffsetY: 0,
@@ -479,12 +707,38 @@
 				lastTouchX: 0,
 				lastTouchY: 0,
 				isMoving: false,
-				isScaling: false
+				isScaling: false,
+				showMatchResumeBanner: false,
+				matchResumeHasReport: false,
+				matchResumeMatchId: '',
+				matchResumeFromReport: false,
+				showPaymentDialog: false,
+				paymentLoading: false,
+				paymentPrice: IMPROVEMENT_PAYMENT.priceUsd,
+				alipayPrice: IMPROVEMENT_PAYMENT.priceCny,
+				alipayQrCode: PAYMENT_CONFIG.alipayQrCode,
+				paymentMethod: 'alipay',
+				paymentSummaryLabel: '',
+				paymentDisplayPrice: IMPROVEMENT_PAYMENT.priceCny,
+				paymentOrderId: '',
+				paymentOrderStatus: '',
+				paymentExpiresAt: 0,
+				paymentPollTimer: null,
+				paymentCountdownTimer: null,
+				countdownTick: 0,
+				paymentTestMode: PAYMENT_CONFIG.testMode
 			};
 		},
 		computed: {
 			ui(): Record<string, string> {
 				return getFaceUi(this.locale);
+			},
+			paymentUi(): Record<string, string> {
+				return getCameraUi(this.locale);
+			},
+			paymentCountdownText(): string {
+				void this.countdownTick;
+				return this.getPaymentCountdownText();
 			},
 			threeSectionItems(): ThreeSectionDisplayItem[] {
 				if (this.reportData == null || this.reportData.fullData == null) {
@@ -540,15 +794,58 @@
 					items.push({ term: terms[i], status });
 				}
 				return items;
+			},
+			wechatDialogTitle(): string {
+				if (this.wechatDialogMode === 'improvement') {
+					return this.ui.improvementWechatTitle;
+				}
+				return this.ui.wechatTitle;
+			},
+			wechatDialogDesc(): string {
+				if (this.wechatDialogMode === 'improvement') {
+					return this.ui.improvementWechatDesc;
+				}
+				return this.ui.wechatDesc;
+			},
+			improvementItems(): ImprovementDisplayItem[] {
+				if (this.improvementData == null) {
+					return [];
+				}
+				const d = this.improvementData;
+				return [
+					{ key: 'hairstyle', label: this.ui.improvementHairstyle, value: this.pickTxt(d.hairstyle, d.hairstyleEn) },
+					{ key: 'eyebrow', label: this.ui.improvementEyebrow, value: this.pickTxt(d.eyebrow, d.eyebrowEn) },
+					{ key: 'accessories', label: this.ui.improvementAccessory, value: this.pickTxt(d.accessories, d.accessoriesEn) },
+					{ key: 'color', label: this.ui.improvementColor, value: this.pickTxt(d.makeupAndColor, d.makeupAndColorEn) },
+					{ key: 'desk', label: this.ui.improvementDesk, value: this.pickTxt(d.deskDirection, d.deskDirectionEn) },
+					{ key: 'bedroom', label: this.ui.improvementBedroom, value: this.pickTxt(d.bedroomDirection, d.bedroomDirectionEn) }
+				];
+			},
+			avoidItemsList(): string[] {
+				if (this.improvementData == null) {
+					return [];
+				}
+				if (this.locale === 'en' && this.improvementData.avoidItemsEn != null && this.improvementData.avoidItemsEn.length > 0) {
+					return this.improvementData.avoidItemsEn;
+				}
+				return this.improvementData.avoidItems != null ? this.improvementData.avoidItems : [];
+			},
+			matchResumeBadgeText(): string {
+				if (this.locale === 'en') {
+					return this.matchResumeHasReport ? 'View report' : 'In progress';
+				}
+				return this.matchResumeHasReport ? '待查看' : '进行中';
 			}
 		},
 		onShow() {
 			this.syncLocaleFromStorage();
 			this.applyNavTitle();
 			this.restoreFaceSession();
+			this.refreshActiveMatchResume();
 		},
 		onHide() {
 			this.persistFaceSession();
+			this.stopPaymentPolling();
 		},
 		methods: {
 			applyNavTitle(): void {
@@ -585,7 +882,9 @@
 					reportData: this.reportData,
 					imageScale: this.imageScale,
 					imageOffsetX: this.imageOffsetX,
-					imageOffsetY: this.imageOffsetY
+					imageOffsetY: this.imageOffsetY,
+					improvementData: this.improvementData,
+					improvementUnlocked: this.improvementUnlocked
 				});
 			},
 			restoreFaceSession(): void {
@@ -598,6 +897,45 @@
 				this.imageScale = snapshot.imageScale;
 				this.imageOffsetX = snapshot.imageOffsetX;
 				this.imageOffsetY = snapshot.imageOffsetY;
+				this.improvementData = snapshot.improvementData != null ? snapshot.improvementData : null;
+				this.improvementUnlocked = snapshot.improvementUnlocked === true;
+			},
+			refreshActiveMatchResume(): void {
+				if (this.reportData == null || this.reportData.fullData == null) {
+					this.showMatchResumeBanner = false;
+					return;
+				}
+				const active = loadActiveFaceMatchSession();
+				if (active == null) {
+					this.showMatchResumeBanner = false;
+					return;
+				}
+				const currentReportJson = JSON.stringify(this.reportData.fullData);
+				if (active.personAReportJson != null
+					&& active.personAReportJson.length > 0
+					&& active.personAReportJson !== currentReportJson) {
+					this.showMatchResumeBanner = false;
+					return;
+				}
+				const hasProgress = active.reportData != null
+					|| active.hasGeneratedReport === true
+					|| (active.personBImage != null && active.personBImage.length > 0);
+				if (!hasProgress) {
+					this.showMatchResumeBanner = false;
+					return;
+				}
+				this.showMatchResumeBanner = true;
+				this.matchResumeHasReport = active.reportData != null || active.hasGeneratedReport === true;
+				this.matchResumeMatchId = active.matchId;
+				this.matchResumeFromReport = active.fromFaceReport === true
+					|| (active.personAReportJson != null && active.personAReportJson.length > 0);
+			},
+			handleResumeMatch(): void {
+				if (this.matchResumeMatchId.length === 0) {
+					return;
+				}
+				const fromPart = this.matchResumeFromReport ? '&from=report' : '';
+				uni.navigateTo({ url: `/pages/face/match?matchId=${this.matchResumeMatchId}${fromPart}` });
 			},
 			formatNumber(num: number): string {
 				return num < 10 ? `0${num}` : `${num}`;
@@ -862,11 +1200,362 @@
 			handleReset(): void {
 				this.capturedImage = null;
 				this.reportData = null;
+				this.improvementData = null;
+				this.improvementLoading = false;
+				this.improvementUnlocked = false;
 				this.resetPreviewTransform();
 				clearFaceSession();
 			},
 			handleDownloadReport(): void {
+				this.wechatDialogMode = 'report';
 				this.showWechatDialog = true;
+			},
+			handleGoMatch(): void {
+				if (this.reportData != null && this.reportData.fullData != null) {
+					this.handleGoMatchFromReport();
+					return;
+				}
+				const active = loadActiveFaceMatchSession();
+				if (active != null) {
+					const fromPart = active.fromFaceReport || (active.personAReportJson != null && active.personAReportJson.length > 0)
+						? '&from=report'
+						: '';
+					uni.navigateTo({ url: `/pages/face/match?matchId=${active.matchId}${fromPart}` });
+					return;
+				}
+				uni.navigateTo({ url: '/pages/face/match' });
+			},
+			handleGoMatchFromReport(): void {
+				if (this.reportData == null || this.reportData.fullData == null) {
+					return;
+				}
+				const personAImage = this.reportData.imagePath || this.capturedImage;
+				const personAReportJson = JSON.stringify(this.reportData.fullData);
+
+				// 同一份面相报告：复用已有合婚会话（即使旧会话未标记 fromFaceReport）
+				const active = loadActiveFaceMatchSession();
+				if (active != null && active.personAReportJson === personAReportJson) {
+					saveFaceMatchSession({
+						matchId: active.matchId,
+						personAImage: personAImage != null && personAImage.length > 0 ? personAImage : active.personAImage,
+						personBImage: active.personBImage,
+						reportData: active.reportData,
+						isPartnerFlow: active.isPartnerFlow === true,
+						fromFaceReport: true,
+						personAReportJson: active.personAReportJson,
+						matchUnlocked: active.matchUnlocked === true,
+						unlockedModuleIds: active.unlockedModuleIds != null ? active.unlockedModuleIds : [],
+						createdAt: active.createdAt
+					});
+					uni.navigateTo({ url: `/pages/face/match?matchId=${active.matchId}&from=report` });
+					return;
+				}
+
+				const matchId = createMatchId();
+				saveFaceMatchSession({
+					matchId,
+					personAImage,
+					personBImage: null,
+					reportData: null,
+					isPartnerFlow: false,
+					fromFaceReport: true,
+					personAReportJson,
+					matchUnlocked: false,
+					unlockedModuleIds: [],
+					createdAt: Date.now()
+				});
+				uni.navigateTo({ url: `/pages/face/match?matchId=${matchId}&from=report` });
+			},
+			async handleGenerateImprovement(): Promise<void> {
+				if (this.reportData == null || this.reportData.fullData == null) {
+					return;
+				}
+				this.improvementLoading = true;
+				try {
+					const reportJson = JSON.stringify(this.reportData.fullData);
+					const result = await analyzeFaceImprovement({
+						reportJson,
+						locale: this.locale
+					});
+					this.improvementData = result;
+					this.improvementUnlocked = false;
+					this.persistFaceSession();
+				} catch (error: any) {
+					uni.showToast({
+						title: error.message || (this.locale === 'en' ? 'Failed' : '生成失败'),
+						icon: 'none'
+					});
+				} finally {
+					this.improvementLoading = false;
+				}
+			},
+			handleUnlockImprovement(): void {
+				if (this.improvementUnlocked || this.improvementData == null) {
+					return;
+				}
+				if (!PAYMENT_CONFIG.enabled) {
+					this.improvementUnlocked = true;
+					this.persistFaceSession();
+					return;
+				}
+				this.paymentSummaryLabel = this.locale === 'en'
+					? IMPROVEMENT_PAYMENT.titleEn
+					: IMPROVEMENT_PAYMENT.titleZh;
+				this.paymentPrice = IMPROVEMENT_PAYMENT.priceUsd;
+				this.alipayPrice = IMPROVEMENT_PAYMENT.priceCny;
+				this.paymentDisplayPrice = IMPROVEMENT_PAYMENT.priceCny;
+				this.alipayQrCode = PAYMENT_CONFIG.alipayQrCode;
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
+				this.showPaymentDialog = true;
+				clearPayPalButtonContainer('face-improvement-paypal-container');
+				this.selectPaymentMethod(this.locale === 'zh' && PAYMENT_CONFIG.alipayEnabled ? 'alipay' : 'paypal');
+			},
+			getImprovementSessionId(): string {
+				if (this.reportData != null && this.reportData.id.length > 0) {
+					return this.reportData.id;
+				}
+				return `face_improvement_${Date.now()}`;
+			},
+			completeImprovementUnlock(provider: string, orderRef: string): void {
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				this.stopPaymentPolling();
+				clearPayPalButtonContainer('face-improvement-paypal-container');
+				this.improvementUnlocked = true;
+				this.paymentSummaryLabel = '';
+				this.persistFaceSession();
+				console.log(`Improvement unlocked via ${provider}:`, orderRef);
+				uni.showToast({
+					title: this.paymentUi.toastPaymentSuccess,
+					icon: 'success'
+				});
+			},
+			selectPaymentMethod(method: PaymentMethod): void {
+				this.paymentMethod = method;
+				clearPayPalButtonContainer('face-improvement-paypal-container');
+				if (method === 'paypal') {
+					this.stopPaymentPolling();
+					if (PAYMENT_CONFIG.paypalClientId == null || PAYMENT_CONFIG.paypalClientId.length === 0) {
+						uni.showToast({
+							title: this.paymentUi.toastPayPalNotConfigured,
+							icon: 'none',
+							duration: 4000
+						});
+						this.paymentMethod = 'alipay';
+						this.startAlipayOrder();
+						return;
+					}
+					this.paymentLoading = true;
+					setTimeout(() => {
+						this.mountPayPalButtons();
+					}, 250);
+					return;
+				}
+				this.paymentLoading = false;
+				this.startAlipayOrder();
+			},
+			getAlipayListedPriceHint(): string {
+				return this.paymentUi.alipayListedPriceHint.replace('{price}', this.paymentDisplayPrice);
+			},
+			copyUniquePaymentAmount(): void {
+				if (this.alipayPrice.length === 0) {
+					return;
+				}
+				const amount = this.alipayPrice;
+				const showCopied = (): void => {
+					uni.showToast({
+						title: this.paymentUi.toastAmountCopied,
+						icon: 'none'
+					});
+				};
+				// #ifdef H5
+				try {
+					if (typeof navigator !== 'undefined' && navigator.clipboard != null) {
+						navigator.clipboard.writeText(amount).then(() => {
+							showCopied();
+						}).catch(() => {
+							uni.setClipboardData({ data: amount, success: showCopied });
+						});
+						return;
+					}
+				} catch (error) {
+					console.warn('H5 clipboard failed, fallback to uni API', error);
+				}
+				// #endif
+				uni.setClipboardData({
+					data: amount,
+					success: showCopied
+				});
+			},
+			getPaymentCountdownText(): string {
+				if (this.paymentExpiresAt <= 0) {
+					return '--:--';
+				}
+				const remainingMs = this.paymentExpiresAt - Date.now();
+				if (remainingMs <= 0) {
+					return '00:00';
+				}
+				const totalSeconds = Math.floor(remainingMs / 1000);
+				const minutes = Math.floor(totalSeconds / 60);
+				const seconds = totalSeconds % 60;
+				const minuteText = minutes < 10 ? `0${minutes}` : `${minutes}`;
+				const secondText = seconds < 10 ? `0${seconds}` : `${seconds}`;
+				return `${minuteText}:${secondText}`;
+			},
+			getAlipayStatusText(): string {
+				const u = this.paymentUi;
+				if (this.paymentTestMode) {
+					return u.alipayManualNotice;
+				}
+				if (this.paymentOrderStatus === 'creating') {
+					return u.alipayOrderCreating;
+				}
+				if (this.paymentOrderStatus === 'pending') {
+					return u.alipayWaitingPayment;
+				}
+				if (this.paymentOrderStatus === 'paid') {
+					return u.alipayOrderPaid;
+				}
+				if (this.paymentOrderStatus === 'expired') {
+					return u.alipayOrderExpired;
+				}
+				if (this.paymentOrderStatus === 'error') {
+					return u.alipayOrderError;
+				}
+				return u.alipayWaitingPayment;
+			},
+			async startAlipayOrder(): Promise<void> {
+				if (this.paymentTestMode) {
+					this.paymentOrderStatus = 'test';
+					return;
+				}
+				this.stopPaymentPolling();
+				this.paymentOrderStatus = 'creating';
+				this.paymentOrderId = '';
+				try {
+					const order = await createPaymentOrder({
+						displayPrice: IMPROVEMENT_PAYMENT.priceCny,
+						productType: 'single',
+						sessionId: this.getImprovementSessionId(),
+						moduleIds: [IMPROVEMENT_PAYMENT.moduleId]
+					});
+					this.paymentOrderId = order.orderId;
+					this.alipayPrice = order.amount;
+					this.paymentDisplayPrice = order.displayPrice;
+					this.paymentExpiresAt = order.expiresAt;
+					if (order.qrCodeUrl != null && order.qrCodeUrl.length > 0) {
+						this.alipayQrCode = order.qrCodeUrl;
+					}
+					this.paymentOrderStatus = 'pending';
+					this.startPaymentPolling();
+				} catch (error) {
+					console.error('Create improvement payment order failed:', error);
+					this.paymentOrderStatus = 'error';
+					uni.showToast({
+						title: this.paymentUi.alipayOrderError,
+						icon: 'none'
+					});
+				}
+			},
+			startPaymentPolling(): void {
+				this.stopPaymentPolling();
+				this.countdownTick = 0;
+				this.pollPaymentOrderOnce();
+				this.paymentPollTimer = setInterval(() => {
+					this.pollPaymentOrderOnce();
+				}, PAYMENT_CONFIG.pollIntervalMs) as number;
+				this.paymentCountdownTimer = setInterval(() => {
+					this.countdownTick += 1;
+					if (this.paymentExpiresAt > 0 && Date.now() >= this.paymentExpiresAt) {
+						this.paymentOrderStatus = 'expired';
+						this.stopPaymentPolling();
+					}
+				}, 1000) as number;
+			},
+			stopPaymentPolling(): void {
+				if (this.paymentPollTimer != null) {
+					clearInterval(this.paymentPollTimer);
+					this.paymentPollTimer = null;
+				}
+				if (this.paymentCountdownTimer != null) {
+					clearInterval(this.paymentCountdownTimer);
+					this.paymentCountdownTimer = null;
+				}
+			},
+			async pollPaymentOrderOnce(): Promise<void> {
+				if (this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
+					return;
+				}
+				try {
+					const order = await fetchPaymentOrder(this.paymentOrderId);
+					if (order.status === 'paid') {
+						this.paymentOrderStatus = 'paid';
+						this.stopPaymentPolling();
+						this.completeImprovementUnlock('alipay', order.orderId);
+					} else if (order.status === 'expired' || order.status === 'conflict') {
+						this.paymentOrderStatus = 'expired';
+						this.stopPaymentPolling();
+					}
+				} catch (error) {
+					console.error('Poll improvement payment order failed:', error);
+				}
+			},
+			confirmAlipayTestUnlock(): void {
+				if (!this.paymentTestMode) {
+					return;
+				}
+				this.stopPaymentPolling();
+				this.completeImprovementUnlock('alipay', `TEST-${Date.now()}`);
+			},
+			mountPayPalButtons(): void {
+				const u = this.paymentUi;
+				loadPayPalSdk(PAYMENT_CONFIG.paypalClientId)
+					.then(() => {
+						return renderPayPalButtons(
+							'#face-improvement-paypal-container',
+							this.paymentPrice,
+							PAYMENT_CONFIG.productName,
+							{
+								onSuccess: (orderId: string) => {
+									this.completeImprovementUnlock('paypal', orderId);
+								},
+								onCancel: () => {
+									uni.showToast({
+										title: u.toastPaymentCancelled,
+										icon: 'none'
+									});
+								},
+								onError: (message: string) => {
+									uni.showToast({
+										title: message,
+										icon: 'none',
+										duration: 4000
+									});
+								}
+							}
+						);
+					})
+					.catch((error: any) => {
+						console.error('PayPal mount failed:', error);
+						uni.showToast({
+							title: u.toastPaymentFailed,
+							icon: 'none',
+							duration: 4000
+						});
+					})
+					.finally(() => {
+						this.paymentLoading = false;
+					});
+			},
+			closePaymentDialog(): void {
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				this.stopPaymentPolling();
+				this.paymentSummaryLabel = '';
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
+				clearPayPalButtonContainer('face-improvement-paypal-container');
 			}
 		}
 	};
@@ -1683,6 +2372,15 @@
 		border: 1rpx solid #5a3e2b;
 	}
 
+	.btn-match {
+		background: linear-gradient(135deg, #c4a574, #8c6248);
+		border: none;
+	}
+
+	.match-btn-text {
+		color: #fff;
+	}
+
 	.btn-text {
 		font-weight: bold;
 		color: inherit;
@@ -2028,6 +2726,278 @@
 		line-height: 1.6;
 	}
 
+	.improvement-deep-section,
+	.match-from-report-section,
+	.premium-services-section {
+		margin-top: 16rpx;
+		margin-bottom: 36rpx;
+	}
+
+	.premium-section-head {
+		margin-bottom: 28rpx;
+	}
+
+	.premium-header {
+		margin-bottom: 12rpx;
+	}
+
+	.premium-section-subtitle {
+		font-size: 26rpx;
+		color: #8c7662;
+		line-height: 1.6;
+		padding-left: 28rpx;
+		display: block;
+	}
+
+	.premium-feature-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 24rpx;
+	}
+
+	.feature-card {
+		position: relative;
+		border-radius: 20rpx;
+		padding: 36rpx 32rpx 32rpx;
+		min-height: 220rpx;
+		overflow: hidden;
+		box-shadow: 0 12rpx 40rpx rgba(90, 62, 43, 0.12);
+	}
+
+	.feature-card:active {
+		transform: scale(0.985);
+		opacity: 0.96;
+	}
+
+	.feature-card-match {
+		background: linear-gradient(135deg, #fff5f3 0%, #fde8e4 45%, #f5d0c8 100%);
+		border: 2rpx solid #eec5be;
+	}
+
+	.feature-card-resume {
+		box-shadow: 0 14rpx 44rpx rgba(183, 80, 70, 0.18);
+	}
+
+	.feature-card-improve {
+		background: linear-gradient(135deg, #fdf9f0 0%, #f5ebe0 45%, #e8dcc8 100%);
+		border: 2rpx solid #ddd0b8;
+	}
+
+	.feature-card-loading,
+	.feature-card-done {
+		pointer-events: none;
+	}
+
+	.feature-card-bg-deco {
+		position: absolute;
+		right: -40rpx;
+		top: -40rpx;
+		width: 220rpx;
+		height: 220rpx;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.35);
+	}
+
+	.improve-deco {
+		background: rgba(255, 255, 255, 0.45);
+	}
+
+	.feature-deco-icon {
+		position: absolute;
+		right: 28rpx;
+		top: 24rpx;
+		font-size: 88rpx;
+		color: rgba(183, 80, 70, 0.18);
+		line-height: 1;
+	}
+
+	.improve-icon {
+		color: rgba(183, 160, 74, 0.22);
+	}
+
+	.feature-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 6rpx 18rpx;
+		border-radius: 20rpx;
+		margin-bottom: 16rpx;
+	}
+
+	.feature-badge-match {
+		background: rgba(183, 80, 70, 0.15);
+		border: 1rpx solid rgba(183, 80, 70, 0.25);
+	}
+
+	.feature-badge-improve {
+		background: rgba(183, 160, 74, 0.18);
+		border: 1rpx solid rgba(183, 160, 74, 0.3);
+	}
+
+	.feature-badge-text {
+		font-size: 22rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		letter-spacing: 2rpx;
+	}
+
+	.feature-title {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		line-height: 1.25;
+		display: block;
+		margin-bottom: 12rpx;
+		position: relative;
+		z-index: 1;
+	}
+
+	.feature-desc {
+		font-size: 28rpx;
+		color: #6b5344;
+		line-height: 1.55;
+		display: block;
+		max-width: 72%;
+		position: relative;
+		z-index: 1;
+	}
+
+	.loading-desc {
+		color: #a86b5a;
+	}
+
+	.feature-cta {
+		display: inline-flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 8rpx;
+		margin-top: 28rpx;
+		padding: 14rpx 28rpx;
+		border-radius: 40rpx;
+		position: relative;
+		z-index: 1;
+	}
+
+	.feature-cta-match {
+		background: linear-gradient(135deg, #b75046, #8c3a32);
+		box-shadow: 0 6rpx 20rpx rgba(140, 58, 50, 0.35);
+	}
+
+	.feature-cta-improve {
+		background: linear-gradient(135deg, #b7a04a, #8c7340);
+		box-shadow: 0 6rpx 20rpx rgba(140, 115, 64, 0.35);
+	}
+
+	.feature-cta-text {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #fff;
+	}
+
+	.feature-cta-arrow {
+		font-size: 32rpx;
+		color: #fff;
+		line-height: 1;
+		margin-top: -2rpx;
+	}
+
+	.feature-loading-row {
+		margin-top: 24rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.feature-spinner-lg {
+		width: 44rpx;
+		height: 44rpx;
+		border: 4rpx solid rgba(90, 62, 43, 0.15);
+		border-top-color: #5a3e2b;
+		border-radius: 50%;
+		animation: spinService 0.8s linear infinite;
+	}
+
+	@keyframes spinService {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	.improvement-result-panel {
+		margin-top: 20rpx;
+		background-color: #fff;
+		border-radius: 16rpx;
+		border: 1rpx solid #e8e0cc;
+		padding: 24rpx;
+		box-shadow: 0 4rpx 20rpx rgba(90, 62, 43, 0.04);
+	}
+
+	.improvement-preview {
+		margin-bottom: 20rpx;
+		background: #f9f5ec;
+		padding: 20rpx;
+		border-radius: 12rpx;
+	}
+
+	.preview-tag {
+		font-size: 22rpx;
+		color: #c4a574;
+		display: block;
+		margin-bottom: 8rpx;
+	}
+
+	.preview-text {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		line-height: 1.7;
+	}
+
+	.locked-section {
+		position: relative;
+		padding: 20rpx;
+		background: #faf8f4;
+		border-radius: 8rpx;
+		overflow: hidden;
+	}
+
+	.locked-section:not(.unlocked) .improvement-value {
+		filter: blur(4px);
+	}
+
+	.improvement-item {
+		margin-bottom: 16rpx;
+	}
+
+	.improvement-label {
+		font-size: 24rpx;
+		color: #c4a574;
+		display: block;
+		margin-bottom: 6rpx;
+	}
+
+	.improvement-value {
+		font-size: 26rpx;
+		color: #5a3e2b;
+		line-height: 1.6;
+		display: block;
+	}
+
+	.lock-overlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(253, 247, 238, 0.75);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.lock-text {
+		font-size: 26rpx;
+		color: #5a3e2b;
+		padding: 12rpx 28rpx;
+		border: 2rpx solid #c4a574;
+		border-radius: 32rpx;
+		background: #fff;
+	}
+
 	.suggestion-footer {
 		display: flex;
 		flex-direction: row;
@@ -2317,5 +3287,293 @@
 	.closing-card {
 		margin-top: 20rpx;
 		background-color: #faf6ef;
+	}
+
+	.btn-primary-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #ffffff;
+	}
+
+	.btn-outline-text {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.payment-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.65);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.payment-dialog {
+		width: 640rpx;
+		max-width: 92vw;
+		max-height: 88vh;
+		padding: 48rpx 40rpx 36rpx;
+		border-radius: 12rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		border: 4rpx solid #5a3e2b;
+		overflow-y: auto;
+	}
+
+	.payment-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 16rpx;
+		text-align: center;
+	}
+
+	.payment-price {
+		font-size: 52rpx;
+		font-weight: bold;
+		color: #2f1d13;
+		margin-bottom: 12rpx;
+	}
+
+	.payment-desc {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+		text-align: center;
+		margin-bottom: 24rpx;
+	}
+
+	.payment-topic {
+		width: 100%;
+		padding: 18rpx 20rpx;
+		border-radius: 18rpx;
+		background-color: #fbf7ef;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 22rpx;
+		box-sizing: border-box;
+	}
+
+	.payment-topic-label {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		margin-bottom: 6rpx;
+	}
+
+	.payment-topic-name {
+		display: block;
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.payment-method-tabs {
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		gap: 14rpx;
+		margin-bottom: 28rpx;
+	}
+
+	.payment-method-tab {
+		flex: 1;
+		height: 76rpx;
+		border-radius: 10rpx;
+		border: 2rpx solid #d8c8ad;
+		background-color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.payment-method-tab.active {
+		background-color: #5a3e2b;
+		border-color: #5a3e2b;
+	}
+
+	.payment-method-text {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.payment-method-tab.active .payment-method-text {
+		color: #fff;
+	}
+
+	.paypal-panel,
+	.alipay-panel {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.payment-loading {
+		width: 100%;
+		padding: 24rpx 0 32rpx;
+		display: flex;
+		justify-content: center;
+	}
+
+	.payment-loading-text {
+		font-size: 26rpx;
+		color: #8c7662;
+	}
+
+	.paypal-button-host {
+		width: 100%;
+		min-height: 120rpx;
+		margin-bottom: 24rpx;
+	}
+
+	.alipay-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 14rpx;
+		width: 100%;
+		text-align: center;
+	}
+
+	.alipay-pay-block {
+		width: 100%;
+		padding: 20rpx 22rpx;
+		border-radius: 18rpx;
+		background-color: #fbf7ef;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 16rpx;
+		box-sizing: border-box;
+	}
+
+	.alipay-pay-loading-text {
+		font-size: 26rpx;
+		color: #8c7662;
+		text-align: center;
+	}
+
+	.alipay-pay-label {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		margin-bottom: 10rpx;
+		text-align: center;
+	}
+
+	.alipay-amount-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 12rpx;
+		margin-bottom: 10rpx;
+	}
+
+	.alipay-hero-amount {
+		font-size: 44rpx;
+		font-weight: 700;
+		color: #5a3e2b;
+	}
+
+	.alipay-copy-btn {
+		height: 48rpx;
+		min-height: 48rpx;
+		padding: 0 18rpx;
+		border-radius: 24rpx;
+		background-color: #fff;
+		border: 1rpx solid #d8c8ad;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		box-sizing: border-box;
+	}
+
+	.alipay-copy-text {
+		font-size: 22rpx;
+		color: #5a3e2b;
+		font-weight: 600;
+		line-height: 1;
+	}
+
+	.alipay-pay-hint,
+	.alipay-pay-sub {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.45;
+	}
+
+	.alipay-countdown-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 16rpx;
+		margin-top: 16rpx;
+		padding-top: 16rpx;
+		border-top: 1rpx solid #eadfca;
+	}
+
+	.alipay-countdown-label {
+		font-size: 24rpx;
+		color: #8c7662;
+	}
+
+	.alipay-countdown-time {
+		font-size: 36rpx;
+		font-weight: 700;
+		color: #5a3e2b;
+	}
+
+	.alipay-qr {
+		width: 400rpx;
+		max-width: 100%;
+		border-radius: 10rpx;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 12rpx;
+	}
+
+	.alipay-notice {
+		font-size: 24rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.5;
+		margin-bottom: 12rpx;
+	}
+
+	.alipay-paid-btn {
+		width: 100%;
+		height: 80rpx;
+		border-radius: 40rpx;
+		background: #5a3e2b;
+		border: none;
+		margin-bottom: 12rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.payment-cancel-btn {
+		width: 100%;
+		height: 76rpx;
+		border-radius: 10rpx;
+		background-color: #fff;
+		border: 2rpx solid #d8c8ad;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: 8rpx;
 	}
 </style>

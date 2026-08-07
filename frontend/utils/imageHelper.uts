@@ -38,7 +38,16 @@ export async function resolveImageForApi(
 
 	for (let i = 0; i < candidates.length; i += 1) {
 		const path = candidates[i];
+		// blob URL 在 H5 可即时转 base64，不应直接跳过
 		if (isEphemeralImagePath(path)) {
+			try {
+				const converted = await convertImageToBase64ForApi(path);
+				if (isApiReadyImage(converted)) {
+					return converted;
+				}
+			} catch (error) {
+				console.warn('resolveImageForApi blob 转换失败:', path, error);
+			}
 			continue;
 		}
 		if (isApiReadyImage(path)) {
@@ -55,6 +64,66 @@ export async function resolveImageForApi(
 	}
 
 	throw new Error('无法获取有效图片，请重新拍照后再试');
+}
+
+/** H5 本地快照用的缩略图（约 200KB 内） */
+const STORAGE_IMAGE_MAX_LENGTH = 220 * 1024;
+
+/**
+ * 压缩图片用于 localStorage 持久化（不影响 API 请求用的原图）
+ */
+export function compressImageForStorage(dataUrl: string): Promise<string> {
+	if (!dataUrl.startsWith('data:image/')) {
+		return Promise.resolve(dataUrl);
+	}
+	if (dataUrl.length <= STORAGE_IMAGE_MAX_LENGTH) {
+		return Promise.resolve(dataUrl);
+	}
+	return new Promise((resolve) => {
+		// #ifdef H5
+		const img = new Image();
+		img.onload = () => {
+			try {
+				const canvas = document.createElement('canvas');
+				let width = img.width;
+				let height = img.height;
+				const maxDim = 480;
+				if (width > maxDim || height > maxDim) {
+					if (width >= height) {
+						height = Math.round((height * maxDim) / width);
+						width = maxDim;
+					} else {
+						width = Math.round((width * maxDim) / height);
+						height = maxDim;
+					}
+				}
+				canvas.width = width;
+				canvas.height = height;
+				const ctx = canvas.getContext('2d');
+				if (ctx == null) {
+					resolve(dataUrl);
+					return;
+				}
+				ctx.drawImage(img, 0, 0, width, height);
+				let quality = 0.72;
+				let result = canvas.toDataURL('image/jpeg', quality);
+				while (result.length > STORAGE_IMAGE_MAX_LENGTH && quality > 0.35) {
+					quality -= 0.08;
+					result = canvas.toDataURL('image/jpeg', quality);
+				}
+				resolve(result);
+			} catch (error) {
+				console.warn('本地快照压缩失败，跳过图片', error);
+				resolve('');
+			}
+		};
+		img.onerror = () => resolve('');
+		img.src = dataUrl;
+		// #endif
+		// #ifndef H5
+		resolve(dataUrl);
+		// #endif
+	});
 }
 
 /**

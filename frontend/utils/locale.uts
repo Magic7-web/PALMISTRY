@@ -455,6 +455,27 @@ export type FaceUiKey =
 	| 'guideTip3'
 	| 'footerPhoto'
 	| 'footerAlbum'
+	| 'matchEntryBtn'
+	| 'matchFromReportDesc'
+	| 'matchFromReportShort'
+	| 'premiumSectionTitle'
+	| 'premiumSectionSubtitle'
+	| 'matchCta'
+	| 'improvementCta'
+	| 'improvementEntryBtn'
+	| 'improvementEntryShort'
+	| 'improvementLoading'
+	| 'improvementTitle'
+	| 'improvementWechatTitle'
+	| 'improvementWechatDesc'
+	| 'improvementHairstyle'
+	| 'improvementEyebrow'
+	| 'improvementAccessory'
+	| 'improvementColor'
+	| 'improvementDesk'
+	| 'improvementBedroom'
+	| 'improvementAvoid'
+	| 'improvementUnlockFull'
 	| 'toastNeedPhoto'
 	| 'toastSuccess'
 	| 'scoreUnit'
@@ -463,7 +484,11 @@ export type FaceUiKey =
 	| 'featureSpecialMarks'
 	| 'careerAdviceTag'
 	| 'lifeAdviceTag'
-	| 'overallCardTitle';
+	| 'overallCardTitle'
+	| 'matchResumeTitle'
+	| 'matchResumeReport'
+	| 'matchResumeProgress'
+	| 'matchResumeCta';
 
 const FACE_UI_ZH: Record<FaceUiKey, string> = {
 	navTitle: '免费看面相 - 林公测算',
@@ -526,6 +551,28 @@ const FACE_UI_ZH: Record<FaceUiKey, string> = {
 	guideTip3: '五官清晰，无遮挡',
 	footerPhoto: '拍照',
 	footerAlbum: '从相册选择',
+	matchEntryBtn: '情侣合婚',
+	matchFromReportDesc: '您已完成面相分析，上传 TA 的正脸照即可推演合婚指数（将结合您的报告与对方照片）。',
+	matchFromReportShort: '上传 TA 正脸照，结合您的报告推演合婚',
+	premiumSectionTitle: '深度解读',
+	premiumSectionSubtitle: '基于您的面相报告，解锁姻缘合婚与形象开运',
+	matchCta: '立即合婚',
+	improvementCta: '生成方案',
+	improvementEntryBtn: '形象开运方案',
+	improvementEntryShort: '发型、妆容、幸运色与方位私人定制',
+	improvementLoading: '正在生成开运方案...',
+	improvementTitle: '形象开运深度方案',
+	improvementWechatTitle: '获取完整开运方案',
+	improvementWechatDesc:
+		'免费版仅展示核心摘要。添加小助手微信，获取发型、眉形、幸运色、方位布局等完整私人定制开运方案。',
+	improvementHairstyle: '发型建议',
+	improvementEyebrow: '眉形建议',
+	improvementAccessory: '饰品穿搭',
+	improvementColor: '妆容幸运色',
+	improvementDesk: '办公方位',
+	improvementBedroom: '卧室布局',
+	improvementAvoid: '形象雷区',
+	improvementUnlockFull: '解锁完整方案 ¥4.9',
 	toastNeedPhoto: '请先拍照或上传照片',
 	toastSuccess: '分析成功',
 	scoreUnit: '分',
@@ -534,7 +581,11 @@ const FACE_UI_ZH: Record<FaceUiKey, string> = {
 	featureSpecialMarks: '特殊征兆：',
 	careerAdviceTag: '事业建议',
 	lifeAdviceTag: '生活建议',
-	overallCardTitle: '命定终局建议'
+	overallCardTitle: '命定终局建议',
+	matchResumeTitle: '合婚进度已保存',
+	matchResumeReport: '您有一份合婚报告待查看',
+	matchResumeProgress: '合婚尚未完成，可继续上传与分析',
+	matchResumeCta: '继续合婚'
 };
 
 const FACE_UI_EN: Record<FaceUiKey, string> = {
@@ -598,6 +649,28 @@ const FACE_UI_EN: Record<FaceUiKey, string> = {
 	guideTip3: 'Clear features, no obstruction',
 	footerPhoto: 'Camera',
 	footerAlbum: 'Album',
+	matchEntryBtn: 'Couple Match',
+	matchFromReportDesc: 'Your face reading is ready. Upload your partner\'s photo to analyze compatibility using your report and their face.',
+	matchFromReportShort: 'Upload partner photo for match reading',
+	premiumSectionTitle: 'Deep Reading',
+	premiumSectionSubtitle: 'Unlock couple match & image enhancement from your report',
+	matchCta: 'Start Match',
+	improvementCta: 'Generate Plan',
+	improvementEntryBtn: 'Image Enhancement Plan',
+	improvementEntryShort: 'Hairstyle, makeup, colors & directions',
+	improvementLoading: 'Generating enhancement plan...',
+	improvementTitle: 'Deep Image Enhancement Plan',
+	improvementWechatTitle: 'Full plan via WeChat',
+	improvementWechatDesc:
+		'Free preview shows core tips only. Add our WeChat assistant for the full personalized plan.',
+	improvementHairstyle: 'Hairstyle',
+	improvementEyebrow: 'Eyebrows',
+	improvementAccessory: 'Accessories',
+	improvementColor: 'Makeup & colors',
+	improvementDesk: 'Desk direction',
+	improvementBedroom: 'Bedroom layout',
+	improvementAvoid: 'Avoid',
+	improvementUnlockFull: 'Unlock full plan $1.99',
 	toastNeedPhoto: 'Please take or upload a photo first',
 	toastSuccess: 'Analysis complete',
 	scoreUnit: 'pts',
@@ -606,11 +679,197 @@ const FACE_UI_EN: Record<FaceUiKey, string> = {
 	featureSpecialMarks: 'Special marks: ',
 	careerAdviceTag: 'Career',
 	lifeAdviceTag: 'Life',
-	overallCardTitle: 'Overall guidance'
+	overallCardTitle: 'Overall guidance',
+	matchResumeTitle: 'Match progress saved',
+	matchResumeReport: 'You have a match report to view',
+	matchResumeProgress: 'Match in progress — continue upload & analysis',
+	matchResumeCta: 'Continue match'
 };
 
 export function getFaceUi(locale: AppLocale): Record<FaceUiKey, string> {
 	return locale === 'en' ? FACE_UI_EN : FACE_UI_ZH;
+}
+
+export type MatchUiKey =
+	| 'navTitle'
+	| 'headerTitle'
+	| 'headerSubtitle'
+	| 'stepSelf'
+	| 'stepInvite'
+	| 'stepPartner'
+	| 'stepAnalyze'
+	| 'uploadSelf'
+	| 'uploadPartner'
+	| 'uploadPartnerFromReport'
+	| 'fromReportHint'
+	| 'waitingPartner'
+	| 'inviteTitle'
+	| 'inviteDesc'
+	| 'copyLink'
+	| 'linkCopied'
+	| 'partnerHint'
+	| 'startAnalyze'
+	| 'analyzingMain'
+	| 'resultTitle'
+	| 'scoreLabel'
+	| 'previewTeaser'
+	| 'unlockFull'
+	| 'domesticLeader'
+	| 'careerLeader'
+	| 'complementarity'
+	| 'shortTrend'
+	| 'midTrend'
+	| 'conflictTitle'
+	| 'adviceTitle'
+	| 'wechatTitle'
+	| 'wechatDesc'
+	| 'wechatOk'
+	| 'retake'
+	| 'footerPhoto'
+	| 'footerAlbum'
+	| 'toastNeedBoth'
+	| 'toastSuccess'
+	| 'tapToUpload'
+	| 'badgeAnalyzed'
+	| 'matchGuideTip1'
+	| 'matchGuideTip2'
+	| 'matchGuideTip3'
+	| 'changePartnerPhoto'
+	| 'analyzingPatienceHint'
+	| 'backToFace'
+	| 'stepFromReportUpload'
+	| 'stepFromReportAnalyze'
+	| 'reportLoadedTag'
+	| 'labelMe'
+	| 'labelPartner'
+	| 'detailSectionTitle'
+	| 'unlockStickyHint'
+	| 'bundleUnlockPrefix'
+	| 'tapUnlockHint'
+	| 'reportPersistHint';
+
+const MATCH_UI_ZH: Record<MatchUiKey, string> = {
+	navTitle: '情侣合婚 - 林公测算',
+	headerTitle: '情侣合婚',
+	headerSubtitle: '先上传您的照片，再邀请 TA 补全，即可推演合婚指数',
+	stepSelf: '上传本人',
+	stepInvite: '邀请对方',
+	stepPartner: '对方补全',
+	stepAnalyze: '合婚分析',
+	uploadSelf: '上传您的正脸照片',
+	uploadPartner: '上传您的正脸照片（补全合婚）',
+	uploadPartnerFromReport: '上传 TA 的正脸照片',
+	fromReportHint: '已载入您的面相报告，仅需上传对方照片即可合婚',
+	waitingPartner: '您已上传，请将链接发给 TA 补全照片',
+	inviteTitle: '邀请 TA 补全',
+	inviteDesc: '复制下方链接发给对方，对方打开后上传照片即可完成合婚',
+	copyLink: '复制邀请链接',
+	linkCopied: '链接已复制',
+	partnerHint: 'TA 已上传照片，请上传您的正脸照补全合婚',
+	startAnalyze: '开始合婚分析',
+	analyzingMain: '正在推演合婚指数...',
+	resultTitle: '合婚分析报告',
+	scoreLabel: '合婚指数',
+	previewTeaser: '免费预览',
+	unlockFull: '微信解锁完整解读',
+	domesticLeader: '主内担当',
+	careerLeader: '主外担当',
+	complementarity: '互补分析',
+	shortTrend: '短期趋势（3个月）',
+	midTrend: '中期趋势（1-3年）',
+	conflictTitle: '潜在摩擦点',
+	adviceTitle: '相处建议',
+	wechatTitle: '获取完整合婚解读',
+	wechatDesc:
+		'免费版仅展示合婚指数与摘要。添加小助手微信，获取互补分析、摩擦点、相处策略等完整合婚报告。',
+	wechatOk: '我知道了',
+	retake: '重新合婚',
+	footerPhoto: '拍照',
+	footerAlbum: '从相册选择',
+	toastNeedBoth: '请双方各上传一张清晰正脸照',
+	toastSuccess: '合婚分析完成',
+	tapToUpload: '点击上传',
+	badgeAnalyzed: '已分析',
+	matchGuideTip1: '正对镜头，面部居中',
+	matchGuideTip2: '光线均匀，五官清晰',
+	matchGuideTip3: '建议使用 TA 的正面生活照',
+	changePartnerPhoto: '更换 TA 照片',
+	analyzingPatienceHint: '合婚推演约需 1–2 分钟，请耐心等待',
+	backToFace: '返回面相报告',
+	stepFromReportUpload: '上传 TA',
+	stepFromReportAnalyze: '合婚分析',
+	reportLoadedTag: '已载入您的面相报告',
+	labelMe: '我',
+	labelPartner: 'TA',
+	detailSectionTitle: '深度解读',
+	unlockStickyHint: '添加微信查看完整合婚报告',
+	bundleUnlockPrefix: '一次解锁全部 ',
+	tapUnlockHint: '点击未解锁模块可单独购买',
+	reportPersistHint: '合婚报告已保存在本机，未付费也可刷新后查看'
+};
+
+const MATCH_UI_EN: Record<MatchUiKey, string> = {
+	navTitle: 'Couple Match',
+	headerTitle: 'Couple Match',
+	headerSubtitle: 'Upload your photo first, then invite your partner to complete the match',
+	stepSelf: 'Your photo',
+	stepInvite: 'Invite',
+	stepPartner: 'Partner',
+	stepAnalyze: 'Analyze',
+	uploadSelf: 'Upload your front-facing photo',
+	uploadPartner: 'Upload your photo to complete the match',
+	uploadPartnerFromReport: 'Upload your partner\'s front-facing photo',
+	fromReportHint: 'Your face report is loaded. Upload your partner\'s photo to start.',
+	waitingPartner: 'Photo saved. Share the link with your partner.',
+	inviteTitle: 'Invite your partner',
+	inviteDesc: 'Copy the link below. Your partner opens it and uploads their photo.',
+	copyLink: 'Copy invite link',
+	linkCopied: 'Link copied',
+	partnerHint: 'Your partner has uploaded. Please add your photo.',
+	startAnalyze: 'Start match analysis',
+	analyzingMain: 'Analyzing compatibility...',
+	resultTitle: 'Match Report',
+	scoreLabel: 'Compatibility',
+	previewTeaser: 'Free preview',
+	unlockFull: 'Unlock full report via WeChat',
+	domesticLeader: 'Domestic lead',
+	careerLeader: 'Career lead',
+	complementarity: 'Complementarity',
+	shortTrend: 'Short term (3 mo)',
+	midTrend: 'Mid term (1-3 yr)',
+	conflictTitle: 'Friction points',
+	adviceTitle: 'Advice',
+	wechatTitle: 'Full match reading via WeChat',
+	wechatDesc:
+		'Free preview shows score and summary only. Add our WeChat assistant for the full report.',
+	wechatOk: 'OK',
+	retake: 'Start over',
+	footerPhoto: 'Camera',
+	footerAlbum: 'Album',
+	toastNeedBoth: 'Both partners need a clear front-facing photo',
+	toastSuccess: 'Match analysis complete',
+	tapToUpload: 'Tap to upload',
+	badgeAnalyzed: 'Analyzed',
+	matchGuideTip1: 'Face the camera, centered',
+	matchGuideTip2: 'Even lighting, clear features',
+	matchGuideTip3: 'Use a clear front-facing photo of your partner',
+	changePartnerPhoto: 'Change partner photo',
+	analyzingPatienceHint: 'Match analysis takes 1–2 minutes. Please wait.',
+	backToFace: 'Back to face report',
+	stepFromReportUpload: 'Upload partner',
+	stepFromReportAnalyze: 'Analyze',
+	reportLoadedTag: 'Your face report is loaded',
+	labelMe: 'Me',
+	labelPartner: 'Partner',
+	detailSectionTitle: 'Deep Analysis',
+	unlockStickyHint: 'Add WeChat for the full report',
+	bundleUnlockPrefix: 'Unlock all ',
+	tapUnlockHint: 'Tap a locked card to unlock one module',
+	reportPersistHint: 'Match report saved on this device — viewable after refresh before payment'
+};
+
+export function getMatchUi(locale: AppLocale): Record<MatchUiKey, string> {
+	return locale === 'en' ? MATCH_UI_EN : MATCH_UI_ZH;
 }
 
 /** 面相分析中轮播术语 */

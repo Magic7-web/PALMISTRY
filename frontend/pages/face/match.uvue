@@ -1,0 +1,3099 @@
+<template>
+	<view class="match-container">
+		<view class="bg-decoration">
+			<view class="bg-bagua"></view>
+		</view>
+
+		<view class="match-content-wrapper">
+			<!-- 上传 / 邀请流程 -->
+			<template v-if="reportData == null && !isAnalyzing">
+				<view class="upload-flow" :class="{ 'flow-ready': bothReady }">
+				<view class="match-header compact-header">
+					<view class="header-main">
+						<text class="header-title">{{ ui.headerTitle }}</text>
+						<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
+					</view>
+					<view class="header-deco"></view>
+					<text v-if="!fromFaceReport" class="header-subtitle">{{ headerSubtitleText }}</text>
+				</view>
+
+				<view class="step-indicator" v-if="!fromFaceReport && !isPartnerFlow">
+					<view class="step-item" :class="{ active: currentStep === 0, done: currentStep > 0 }">
+						<text class="step-label">{{ ui.stepSelf }}</text>
+					</view>
+					<view class="step-line" :class="{ active: currentStep >= 1 }"></view>
+					<view class="step-item" :class="{ active: currentStep === 1, done: currentStep > 1 }">
+						<text class="step-label">{{ ui.stepInvite }}</text>
+					</view>
+					<view class="step-line" :class="{ active: currentStep >= 2 }"></view>
+					<view class="step-item" :class="{ active: currentStep === 2, done: currentStep > 2 }">
+						<text class="step-label">{{ ui.stepPartner }}</text>
+					</view>
+					<view class="step-line" :class="{ active: currentStep >= 3 }"></view>
+					<view class="step-item" :class="{ active: currentStep === 3 }">
+						<text class="step-label">{{ ui.stepAnalyze }}</text>
+					</view>
+				</view>
+
+				<view class="couple-stage-card" :class="{ 'stage-ready': bothReady, 'stage-uploading': needsPartnerUpload || needsSelfUpload }">
+					<view v-if="fromFaceReport" class="card-flow-head">
+						<view class="flow-progress">
+							<view class="flow-progress-step" :class="{ active: reportFlowStep === 0, done: reportFlowStep > 0 }">
+								<view class="flow-dot">
+									<text class="flow-dot-num">1</text>
+								</view>
+								<text class="flow-step-name">{{ ui.stepFromReportUpload }}</text>
+							</view>
+							<view class="flow-progress-track">
+								<view class="flow-progress-fill" :style="{ width: reportFlowStep >= 1 ? '100%' : '0%' }"></view>
+							</view>
+							<view class="flow-progress-step" :class="{ active: reportFlowStep === 1, done: reportFlowStep > 1 }">
+								<view class="flow-dot">
+									<text class="flow-dot-num">2</text>
+								</view>
+								<text class="flow-step-name">{{ ui.stepFromReportAnalyze }}</text>
+							</view>
+						</view>
+						<text class="card-intro-text">{{ headerSubtitleText }}</text>
+					</view>
+
+					<view class="couple-row">
+						<view class="couple-col">
+							<view
+								class="couple-avatar"
+								:class="{
+									filled: personAHasReady,
+									empty: !personAHasReady,
+									tappable: needsSelfUpload
+								}"
+								@click="handleTapSelfSlot"
+							>
+								<image
+									v-if="personADisplay != null"
+									class="avatar-image"
+									:src="personADisplay"
+									mode="aspectFill"
+								></image>
+								<view v-else-if="fromFaceReport && personAReportJson != null" class="avatar-report-ready">
+									<text class="avatar-report-icon">✓</text>
+									<text class="avatar-report-hint">{{ ui.badgeAnalyzed }}</text>
+								</view>
+								<view v-else class="avatar-empty-inner">
+									<text class="avatar-add-plus">+</text>
+								</view>
+								<view v-if="fromFaceReport && personAReportJson != null" class="avatar-badge analyzed">
+									<text class="avatar-badge-text">{{ ui.badgeAnalyzed }}</text>
+								</view>
+							</view>
+							<text class="couple-label">{{ ui.labelMe }}</text>
+						</view>
+
+						<view class="couple-bridge">
+							<view class="bridge-line"></view>
+							<text class="bridge-heart">♥</text>
+							<view class="bridge-line"></view>
+						</view>
+
+						<view class="couple-col">
+							<view
+								class="couple-avatar"
+								:class="{
+									filled: personBDisplay != null,
+									empty: personBDisplay == null,
+									pulse: needsPartnerUpload,
+									tappable: needsPartnerUpload || bothReady
+								}"
+								@click="handleTapPartnerSlot"
+							>
+								<image
+									v-if="personBDisplay != null"
+									class="avatar-image"
+									:src="personBDisplay"
+									mode="aspectFill"
+								></image>
+								<view v-else class="avatar-empty-inner">
+									<text class="avatar-add-plus">+</text>
+									<text class="avatar-add-hint">{{ ui.tapToUpload }}</text>
+								</view>
+								<view v-if="personBImage != null" class="avatar-badge ready">
+									<text class="avatar-badge-text">OK</text>
+								</view>
+							</view>
+							<text class="couple-label">{{ ui.labelPartner }}</text>
+						</view>
+					</view>
+
+					<view v-if="(needsPartnerUpload || needsSelfUpload) && !fromFaceReport" class="guide-tips-box">
+						<text class="guide-tip-item">{{ ui.matchGuideTip1 }}</text>
+						<text class="guide-tip-item">{{ ui.matchGuideTip2 }}</text>
+						<text class="guide-tip-item">{{ ui.matchGuideTip3 }}</text>
+					</view>
+
+					<view v-if="isUploading" class="upload-processing">
+						<view class="upload-spinner"></view>
+						<text class="upload-processing-text">{{ locale === 'en' ? 'Processing photo...' : '正在处理照片...' }}</text>
+					</view>
+
+					<!-- 双方就绪：按钮内嵌卡片 -->
+					<view v-if="bothReady" class="inline-ready-actions">
+						<button class="match-btn btn-primary btn-lg" @click.stop="handleStartAnalyze">
+							<text class="btn-primary-text">{{ ui.startAnalyze }}</text>
+						</button>
+						<button class="match-btn btn-outline btn-sm" @click.stop="handleChangePartnerPhoto">
+							<text class="btn-outline-text">{{ ui.changePartnerPhoto }}</text>
+						</button>
+					</view>
+
+					<!-- 上传操作内嵌卡片 -->
+					<view v-if="!bothReady && (fromFaceReport ? needsPartnerUpload : (needsPartnerUpload || needsSelfUpload))" class="card-upload-actions">
+						<text class="upload-target-hint">{{ uploadHintText }}</text>
+						<view class="upload-btn-row">
+							<button class="upload-chip upload-chip-primary" @click.stop="handleTakePhoto" :disabled="isUploading">
+								<text class="upload-chip-text">{{ ui.footerPhoto }}</text>
+							</button>
+							<button class="upload-chip upload-chip-secondary" @click.stop="handleChooseFromAlbum" :disabled="isUploading">
+								<text class="upload-chip-text dark">{{ ui.footerAlbum }}</text>
+							</button>
+						</view>
+					</view>
+				</view>
+
+				<view v-if="showInviteSection" class="invite-panel">
+					<text class="invite-title">{{ ui.inviteTitle }}</text>
+					<text class="invite-desc">{{ ui.inviteDesc }}</text>
+					<button class="match-btn btn-outline" @click.stop="handleCopyInviteLink">
+						<text class="btn-outline-text">{{ ui.copyLink }}</text>
+					</button>
+				</view>
+
+				<view class="match-footer" :class="{ 'footer-compact': bothReady || fromFaceReport }">
+					<text
+						v-if="fromFaceReport || showInviteSection"
+						class="footer-back-link"
+						@click="handleGoBack"
+					>{{ ui.backToFace }}</text>
+				</view>
+				</view>
+			</template>
+
+			<!-- 分析中 -->
+			<template v-else-if="reportData == null && isAnalyzing">
+				<view class="match-header analyzing-header">
+					<text class="header-title">{{ ui.analyzingMain }}</text>
+				</view>
+
+				<view class="analyzing-card">
+					<view class="couple-row analyzing-row">
+						<view class="couple-avatar filled analyzing-avatar">
+							<image v-if="personADisplay != null" class="avatar-image" :src="personADisplay" mode="aspectFill"></image>
+						</view>
+						<text class="bridge-heart pulse-heart">♥</text>
+						<view class="couple-avatar filled analyzing-avatar">
+							<image v-if="personBDisplay != null" class="avatar-image" :src="personBDisplay" mode="aspectFill"></image>
+						</view>
+					</view>
+
+					<view class="analyze-progress-track">
+						<view class="analyze-progress-fill" :style="{ width: analyzeProgress + '%' }"></view>
+					</view>
+					<text class="analyze-progress-text">{{ analyzeProgress }}%</text>
+					<text class="analyzing-status">{{ analyzingStatusText }}</text>
+					<text class="analyzing-patience">{{ ui.analyzingPatienceHint }}</text>
+				</view>
+			</template>
+
+			<!-- 合婚报告 -->
+			<view class="match-content report-mode" v-else-if="reportData != null">
+				<view class="result-scroll">
+					<view class="result-card">
+						<view class="report-hero">
+							<view class="report-hero-photos">
+								<image class="hero-photo hero-photo-a" :src="reportData.personAImage" mode="aspectFill"></image>
+								<view class="hero-score-ring">
+									<text class="hero-score-num">{{ reportData.fullData.compatibilityScore }}</text>
+									<text class="hero-score-unit">{{ ui.scoreLabel }}</text>
+								</view>
+								<image class="hero-photo hero-photo-b" :src="reportData.personBImage" mode="aspectFill"></image>
+							</view>
+							<text class="hero-level">{{ pickTxt(reportData.fullData.compatibilityLevel, reportData.fullData.compatibilityLevelEn) }}</text>
+							<text class="result-time">{{ reportData.analyzeTime }}</text>
+							<text class="report-persist-hint">{{ ui.reportPersistHint }}</text>
+						</view>
+
+						<view class="preview-card preview-quote">
+							<text class="preview-tag">{{ ui.previewTeaser }}</text>
+							<text class="preview-text">{{ pickTxt(reportData.fullData.previewSummary, reportData.fullData.previewSummaryEn) }}</text>
+						</view>
+
+						<view class="detail-section-head">
+							<text class="detail-section-title">{{ ui.detailSectionTitle }}</text>
+						</view>
+
+						<view class="detail-cards-wrap">
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('complementarity') }"
+								@click="onModuleCardTap('complementarity')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.complementarity }}</text>
+									<text v-if="!isModuleUnlocked('complementarity')" class="module-price-tag">{{ getModulePriceLabel('complementarity') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('complementarity') }">
+									<text class="detail-text">{{ pickTxt(reportData.fullData.complementarity, reportData.fullData.complementarityEn) }}</text>
+								</view>
+							</view>
+
+							<view class="detail-card-row">
+								<view
+									class="detail-card-item half match-module-card"
+									:class="{ 'is-locked': !isModuleUnlocked('domestic') }"
+									@click="onModuleCardTap('domestic')"
+								>
+									<view class="detail-card-head">
+										<text class="detail-card-title">{{ ui.domesticLeader }}</text>
+										<text v-if="!isModuleUnlocked('domestic')" class="module-price-tag">{{ getModulePriceLabel('domestic') }}</text>
+									</view>
+									<view class="module-content" :class="{ locked: !isModuleUnlocked('domestic') }">
+										<text class="detail-text">{{ pickTxt(reportData.fullData.domesticLeader, reportData.fullData.domesticLeaderEn) }}</text>
+									</view>
+								</view>
+								<view
+									class="detail-card-item half match-module-card"
+									:class="{ 'is-locked': !isModuleUnlocked('career') }"
+									@click="onModuleCardTap('career')"
+								>
+									<view class="detail-card-head">
+										<text class="detail-card-title">{{ ui.careerLeader }}</text>
+										<text v-if="!isModuleUnlocked('career')" class="module-price-tag">{{ getModulePriceLabel('career') }}</text>
+									</view>
+									<view class="module-content" :class="{ locked: !isModuleUnlocked('career') }">
+										<text class="detail-text">{{ pickTxt(reportData.fullData.careerLeader, reportData.fullData.careerLeaderEn) }}</text>
+									</view>
+								</view>
+							</view>
+
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('shortTrend') }"
+								@click="onModuleCardTap('shortTrend')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.shortTrend }}</text>
+									<text v-if="!isModuleUnlocked('shortTrend')" class="module-price-tag">{{ getModulePriceLabel('shortTrend') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('shortTrend') }">
+									<text class="detail-text">{{ pickTxt(reportData.fullData.shortTermTrend, reportData.fullData.shortTermTrendEn) }}</text>
+								</view>
+							</view>
+
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('midTrend') }"
+								@click="onModuleCardTap('midTrend')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.midTrend }}</text>
+									<text v-if="!isModuleUnlocked('midTrend')" class="module-price-tag">{{ getModulePriceLabel('midTrend') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('midTrend') }">
+									<text class="detail-text">{{ pickTxt(reportData.fullData.midTermTrend, reportData.fullData.midTermTrendEn) }}</text>
+								</view>
+							</view>
+
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('conflict') }"
+								@click="onModuleCardTap('conflict')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.conflictTitle }}</text>
+									<text v-if="!isModuleUnlocked('conflict')" class="module-price-tag">{{ getModulePriceLabel('conflict') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('conflict') }">
+									<text class="detail-text list-line" v-for="(item, index) in conflictList" :key="'c-' + index">{{ item }}</text>
+								</view>
+							</view>
+
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('advice') }"
+								@click="onModuleCardTap('advice')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.adviceTitle }}</text>
+									<text v-if="!isModuleUnlocked('advice')" class="module-price-tag">{{ getModulePriceLabel('advice') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('advice') }">
+									<text class="detail-text list-line" v-for="(item, index) in adviceList" :key="'a-' + index">{{ item }}</text>
+								</view>
+							</view>
+						</view>
+
+						<view class="result-actions compact">
+							<text class="result-link" @click="handleGoBack">{{ ui.backToFace }}</text>
+							<text class="result-link muted" @click="handleReset">{{ ui.retake }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view v-if="!isAllModulesUnlocked()" class="report-sticky-unlock">
+					<button class="sticky-unlock-btn" @click.stop="openBundlePayment">
+						<text class="sticky-unlock-btn-text">{{ ui.bundleUnlockPrefix }}{{ getBundlePriceLabel() }}</text>
+					</button>
+					<text class="sticky-unlock-tip">{{ ui.tapUnlockHint }}</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="payment-mask" v-if="showPaymentDialog">
+			<view class="payment-dialog">
+				<text class="payment-title">{{ paymentUi.paymentTitle }}</text>
+				<text class="payment-desc">{{ paymentUi.paymentDesc }}</text>
+				<view class="payment-topic" v-if="paymentSummaryLabel">
+					<text class="payment-topic-label">{{ locale === 'en' ? 'Module' : '解锁模块' }}</text>
+					<text class="payment-topic-name">{{ paymentSummaryLabel }}</text>
+				</view>
+				<view class="payment-method-tabs">
+					<button
+						class="payment-method-tab"
+						:class="{ active: paymentMethod === 'paypal' }"
+						@click.stop="selectPaymentMethod('paypal')"
+					>
+						<text class="payment-method-text">{{ paymentUi.paymentPayPalTab }}</text>
+					</button>
+					<button
+						class="payment-method-tab"
+						:class="{ active: paymentMethod === 'alipay' }"
+						@click.stop="selectPaymentMethod('alipay')"
+					>
+						<text class="payment-method-text">{{ paymentUi.paymentAlipayTab }}</text>
+					</button>
+				</view>
+
+				<view class="paypal-panel" v-if="paymentMethod === 'paypal'">
+					<text class="payment-price">US$ {{ paymentPrice }}</text>
+					<view v-if="paymentLoading" class="payment-loading">
+						<text class="payment-loading-text">{{ paymentUi.paymentLoading }}</text>
+					</view>
+					<view id="match-paypal-button-container" class="paypal-button-host" v-show="!paymentLoading"></view>
+				</view>
+
+				<view class="alipay-panel" v-if="paymentMethod === 'alipay'">
+					<text class="alipay-title">{{ paymentUi.alipayTitle }}</text>
+					<view class="alipay-pay-block" v-if="!paymentTestMode">
+						<view v-if="paymentOrderStatus === 'creating'" class="alipay-pay-loading">
+							<text class="alipay-pay-loading-text">{{ paymentUi.alipayOrderCreating }}</text>
+						</view>
+						<view v-else-if="alipayPrice.length > 0">
+							<text class="alipay-pay-label">{{ paymentUi.alipayUniqueBadge }}</text>
+							<view class="alipay-amount-row">
+								<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+								<view class="alipay-copy-btn" @click="copyUniquePaymentAmount">
+									<text class="alipay-copy-text">{{ paymentUi.alipayCopyAmount }}</text>
+								</view>
+							</view>
+							<text class="alipay-pay-hint">{{ paymentUi.alipayUniquePayHint }}</text>
+							<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
+							<view
+								class="alipay-countdown-row"
+								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+							>
+								<text class="alipay-countdown-label">{{ paymentUi.alipayCountdownLabel }}</text>
+								<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
+							</view>
+						</view>
+					</view>
+					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
+					<text class="alipay-notice">{{ getAlipayStatusText() }}</text>
+					<button
+						v-if="paymentTestMode"
+						class="alipay-paid-btn"
+						@click="confirmAlipayTestUnlock"
+					>
+						<text class="btn-primary-text">{{ paymentUi.alipayTestUnlockButton }}</text>
+					</button>
+				</view>
+
+				<button class="payment-cancel-btn" @click.stop="closePaymentDialog">
+					<text class="btn-outline-text">{{ paymentUi.paymentCancel }}</text>
+				</button>
+			</view>
+		</view>
+
+		<app-tab-bar current="face"></app-tab-bar>
+	</view>
+</template>
+
+<script lang="uts">
+	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
+	import type { FaceMatchReport } from '@/types/index';
+	import { analyzeFaceMatch } from '@/utils/qwenApi';
+	import { resolveImageForApi, compressImageForStorage, isEphemeralImagePath } from '@/utils/imageHelper';
+	import {
+		createMatchId,
+		saveFaceMatchSession,
+		loadFaceMatchSession,
+		loadFaceMatchReport,
+		clearFaceMatchSession,
+		loadActiveFaceMatchSession,
+		type FaceMatchSessionSnapshot
+	} from '@/utils/faceMatchSessionStore';
+	import { loadFaceSession } from '@/utils/faceSessionStore';
+	import {
+		getAppLocale,
+		getMatchUi,
+		getCameraUi,
+		pickLocaleText,
+		type AppLocale
+	} from '@/utils/locale';
+	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
+	import { createPaymentOrder, fetchPaymentOrder } from '@/utils/paymentApi';
+	import {
+		loadPayPalSdk,
+		renderPayPalButtons,
+		clearPayPalButtonContainer
+	} from '@/utils/paypalPayment';
+	import {
+		MATCH_PAYMENT_MODULES,
+		MATCH_PAYMENT_BUNDLE,
+		getMatchPaymentModuleById,
+		formatMatchPriceLabel
+	} from '@/utils/matchPaymentModules';
+
+	type PaymentMethod = 'paypal' | 'alipay';
+
+	interface MatchPageData {
+		locale: AppLocale;
+		matchId: string;
+		personAImage: string | null;
+		personBImage: string | null;
+		pendingUploadImage: string | null;
+		reportData: FaceMatchReport | null;
+		isAnalyzing: boolean;
+		isPartnerFlow: boolean;
+		fromFaceReport: boolean;
+		personAReportJson: string | null;
+		unlockedModuleIds: string[];
+		isUploading: boolean;
+		analyzeProgress: number;
+		analyzingStatusText: string;
+		uploadTarget: 'self' | 'partner';
+		showPaymentDialog: boolean;
+		paymentLoading: boolean;
+		paymentPrice: string;
+		alipayPrice: string;
+		alipayQrCode: string;
+		supportEmail: string;
+		paymentMethod: PaymentMethod;
+		paymentSummaryLabel: string;
+		paymentDisplayPrice: string;
+		pendingPaymentModuleId: string | null;
+		paymentOrderId: string;
+		paymentOrderStatus: string;
+		paymentExpiresAt: number;
+		paymentPollTimer: number | null;
+		paymentCountdownTimer: number | null;
+		countdownTick: number;
+		paymentTestMode: boolean;
+	}
+
+	export default {
+		name: 'FaceMatchPage',
+		components: {
+			AppTabBar
+		},
+		data(): MatchPageData {
+			return {
+				locale: getAppLocale(),
+				matchId: '',
+				personAImage: null,
+				personBImage: null,
+				pendingUploadImage: null,
+				reportData: null,
+				isAnalyzing: false,
+				isPartnerFlow: false,
+				fromFaceReport: false,
+				personAReportJson: null,
+				unlockedModuleIds: [],
+				isUploading: false,
+				analyzeProgress: 0,
+				analyzingStatusText: '',
+				uploadTarget: 'partner',
+				showPaymentDialog: false,
+				paymentLoading: false,
+				paymentPrice: PAYMENT_CONFIG.priceUsd,
+				alipayPrice: PAYMENT_CONFIG.priceCny,
+				alipayQrCode: PAYMENT_CONFIG.alipayQrCode,
+				supportEmail: PAYMENT_CONFIG.supportEmail,
+				paymentMethod: 'alipay',
+				paymentSummaryLabel: '',
+				paymentDisplayPrice: '',
+				pendingPaymentModuleId: null,
+				paymentOrderId: '',
+				paymentOrderStatus: '',
+				paymentExpiresAt: 0,
+				paymentPollTimer: null,
+				paymentCountdownTimer: null,
+				countdownTick: 0,
+				paymentTestMode: PAYMENT_CONFIG.testMode
+			};
+		},
+		computed: {
+			ui(): Record<string, string> {
+				return getMatchUi(this.locale);
+			},
+			paymentUi(): Record<string, string> {
+				return getCameraUi(this.locale);
+			},
+			paymentCountdownText(): string {
+				void this.countdownTick;
+				return this.getPaymentCountdownText();
+			},
+			personADisplay(): string | null {
+				if (this.personAImage != null && this.personAImage.length > 0) {
+					return this.personAImage;
+				}
+				if (this.reportData != null && this.reportData.personAImage.length > 0) {
+					return this.reportData.personAImage;
+				}
+				return null;
+			},
+			personAHasReady(): boolean {
+				if (this.fromFaceReport && this.personAReportJson != null && this.personAReportJson.length > 0) {
+					return true;
+				}
+				return this.personADisplay != null;
+			},
+			personBDisplay(): string | null {
+				if (this.pendingUploadImage != null) {
+					return this.pendingUploadImage;
+				}
+				return this.personBImage;
+			},
+			reportFlowStep(): number {
+				if (this.bothReady) {
+					return 1;
+				}
+				return 0;
+			},
+			currentStep(): number {
+				if (this.reportData != null) {
+					return 3;
+				}
+				if (this.personAImage != null && this.personBImage != null) {
+					return 3;
+				}
+				if (this.personAImage != null) {
+					return this.isPartnerFlow ? 2 : 1;
+				}
+				return 0;
+			},
+			needsSelfUpload(): boolean {
+				return !this.fromFaceReport && !this.isPartnerFlow && this.personAImage == null;
+			},
+			needsPartnerUpload(): boolean {
+				if (this.bothReady) {
+					return false;
+				}
+				if (this.fromFaceReport || this.isPartnerFlow) {
+					return this.personBImage == null;
+				}
+				if (this.personAImage != null) {
+					return this.personBImage == null;
+				}
+				return false;
+			},
+			showInviteSection(): boolean {
+				if (this.fromFaceReport || this.isPartnerFlow) {
+					return false;
+				}
+				return this.personAImage != null && this.personBImage == null && !this.isUploading;
+			},
+			bothReady(): boolean {
+				if (this.fromFaceReport) {
+					return this.personAReportJson != null && this.personBImage != null;
+				}
+				return this.personAImage != null && this.personBImage != null;
+			},
+			headerSubtitleText(): string {
+				if (this.fromFaceReport) {
+					return this.ui.fromReportHint;
+				}
+				if (this.isPartnerFlow && this.personAImage != null) {
+					return this.ui.partnerHint;
+				}
+				if (this.showInviteSection) {
+					return this.ui.waitingPartner;
+				}
+				return this.ui.headerSubtitle;
+			},
+			uploadTargetLabel(): string {
+				if (this.uploadTarget === 'self') {
+					return this.ui.labelMe;
+				}
+				return this.ui.labelPartner;
+			},
+			uploadHintText(): string {
+				if (this.fromFaceReport) {
+					return this.ui.uploadPartnerFromReport;
+				}
+				if (this.needsPartnerUpload) {
+					return this.ui.uploadPartner;
+				}
+				return this.ui.uploadSelf;
+			},
+			conflictList(): string[] {
+				if (this.reportData == null || this.reportData.fullData == null) {
+					return [];
+				}
+				const data = this.reportData.fullData;
+				if (this.locale === 'en' && data.conflictPointsEn != null && data.conflictPointsEn.length > 0) {
+					return data.conflictPointsEn;
+				}
+				return data.conflictPoints != null ? data.conflictPoints : [];
+			},
+			adviceList(): string[] {
+				if (this.reportData == null || this.reportData.fullData == null) {
+					return [];
+				}
+				const data = this.reportData.fullData;
+				if (this.locale === 'en' && data.adviceEn != null && data.adviceEn.length > 0) {
+					return data.adviceEn;
+				}
+				return data.advice != null ? data.advice : [];
+			}
+		},
+		onLoad(options: Record<string, any>) {
+			this.applyNavTitle();
+			this.initFromOptions(options);
+			this.bindPageLifecyclePersist();
+		},
+		onShow() {
+			this.syncLocaleFromStorage();
+			this.refreshSession();
+			this.reconcileFromFaceReportMode();
+			this.hydrateFromFaceReport();
+			this.repairReportImages();
+			this.syncUploadTarget();
+			this.syncMatchUrl();
+		},
+		onHide() {
+			this.persistSession();
+			this.stopPaymentPolling();
+		},
+		onUnload() {
+			this.unbindPageLifecyclePersist();
+			this.persistSession();
+			this.stopPaymentPolling();
+			clearPayPalButtonContainer('match-paypal-button-container');
+		},
+		methods: {
+			applyNavTitle(): void {
+				uni.setNavigationBarTitle({ title: getMatchUi(this.locale).navTitle });
+			},
+			syncLocaleFromStorage(): void {
+				this.locale = getAppLocale();
+				this.applyNavTitle();
+			},
+			syncUploadTarget(): void {
+				if (this.fromFaceReport || this.needsPartnerUpload) {
+					this.uploadTarget = 'partner';
+					return;
+				}
+				if (this.needsSelfUpload) {
+					this.uploadTarget = 'self';
+				} else {
+					this.uploadTarget = 'partner';
+				}
+			},
+			pickTxt(zhText: string, enText?: string | null): string {
+				return pickLocaleText(this.locale, zhText, enText);
+			},
+			initFromOptions(options: Record<string, any>): void {
+				const route = this.parseRouteParams(options);
+				this.isPartnerFlow = route.role === 'partner';
+				const routeFromReport = route.from === 'report';
+
+				let matchId = route.matchId;
+				if (matchId.length === 0) {
+					const active = loadActiveFaceMatchSession();
+					if (active != null) {
+						this.matchId = active.matchId;
+						this.applySnapshot(active);
+						if (routeFromReport) {
+							this.fromFaceReport = true;
+						}
+						this.reconcileFromFaceReportMode();
+						this.hydrateFromFaceReport();
+						this.repairReportImages();
+						this.syncUploadTarget();
+						this.syncMatchUrl();
+						return;
+					}
+					matchId = createMatchId();
+				}
+				this.matchId = matchId;
+
+				const snapshot = loadFaceMatchSession(matchId);
+				if (snapshot != null) {
+					this.applySnapshot(snapshot);
+				} else {
+					this.persistSession();
+				}
+				if (routeFromReport) {
+					this.fromFaceReport = true;
+				}
+				this.reconcileFromFaceReportMode();
+				this.hydrateFromFaceReport();
+				this.repairReportImages();
+				this.syncUploadTarget();
+				this.syncMatchUrl();
+			},
+			/** 统一判定是否处于「从面相报告进入」模式，避免 onShow 刷新后退回四步流程 */
+			reconcileFromFaceReportMode(): void {
+				if (this.personAReportJson != null && this.personAReportJson.length > 0) {
+					this.fromFaceReport = true;
+					return;
+				}
+				const route = this.parseRouteParams({});
+				if (route.from === 'report') {
+					this.fromFaceReport = true;
+				}
+			},
+			/** 从面相报告页进入时，自动带入本人报告与照片，无需再传本人照 */
+			hydrateFromFaceReport(): void {
+				this.reconcileFromFaceReportMode();
+				if (!this.fromFaceReport) {
+					return;
+				}
+				const faceSession = loadFaceSession();
+				if (faceSession == null || faceSession.reportData == null || faceSession.reportData.fullData == null) {
+					return;
+				}
+				let changed = false;
+				if (this.personAReportJson == null || this.personAReportJson.length === 0) {
+					this.personAReportJson = JSON.stringify(faceSession.reportData.fullData);
+					changed = true;
+				}
+				if (this.personAImage == null || this.personAImage.length === 0) {
+					const imageCandidate = faceSession.reportData.imagePath || faceSession.capturedImage;
+					if (imageCandidate != null && imageCandidate.length > 0) {
+						this.personAImage = imageCandidate;
+						changed = true;
+					}
+				}
+				if (changed) {
+					this.persistSession();
+				} else if (this.fromFaceReport) {
+					this.persistSession();
+				}
+			},
+			parseRouteParams(options: Record<string, any>): { matchId: string; role: string; from: string } {
+				let matchId = options['matchId'] != null ? String(options['matchId']) : '';
+				let role = options['role'] != null ? String(options['role']) : '';
+				let from = options['from'] != null ? String(options['from']) : '';
+
+				// #ifdef H5
+				try {
+					if (typeof window !== 'undefined' && window.location) {
+						const href = window.location.href;
+						const hash = window.location.hash || '';
+						const querySources = [hash.includes('?') ? hash.split('?')[1] : '', window.location.search.replace(/^\?/, '')];
+						for (let s = 0; s < querySources.length; s += 1) {
+							const queryString = querySources[s];
+							if (queryString.length === 0) {
+								continue;
+							}
+							queryString.split('&').forEach((pair: string) => {
+								const parts = pair.split('=');
+								if (parts.length >= 2) {
+									const key = decodeURIComponent(parts[0]);
+									const value = decodeURIComponent(parts.slice(1).join('='));
+									if (key === 'matchId' && matchId.length === 0) {
+										matchId = value;
+									}
+									if (key === 'role' && role.length === 0) {
+										role = value;
+									}
+									if (key === 'from' && from.length === 0) {
+										from = value;
+									}
+								}
+							});
+						}
+						if (from.length === 0 && href.includes('from=report')) {
+							from = 'report';
+						}
+					}
+				} catch (error) {
+					console.error('解析 hash 参数失败', error);
+				}
+				// #endif
+
+				return { matchId, role, from };
+			},
+			applySnapshot(snapshot: FaceMatchSessionSnapshot): void {
+				const keepReport = this.reportData;
+				const keepPersonB = this.personBImage;
+				const keepPersonA = this.personAImage;
+				const keepPersonAReport = this.personAReportJson;
+				this.personAImage = snapshot.personAImage != null && snapshot.personAImage.length > 0
+					? snapshot.personAImage
+					: keepPersonA;
+				this.personBImage = snapshot.personBImage != null && snapshot.personBImage.length > 0
+					? snapshot.personBImage
+					: keepPersonB;
+				if (snapshot.reportData != null) {
+					this.reportData = snapshot.reportData;
+				} else if (keepReport != null) {
+					this.reportData = keepReport;
+				} else if (snapshot.hasGeneratedReport === true) {
+					this.reportData = loadFaceMatchReport(
+						snapshot.matchId,
+						this.personAImage,
+						this.personBImage
+					);
+				} else {
+					this.reportData = null;
+				}
+				this.isPartnerFlow = snapshot.isPartnerFlow === true;
+				this.personAReportJson = snapshot.personAReportJson != null && snapshot.personAReportJson.length > 0
+					? snapshot.personAReportJson
+					: keepPersonAReport;
+				this.fromFaceReport = snapshot.fromFaceReport === true
+					|| (this.personAReportJson != null && this.personAReportJson.length > 0);
+				if (snapshot.unlockedModuleIds != null && snapshot.unlockedModuleIds.length > 0) {
+					this.unlockedModuleIds = snapshot.unlockedModuleIds.slice();
+				} else if (snapshot.matchUnlocked === true) {
+					this.unlockedModuleIds = MATCH_PAYMENT_BUNDLE.moduleIds.slice();
+				} else {
+					this.unlockedModuleIds = [];
+				}
+			},
+			refreshSession(): void {
+				if (this.matchId.length === 0) {
+					const active = loadActiveFaceMatchSession();
+					if (active != null) {
+						this.matchId = active.matchId;
+						this.applySnapshot(active);
+						this.reconcileFromFaceReportMode();
+						this.hydrateFromFaceReport();
+						this.syncUploadTarget();
+					}
+					return;
+				}
+				const snapshot = loadFaceMatchSession(this.matchId);
+				if (snapshot != null) {
+					this.applySnapshot(snapshot);
+					this.reconcileFromFaceReportMode();
+					this.hydrateFromFaceReport();
+					this.repairReportImages();
+					this.syncUploadTarget();
+					this.syncMatchUrl();
+				}
+			},
+			/** 报告正文与照片分存后，补全展示用头像 */
+			repairReportImages(): void {
+				if (this.reportData == null) {
+					return;
+				}
+				if (this.reportData.personAImage.length === 0) {
+					const resolvedA = this.resolvePersonAImageForReport();
+					if (resolvedA.length > 0) {
+						this.reportData.personAImage = resolvedA;
+					}
+				}
+				if (this.reportData.personBImage.length === 0 && this.personBImage != null && this.personBImage.length > 0) {
+					this.reportData.personBImage = this.personBImage;
+				}
+			},
+			async persistSession(): Promise<boolean> {
+				let personA = this.personAImage;
+				let personB = this.personBImage;
+				if (personA != null && isEphemeralImagePath(personA)) {
+					personA = null;
+				}
+				if (personB != null && isEphemeralImagePath(personB)) {
+					personB = null;
+				}
+				if (personA != null && personA.startsWith('data:image/')) {
+					personA = await compressImageForStorage(personA);
+					if (personA.length === 0) {
+						personA = null;
+					}
+				}
+				if (personB != null && personB.startsWith('data:image/')) {
+					personB = await compressImageForStorage(personB);
+					if (personB.length === 0) {
+						personB = null;
+					}
+				}
+				const saved = saveFaceMatchSession({
+					matchId: this.matchId,
+					personAImage: personA,
+					personBImage: personB,
+					reportData: this.reportData,
+					isPartnerFlow: this.isPartnerFlow,
+					fromFaceReport: this.fromFaceReport,
+					personAReportJson: this.personAReportJson,
+					matchUnlocked: this.isAllModulesUnlocked(),
+					unlockedModuleIds: this.unlockedModuleIds.slice(),
+					hasGeneratedReport: this.reportData != null ? true : undefined,
+					createdAt: Date.now()
+				});
+				if (this.reportData != null && !saved) {
+					console.error('合婚报告本地保存失败', this.matchId);
+				}
+				return saved;
+			},
+			syncMatchUrl(): void {
+				// #ifdef H5
+				try {
+					if (typeof window === 'undefined' || window.location == null || window.history == null) {
+						return;
+					}
+					const fromPart = this.fromFaceReport ? '&from=report' : '';
+					const rolePart = this.isPartnerFlow ? '&role=partner' : '';
+					const hash = `#/pages/face/match?matchId=${encodeURIComponent(this.matchId)}${fromPart}${rolePart}`;
+					window.history.replaceState(null, '', `${window.location.pathname}${hash}`);
+				} catch (error) {
+					console.warn('更新合婚 URL 失败', error);
+				}
+				// #endif
+			},
+			buildInviteLink(): string {
+				const encodedId = encodeURIComponent(this.matchId);
+				// #ifdef H5
+				if (typeof window !== 'undefined' && window.location) {
+					const base = window.location.origin + window.location.pathname;
+					return `${base}#/pages/face/match?matchId=${encodedId}&role=partner`;
+				}
+				// #endif
+				return `/pages/face/match?matchId=${this.matchId}&role=partner`;
+			},
+			handleCopyInviteLink(): void {
+				const link = this.buildInviteLink();
+				uni.setClipboardData({
+					data: link,
+					success: () => {
+						uni.showToast({ title: this.ui.linkCopied, icon: 'success' });
+					}
+				});
+			},
+			handleGoBack(): void {
+				this.persistSession();
+				this.stopPaymentPolling();
+				const pages = getCurrentPages();
+				if (pages.length > 1) {
+					uni.navigateBack({ delta: 1 });
+					return;
+				}
+				uni.switchTab({ url: '/pages/face/face' });
+			},
+			handleTapSelfSlot(): void {
+				if (!this.needsSelfUpload) {
+					return;
+				}
+				this.uploadTarget = 'self';
+				this.handleChooseFromAlbum();
+			},
+			handleTapPartnerSlot(): void {
+				if (this.bothReady) {
+					this.handleChangePartnerPhoto();
+					return;
+				}
+				if (!this.needsPartnerUpload) {
+					return;
+				}
+				this.uploadTarget = 'partner';
+				this.handleChooseFromAlbum();
+			},
+			handleChangePartnerPhoto(): void {
+				this.personBImage = null;
+				this.pendingUploadImage = null;
+				this.uploadTarget = 'partner';
+				this.persistSession();
+			},
+			handleTakePhoto(): void {
+				this.pickImage(['camera']);
+			},
+			handleChooseFromAlbum(): void {
+				this.pickImage(['album']);
+			},
+			pickImage(sourceType: string[]): void {
+				if (this.isUploading) {
+					return;
+				}
+				this.syncUploadTarget();
+				uni.chooseImage({
+					count: 1,
+					sizeType: ['compressed'],
+					sourceType: sourceType,
+					success: (res) => {
+						if (res.tempFilePaths != null && res.tempFilePaths.length > 0) {
+							this.confirmUploadFromPath(res.tempFilePaths[0]);
+						}
+					}
+				});
+			},
+			async confirmUploadFromPath(imagePath: string): Promise<void> {
+				if (imagePath.length === 0) {
+					return;
+				}
+				this.isUploading = true;
+				this.pendingUploadImage = imagePath;
+				try {
+					const apiReady = await resolveImageForApi(imagePath);
+					if (this.uploadTarget === 'self') {
+						this.personAImage = apiReady;
+					} else {
+						this.personBImage = apiReady;
+					}
+					this.pendingUploadImage = null;
+					this.persistSession();
+					this.syncUploadTarget();
+					uni.showToast({
+						title: this.locale === 'en' ? 'Photo ready' : '照片已就绪',
+						icon: 'success'
+					});
+				} catch (error: any) {
+					this.pendingUploadImage = null;
+					uni.showToast({
+						title: error.message || (this.locale === 'en' ? 'Invalid image' : '图片无效，请重选'),
+						icon: 'none'
+					});
+				} finally {
+					this.isUploading = false;
+				}
+			},
+			startAnalyzeProgress(): number {
+				this.analyzeProgress = 8;
+				this.analyzingStatusText = this.ui.analyzingMain;
+				return setInterval(() => {
+					if (this.analyzeProgress < 92) {
+						this.analyzeProgress += Math.random() > 0.5 ? 4 : 7;
+						if (this.analyzeProgress > 92) {
+							this.analyzeProgress = 92;
+						}
+					}
+				}, 600) as unknown as number;
+			},
+			async handleStartAnalyze(): Promise<void> {
+				if (this.personBImage == null) {
+					uni.showToast({ title: this.ui.toastNeedBoth, icon: 'none' });
+					return;
+				}
+				if (!this.fromFaceReport && this.personAImage == null) {
+					uni.showToast({ title: this.ui.toastNeedBoth, icon: 'none' });
+					return;
+				}
+				this.isAnalyzing = true;
+				const progressTimer = this.startAnalyzeProgress();
+				try {
+					const imageB = await resolveImageForApi(this.personBImage);
+					this.personBImage = imageB;
+					let result;
+					if (this.fromFaceReport && this.personAReportJson != null && this.personAReportJson.length > 0) {
+						result = await analyzeFaceMatch({
+							personBImage: imageB,
+							personAReportJson: this.personAReportJson,
+							locale: this.locale,
+							analysis_type: 'face_match_report'
+						});
+					} else {
+						if (this.personAImage == null) {
+							uni.showToast({ title: this.ui.toastNeedBoth, icon: 'none' });
+							return;
+						}
+						const imageA = await resolveImageForApi(this.personAImage);
+						this.personAImage = imageA;
+						result = await analyzeFaceMatch({
+							personAImage: imageA,
+							personBImage: imageB,
+							locale: this.locale
+						});
+					}
+					this.persistSession();
+					if (result.isInvalid === true) {
+						uni.showToast({
+							title: pickLocaleText(this.locale, result.errorMsg || '请上传清晰正脸', result.errorMsgEn),
+							icon: 'none',
+							duration: 5000
+						});
+						return;
+					}
+					this.analyzeProgress = 100;
+					const now = new Date();
+					const timeString = `${now.getFullYear()}-${this.formatNumber(now.getMonth() + 1)}-${this.formatNumber(now.getDate())} ${this.formatNumber(now.getHours())}:${this.formatNumber(now.getMinutes())}`;
+					this.reportData = {
+						id: `face_match_${Date.now()}`,
+						matchId: this.matchId,
+						analyzeTime: timeString,
+						personAImage: this.resolvePersonAImageForReport(),
+						personBImage: this.personBImage,
+						fullData: result
+					};
+					const saved = await this.persistSession();
+					this.syncMatchUrl();
+					if (!saved) {
+						const recovered = loadFaceMatchReport(
+							this.matchId,
+							this.reportData.personAImage,
+							this.reportData.personBImage
+						);
+						if (recovered == null) {
+							uni.showToast({
+								title: this.locale === 'en'
+									? 'Report generated but save failed — do not refresh'
+									: '报告已生成但保存失败，请勿刷新页面',
+								icon: 'none',
+								duration: 5000
+							});
+						}
+					}
+					uni.showToast({ title: this.ui.toastSuccess, icon: 'success' });
+				} catch (error: any) {
+					uni.showToast({
+						title: error.message || (this.locale === 'en' ? 'Analysis failed' : '分析失败'),
+						icon: 'none'
+					});
+				} finally {
+					clearInterval(progressTimer);
+					this.isAnalyzing = false;
+					this.analyzeProgress = 0;
+					this.analyzingStatusText = '';
+				}
+			},
+			formatNumber(num: number): string {
+				return num < 10 ? `0${num}` : `${num}`;
+			},
+			resolvePersonAImageForReport(): string {
+				if (this.personAImage != null && this.personAImage.length > 0) {
+					return this.personAImage;
+				}
+				if (this.reportData != null && this.reportData.personAImage.length > 0) {
+					return this.reportData.personAImage;
+				}
+				return '';
+			},
+			getModuleTitle(moduleId: string): string {
+				const map: Record<string, string> = {
+					complementarity: this.ui.complementarity,
+					domestic: this.ui.domesticLeader,
+					career: this.ui.careerLeader,
+					shortTrend: this.ui.shortTrend,
+					midTrend: this.ui.midTrend,
+					conflict: this.ui.conflictTitle,
+					advice: this.ui.adviceTitle
+				};
+				return map[moduleId] != null ? map[moduleId] : moduleId;
+			},
+			onModuleCardTap(moduleId: string): void {
+				if (this.isModuleUnlocked(moduleId)) {
+					return;
+				}
+				this.openModulePayment(moduleId);
+			},
+			bindPageLifecyclePersist(): void {
+				// #ifdef H5
+				try {
+					if (typeof document !== 'undefined') {
+						const visibilityHandler = (): void => {
+							if (document.visibilityState === 'hidden') {
+								this.persistSession();
+							}
+						};
+						const pageShowHandler = (): void => {
+							this.refreshSession();
+							this.reconcileFromFaceReportMode();
+							this.repairReportImages();
+							this.syncMatchUrl();
+						};
+						const beforeUnloadHandler = (): void => {
+							void this.persistSession();
+						};
+						(this as any)._visibilityPersistHandler = visibilityHandler;
+						(this as any)._pageShowPersistHandler = pageShowHandler;
+						(this as any)._beforeUnloadPersistHandler = beforeUnloadHandler;
+						document.addEventListener('visibilitychange', visibilityHandler);
+						window.addEventListener('pageshow', pageShowHandler);
+						window.addEventListener('beforeunload', beforeUnloadHandler);
+					}
+				} catch (error) {
+					console.warn('绑定页面持久化监听失败', error);
+				}
+				// #endif
+			},
+			unbindPageLifecyclePersist(): void {
+				// #ifdef H5
+				try {
+					const visibilityHandler = (this as any)._visibilityPersistHandler;
+					const pageShowHandler = (this as any)._pageShowPersistHandler;
+					const beforeUnloadHandler = (this as any)._beforeUnloadPersistHandler;
+					if (typeof document !== 'undefined' && visibilityHandler != null) {
+						document.removeEventListener('visibilitychange', visibilityHandler);
+						(this as any)._visibilityPersistHandler = null;
+					}
+					if (typeof window !== 'undefined') {
+						if (pageShowHandler != null) {
+							window.removeEventListener('pageshow', pageShowHandler);
+							(this as any)._pageShowPersistHandler = null;
+						}
+						if (beforeUnloadHandler != null) {
+							window.removeEventListener('beforeunload', beforeUnloadHandler);
+							(this as any)._beforeUnloadPersistHandler = null;
+						}
+					}
+				} catch (error) {
+					console.warn('解绑页面持久化监听失败', error);
+				}
+				// #endif
+			},
+			getModulePriceLabel(moduleId: string): string {
+				const module = getMatchPaymentModuleById(moduleId);
+				if (module == null) {
+					return '';
+				}
+				return formatMatchPriceLabel(this.locale, module.priceCny, module.priceUsd);
+			},
+			getBundlePriceLabel(): string {
+				return formatMatchPriceLabel(
+					this.locale,
+					MATCH_PAYMENT_BUNDLE.priceCny,
+					MATCH_PAYMENT_BUNDLE.priceUsd
+				);
+			},
+			isModuleUnlocked(moduleId: string): boolean {
+				if (!PAYMENT_CONFIG.enabled) {
+					return true;
+				}
+				for (let i = 0; i < this.unlockedModuleIds.length; i += 1) {
+					if (this.unlockedModuleIds[i] === moduleId) {
+						return true;
+					}
+				}
+				return false;
+			},
+			isAllModulesUnlocked(): boolean {
+				if (!PAYMENT_CONFIG.enabled) {
+					return true;
+				}
+				for (let i = 0; i < MATCH_PAYMENT_BUNDLE.moduleIds.length; i += 1) {
+					if (!this.isModuleUnlocked(MATCH_PAYMENT_BUNDLE.moduleIds[i])) {
+						return false;
+					}
+				}
+				return true;
+			},
+			openModulePayment(moduleId: string): void {
+				if (!PAYMENT_CONFIG.enabled) {
+					this.unlockModules([moduleId]);
+					return;
+				}
+				const module = getMatchPaymentModuleById(moduleId);
+				if (module == null) {
+					return;
+				}
+				this.pendingPaymentModuleId = moduleId;
+				this.paymentSummaryLabel = this.getModuleTitle(moduleId);
+				this.paymentPrice = module.priceUsd;
+				this.alipayPrice = module.priceCny;
+				this.paymentDisplayPrice = module.priceCny;
+				this.alipayQrCode = PAYMENT_CONFIG.alipayQrCode;
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
+				this.showPaymentDialog = true;
+				clearPayPalButtonContainer('match-paypal-button-container');
+				this.selectPaymentMethod(this.locale === 'zh' && PAYMENT_CONFIG.alipayEnabled ? 'alipay' : 'paypal');
+			},
+			openBundlePayment(): void {
+				if (!PAYMENT_CONFIG.enabled) {
+					this.unlockModules(MATCH_PAYMENT_BUNDLE.moduleIds.slice());
+					return;
+				}
+				this.pendingPaymentModuleId = null;
+				this.paymentSummaryLabel = this.locale === 'en'
+					? MATCH_PAYMENT_BUNDLE.titleEn
+					: MATCH_PAYMENT_BUNDLE.title;
+				this.paymentPrice = MATCH_PAYMENT_BUNDLE.priceUsd;
+				this.alipayPrice = MATCH_PAYMENT_BUNDLE.priceCny;
+				this.paymentDisplayPrice = MATCH_PAYMENT_BUNDLE.priceCny;
+				this.alipayQrCode = PAYMENT_CONFIG.alipayBundleQrCode;
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
+				this.showPaymentDialog = true;
+				clearPayPalButtonContainer('match-paypal-button-container');
+				this.selectPaymentMethod(this.locale === 'zh' && PAYMENT_CONFIG.alipayEnabled ? 'alipay' : 'paypal');
+			},
+			unlockModules(moduleIds: string[]): void {
+				const nextIds = this.unlockedModuleIds.slice();
+				for (let i = 0; i < moduleIds.length; i += 1) {
+					const id = moduleIds[i];
+					let exists = false;
+					for (let j = 0; j < nextIds.length; j += 1) {
+						if (nextIds[j] === id) {
+							exists = true;
+							break;
+						}
+					}
+					if (!exists) {
+						nextIds.push(id);
+					}
+				}
+				this.unlockedModuleIds = nextIds;
+				this.persistSession();
+			},
+			completeMatchUnlock(provider: string, orderRef: string): void {
+				const moduleIds = this.pendingPaymentModuleId != null
+					? [this.pendingPaymentModuleId]
+					: MATCH_PAYMENT_BUNDLE.moduleIds.slice();
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				this.stopPaymentPolling();
+				clearPayPalButtonContainer('match-paypal-button-container');
+				this.unlockModules(moduleIds);
+				this.pendingPaymentModuleId = null;
+				this.paymentSummaryLabel = '';
+				console.log(`Match module unlocked via ${provider}:`, orderRef, moduleIds);
+				uni.showToast({
+					title: this.paymentUi.toastPaymentSuccess,
+					icon: 'success'
+				});
+			},
+			selectPaymentMethod(method: PaymentMethod): void {
+				this.paymentMethod = method;
+				clearPayPalButtonContainer('match-paypal-button-container');
+				if (method === 'paypal') {
+					this.stopPaymentPolling();
+					if (PAYMENT_CONFIG.paypalClientId == null || PAYMENT_CONFIG.paypalClientId.length === 0) {
+						uni.showToast({
+							title: this.paymentUi.toastPayPalNotConfigured,
+							icon: 'none',
+							duration: 4000
+						});
+						this.paymentMethod = 'alipay';
+						this.startAlipayOrder();
+						return;
+					}
+					this.paymentLoading = true;
+					setTimeout(() => {
+						this.mountPayPalButtons();
+					}, 250);
+					return;
+				}
+				this.paymentLoading = false;
+				this.startAlipayOrder();
+			},
+			getAlipayListedPriceHint(): string {
+				return this.paymentUi.alipayListedPriceHint.replace('{price}', this.paymentDisplayPrice);
+			},
+			copyUniquePaymentAmount(): void {
+				if (this.alipayPrice.length === 0) {
+					return;
+				}
+				const amount = this.alipayPrice;
+				const showCopied = (): void => {
+					uni.showToast({
+						title: this.paymentUi.toastAmountCopied,
+						icon: 'none'
+					});
+				};
+				// #ifdef H5
+				try {
+					if (typeof navigator !== 'undefined' && navigator.clipboard != null) {
+						navigator.clipboard.writeText(amount).then(() => {
+							showCopied();
+						}).catch(() => {
+							uni.setClipboardData({ data: amount, success: showCopied });
+						});
+						return;
+					}
+				} catch (error) {
+					console.warn('H5 clipboard failed, fallback to uni API', error);
+				}
+				// #endif
+				uni.setClipboardData({
+					data: amount,
+					success: showCopied
+				});
+			},
+			getPaymentCountdownText(): string {
+				if (this.paymentExpiresAt <= 0) {
+					return '--:--';
+				}
+				const remainingMs = this.paymentExpiresAt - Date.now();
+				if (remainingMs <= 0) {
+					return '00:00';
+				}
+				const totalSeconds = Math.floor(remainingMs / 1000);
+				const minutes = Math.floor(totalSeconds / 60);
+				const seconds = totalSeconds % 60;
+				const minuteText = minutes < 10 ? `0${minutes}` : `${minutes}`;
+				const secondText = seconds < 10 ? `0${seconds}` : `${seconds}`;
+				return `${minuteText}:${secondText}`;
+			},
+			getAlipayStatusText(): string {
+				const u = this.paymentUi;
+				if (this.paymentTestMode) {
+					return u.alipayManualNotice;
+				}
+				if (this.paymentOrderStatus === 'creating') {
+					return u.alipayOrderCreating;
+				}
+				if (this.paymentOrderStatus === 'pending') {
+					return u.alipayWaitingPayment;
+				}
+				if (this.paymentOrderStatus === 'paid') {
+					return u.alipayOrderPaid;
+				}
+				if (this.paymentOrderStatus === 'expired') {
+					return u.alipayOrderExpired;
+				}
+				if (this.paymentOrderStatus === 'error') {
+					return u.alipayOrderError;
+				}
+				return u.alipayWaitingPayment;
+			},
+			async startAlipayOrder(): Promise<void> {
+				if (this.paymentTestMode) {
+					this.paymentOrderStatus = 'test';
+					return;
+				}
+				if (this.matchId.length === 0) {
+					return;
+				}
+				this.stopPaymentPolling();
+				this.paymentOrderStatus = 'creating';
+				this.paymentOrderId = '';
+				const isBundle = this.pendingPaymentModuleId == null;
+				const moduleIds = isBundle
+					? MATCH_PAYMENT_BUNDLE.moduleIds.slice()
+					: [this.pendingPaymentModuleId!];
+				const displayPrice = isBundle
+					? MATCH_PAYMENT_BUNDLE.priceCny
+					: getMatchPaymentModuleById(this.pendingPaymentModuleId!)!.priceCny;
+				try {
+					const order = await createPaymentOrder({
+						displayPrice,
+						productType: isBundle ? 'bundle' : 'single',
+						sessionId: this.matchId,
+						moduleIds
+					});
+					this.paymentOrderId = order.orderId;
+					this.alipayPrice = order.amount;
+					this.paymentDisplayPrice = order.displayPrice;
+					this.paymentExpiresAt = order.expiresAt;
+					if (order.qrCodeUrl != null && order.qrCodeUrl.length > 0) {
+						this.alipayQrCode = order.qrCodeUrl;
+					}
+					this.paymentOrderStatus = 'pending';
+					this.startPaymentPolling();
+				} catch (error) {
+					console.error('Create match payment order failed:', error);
+					this.paymentOrderStatus = 'error';
+					uni.showToast({
+						title: this.paymentUi.alipayOrderError,
+						icon: 'none'
+					});
+				}
+			},
+			startPaymentPolling(): void {
+				this.stopPaymentPolling();
+				this.countdownTick = 0;
+				this.pollPaymentOrderOnce();
+				this.paymentPollTimer = setInterval(() => {
+					this.pollPaymentOrderOnce();
+				}, PAYMENT_CONFIG.pollIntervalMs) as number;
+				this.paymentCountdownTimer = setInterval(() => {
+					this.countdownTick += 1;
+					if (this.paymentExpiresAt > 0 && Date.now() >= this.paymentExpiresAt) {
+						this.paymentOrderStatus = 'expired';
+						this.stopPaymentPolling();
+					}
+				}, 1000) as number;
+			},
+			stopPaymentPolling(): void {
+				if (this.paymentPollTimer != null) {
+					clearInterval(this.paymentPollTimer);
+					this.paymentPollTimer = null;
+				}
+				if (this.paymentCountdownTimer != null) {
+					clearInterval(this.paymentCountdownTimer);
+					this.paymentCountdownTimer = null;
+				}
+			},
+			async pollPaymentOrderOnce(): Promise<void> {
+				if (this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
+					return;
+				}
+				try {
+					const order = await fetchPaymentOrder(this.paymentOrderId);
+					if (order.status === 'paid') {
+						this.paymentOrderStatus = 'paid';
+						this.stopPaymentPolling();
+						this.completeMatchUnlock('alipay', order.orderId);
+					} else if (order.status === 'expired' || order.status === 'conflict') {
+						this.paymentOrderStatus = 'expired';
+						this.stopPaymentPolling();
+					}
+				} catch (error) {
+					console.error('Poll match payment order failed:', error);
+				}
+			},
+			confirmAlipayTestUnlock(): void {
+				if (!this.paymentTestMode) {
+					return;
+				}
+				this.stopPaymentPolling();
+				this.completeMatchUnlock('alipay', `TEST-${Date.now()}`);
+			},
+			mountPayPalButtons(): void {
+				const u = this.paymentUi;
+				loadPayPalSdk(PAYMENT_CONFIG.paypalClientId)
+					.then(() => {
+						return renderPayPalButtons(
+							'#match-paypal-button-container',
+							this.paymentPrice,
+							PAYMENT_CONFIG.productName,
+							{
+								onSuccess: (orderId: string) => {
+									this.handlePaymentSuccess(orderId);
+								},
+								onCancel: () => {
+									uni.showToast({
+										title: u.toastPaymentCancelled,
+										icon: 'none'
+									});
+								},
+								onError: (message: string) => {
+									uni.showToast({
+										title: message,
+										icon: 'none',
+										duration: 4000
+									});
+								}
+							}
+						);
+					})
+					.catch((error: any) => {
+						console.error('PayPal mount failed:', error);
+						uni.showToast({
+							title: u.toastPaymentFailed,
+							icon: 'none',
+							duration: 4000
+						});
+					})
+					.finally(() => {
+						this.paymentLoading = false;
+					});
+			},
+			handlePaymentSuccess(orderId: string): void {
+				this.completeMatchUnlock('paypal', orderId);
+			},
+			closePaymentDialog(): void {
+				this.showPaymentDialog = false;
+				this.paymentLoading = false;
+				this.stopPaymentPolling();
+				this.pendingPaymentModuleId = null;
+				this.paymentSummaryLabel = '';
+				this.paymentOrderId = '';
+				this.paymentOrderStatus = '';
+				clearPayPalButtonContainer('match-paypal-button-container');
+			},
+			handleReset(): void {
+				const keepFromReport = this.fromFaceReport;
+				const keepReportJson = this.personAReportJson;
+				const keepPersonA = this.personAImage;
+				clearFaceMatchSession(this.matchId);
+				this.matchId = createMatchId();
+				this.personAImage = keepFromReport ? keepPersonA : null;
+				this.personBImage = null;
+				this.pendingUploadImage = null;
+				this.reportData = null;
+				this.unlockedModuleIds = [];
+				this.isPartnerFlow = false;
+				this.fromFaceReport = keepFromReport;
+				this.personAReportJson = keepFromReport ? keepReportJson : null;
+				this.syncUploadTarget();
+				this.persistSession();
+			}
+		}
+	};
+</script>
+
+<style>
+	.match-container {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		min-height: 100vh;
+		padding-bottom: 130rpx;
+		box-sizing: border-box;
+		overflow-x: hidden;
+		background-color: #fdf7ee;
+		background-image:
+			radial-gradient(#f4ebd0 1px, transparent 0),
+			radial-gradient(#f4ebd0 1px, transparent 0);
+		background-size: 40px 40px;
+		background-position: 0 0, 20px 20px;
+		font-family: "STKaiti", "Kaiti", "SimKai", serif;
+		position: relative;
+	}
+
+	.bg-decoration {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bg-bagua {
+		width: 1200rpx;
+		height: 1200rpx;
+		opacity: 0.03;
+		background-image: url('https://img.alicdn.com/imgextra/i4/O1CN01Z5vXvz1Z5vXvz1Z5v_!!6000000000001-2-tps-1024-1024.png');
+		background-size: contain;
+		background-repeat: no-repeat;
+	}
+
+	.match-content-wrapper {
+		width: 100%;
+		max-width: 600px;
+		margin: 0 auto;
+		min-height: auto;
+		padding: 20rpx 28rpx 32rpx;
+		box-sizing: border-box;
+		position: relative;
+		z-index: 1;
+	}
+
+	.upload-flow {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.upload-flow.flow-ready {
+		padding-bottom: 0;
+	}
+
+	.compact-header {
+		margin-bottom: 12rpx;
+		padding-top: 16rpx;
+	}
+
+	.match-header {
+		text-align: center;
+		margin-bottom: 24rpx;
+	}
+
+	.analyzing-header {
+		margin-top: 40rpx;
+	}
+
+	.header-main {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+		gap: 16rpx;
+	}
+
+	.header-title {
+		font-size: 48rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+		letter-spacing: 6rpx;
+		flex-shrink: 0;
+	}
+
+	.header-stamp {
+		width: 72rpx;
+		height: 72rpx;
+		opacity: 0.92;
+		flex-shrink: 0;
+	}
+
+	.header-deco {
+		width: 260rpx;
+		height: 4rpx;
+		background-color: #5a3e2b;
+		margin: 16rpx auto 20rpx;
+		position: relative;
+	}
+
+	.header-subtitle {
+		font-size: 28rpx;
+		color: #8c7662;
+		line-height: 1.65;
+		padding: 0 16rpx;
+		display: block;
+	}
+
+	.step-indicator {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 24rpx;
+		gap: 6rpx;
+		padding: 0 8rpx;
+		overflow-x: auto;
+	}
+
+	.step-indicator.compact {
+		display: none;
+	}
+
+	.step-item {
+		padding: 8rpx 16rpx;
+		border-radius: 999rpx;
+		background: #f0e8d8;
+		flex-shrink: 0;
+	}
+
+	.step-label {
+		font-size: 22rpx;
+		color: #8c7662;
+		white-space: nowrap;
+	}
+
+	.card-flow-head {
+		margin-bottom: 28rpx;
+		padding-bottom: 24rpx;
+		border-bottom: 1rpx solid #f0e8dc;
+	}
+
+	.flow-progress {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		margin-bottom: 20rpx;
+	}
+
+	.flow-progress-step {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10rpx;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.flow-dot {
+		width: 48rpx;
+		height: 48rpx;
+		border-radius: 50%;
+		background: #f0e8d8;
+		border: 2rpx solid #d8cbb8;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.flow-dot-num {
+		font-size: 24rpx;
+		color: #8c7662;
+		font-weight: bold;
+	}
+
+	.flow-step-name {
+		font-size: 24rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.3;
+	}
+
+	.flow-progress-step.active .flow-dot {
+		background: #5a3e2b;
+		border-color: #5a3e2b;
+		box-shadow: 0 4rpx 16rpx rgba(90, 62, 43, 0.25);
+	}
+
+	.flow-progress-step.active .flow-dot-num,
+	.flow-progress-step.active .flow-step-name {
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.flow-progress-step.active .flow-dot-num {
+		color: #ffffff;
+	}
+
+	.flow-progress-step.done .flow-dot {
+		background: #6b8e23;
+		border-color: #6b8e23;
+	}
+
+	.flow-progress-step.done .flow-dot-num {
+		color: #ffffff;
+	}
+
+	.flow-progress-step.done .flow-step-name {
+		color: #6b8e23;
+	}
+
+	.flow-progress-track {
+		flex: 1;
+		height: 4rpx;
+		background: #ebe3d4;
+		border-radius: 2rpx;
+		margin: 22rpx 12rpx 0;
+		overflow: hidden;
+		min-width: 40rpx;
+	}
+
+	.flow-progress-fill {
+		height: 100%;
+		background: linear-gradient(90deg, #6b8e23, #c4a574);
+		border-radius: 2rpx;
+		transition: width 0.3s ease;
+	}
+
+	.card-intro-text {
+		font-size: 28rpx;
+		color: #6b5344;
+		line-height: 1.65;
+		text-align: center;
+		display: block;
+		padding: 0 8rpx;
+	}
+
+	.step-item.active {
+		background: #5a3e2b;
+	}
+
+	.step-item.active .step-label {
+		color: #ffffff;
+		font-weight: bold;
+	}
+
+	.step-item.done {
+		background: #e8dcc8;
+		border: 1rpx solid #c4a574;
+	}
+
+	.step-item.done .step-label {
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.subtitle-banner {
+		display: none;
+	}
+
+	.upload-target-hint {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		text-align: center;
+		margin-bottom: 16rpx;
+		font-weight: bold;
+		display: block;
+	}
+
+	.step-line {
+		width: 32rpx;
+		height: 2rpx;
+		background: #e0d5c0;
+	}
+
+	.step-line.active {
+		background: #c4a574;
+	}
+
+	.couple-stage-card {
+		background: linear-gradient(180deg, #fffdfa 0%, #ffffff 120rpx);
+		border-radius: 28rpx;
+		padding: 32rpx 28rpx 28rpx;
+		border: 1rpx solid #ebe3d4;
+		box-shadow: 0 8rpx 32rpx rgba(90, 62, 43, 0.08);
+		margin-bottom: 16rpx;
+	}
+
+	.couple-stage-card.stage-ready {
+		padding-bottom: 24rpx;
+	}
+
+	.couple-stage-card.stage-uploading {
+		padding-bottom: 32rpx;
+	}
+
+	.card-upload-actions {
+		margin-top: 28rpx;
+		padding-top: 24rpx;
+		border-top: 1rpx solid #f0e8dc;
+	}
+
+	.upload-btn-row {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		gap: 16rpx;
+	}
+
+	.upload-chip {
+		flex: 1;
+		height: 96rpx;
+		border-radius: 48rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		padding: 0 16rpx;
+	}
+
+	.upload-chip-primary {
+		background: linear-gradient(135deg, #6d4c33 0%, #5a3e2b 100%);
+		box-shadow: 0 8rpx 24rpx rgba(90, 62, 43, 0.28);
+	}
+
+	.upload-chip-secondary {
+		background: #faf6ef;
+		border: 2rpx solid #d8cbb8 !important;
+	}
+
+	.upload-chip-text {
+		font-size: 30rpx;
+		color: #ffffff;
+		font-weight: bold;
+		letter-spacing: 2rpx;
+	}
+
+	.upload-chip-text.dark {
+		color: #5a3e2b;
+	}
+
+	.inline-ready-actions {
+		margin-top: 28rpx;
+		padding-top: 24rpx;
+		border-top: 1rpx solid #f0e8dc;
+		display: flex;
+		flex-direction: column;
+		gap: 16rpx;
+	}
+
+	.match-footer.footer-compact {
+		margin-top: 0;
+		padding-top: 8rpx;
+	}
+
+	.footer-back-link {
+		display: block;
+		text-align: center;
+		font-size: 28rpx;
+		color: #8c7662;
+		padding: 16rpx 0 24rpx;
+		text-decoration: underline;
+	}
+
+	.couple-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 20rpx;
+	}
+
+	.analyzing-row {
+		margin-bottom: 36rpx;
+	}
+
+	.couple-col {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 16rpx;
+		flex: 1;
+		max-width: 240rpx;
+	}
+
+	.couple-avatar {
+		width: 200rpx;
+		height: 200rpx;
+		border-radius: 50%;
+		overflow: hidden;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #faf6ef;
+		border: 3rpx dashed #d8cbb8;
+		box-sizing: border-box;
+	}
+
+	.couple-avatar.filled {
+		border-style: solid;
+		border-color: #c4a574;
+		border-width: 4rpx;
+		box-shadow: 0 6rpx 20rpx rgba(196, 165, 116, 0.3);
+	}
+
+	.couple-avatar.empty.pulse {
+		animation: avatarPulse 2s ease-in-out infinite;
+	}
+
+	.couple-avatar.tappable:active {
+		transform: scale(0.97);
+		opacity: 0.92;
+	}
+
+	.analyzing-avatar {
+		width: 180rpx;
+		height: 180rpx;
+	}
+
+	@keyframes avatarPulse {
+		0%, 100% { box-shadow: 0 0 0 0 rgba(196, 165, 116, 0.35); }
+		50% { box-shadow: 0 0 0 16rpx rgba(196, 165, 116, 0); }
+	}
+
+	.avatar-image {
+		width: 100%;
+		height: 100%;
+	}
+
+	.avatar-empty-inner {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8rpx;
+	}
+
+	.avatar-add-plus {
+		font-size: 64rpx;
+		color: #c4a574;
+		line-height: 1;
+	}
+
+	.avatar-add-hint {
+		font-size: 22rpx;
+		color: #8c7662;
+	}
+
+	.avatar-report-ready {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 8rpx;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(180deg, #f5ebe0, #faf6ef);
+	}
+
+	.avatar-report-icon {
+		font-size: 48rpx;
+		color: #6b8e23;
+		line-height: 1;
+		font-weight: bold;
+	}
+
+	.avatar-report-hint {
+		font-size: 22rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.avatar-badge {
+		position: absolute;
+		bottom: 12rpx;
+		left: 50%;
+		transform: translateX(-50%);
+		padding: 6rpx 16rpx;
+		border-radius: 20rpx;
+	}
+
+	.avatar-badge.analyzed {
+		background: rgba(107, 142, 35, 0.92);
+	}
+
+	.avatar-badge.ready {
+		background: rgba(90, 62, 43, 0.88);
+	}
+
+	.avatar-badge-text {
+		font-size: 20rpx;
+		color: #fff;
+		font-weight: bold;
+	}
+
+	.couple-label {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.couple-bridge {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 8rpx;
+		padding-top: 20rpx;
+	}
+
+	.bridge-line {
+		width: 24rpx;
+		height: 2rpx;
+		background: #e0d5c0;
+	}
+
+	.bridge-heart {
+		font-size: 36rpx;
+		color: #c75050;
+		line-height: 1;
+	}
+
+	.pulse-heart {
+		animation: heartPulse 1.2s ease-in-out infinite;
+	}
+
+	@keyframes heartPulse {
+		0%, 100% { transform: scale(1); opacity: 1; }
+		50% { transform: scale(1.15); opacity: 0.85; }
+	}
+
+	.guide-tips-box {
+		margin-top: 20rpx;
+		padding: 0 8rpx;
+		background: transparent;
+		border: none;
+	}
+
+	.guide-tip-item {
+		display: block;
+		font-size: 24rpx;
+		color: #8c7662;
+		line-height: 1.8;
+	}
+
+	.guide-tip-item::before {
+		content: '· ';
+		color: #c4a574;
+	}
+
+	.upload-processing {
+		margin-top: 24rpx;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 16rpx;
+	}
+
+	.upload-spinner,
+	.upload-processing .upload-spinner {
+		width: 36rpx;
+		height: 36rpx;
+		border: 3rpx solid #e8dcc8;
+		border-top-color: #5a3e2b;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	.upload-processing-text {
+		font-size: 26rpx;
+		color: #8c7662;
+	}
+
+	.invite-panel {
+		background: #fff;
+		border-radius: 20rpx;
+		padding: 28rpx;
+		border: 1rpx solid #e8e0cc;
+		margin-bottom: 24rpx;
+	}
+
+	.invite-title {
+		font-size: 32rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+		display: block;
+		margin-bottom: 12rpx;
+	}
+
+	.invite-desc {
+		font-size: 26rpx;
+		color: #8c7662;
+		line-height: 1.6;
+		display: block;
+		margin-bottom: 20rpx;
+	}
+
+	.match-footer,
+	.result-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 16rpx;
+	}
+
+	.match-btn {
+		width: 100%;
+		height: 92rpx;
+		border-radius: 46rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+	}
+
+	.btn-lg {
+		height: 100rpx;
+	}
+
+	.btn-sm {
+		height: 80rpx;
+	}
+
+	.btn-primary {
+		background: linear-gradient(135deg, #5a3e2b, #8c6248);
+		box-shadow: 0 8rpx 24rpx rgba(90, 62, 43, 0.25);
+	}
+
+	.btn-outline {
+		background: #fff;
+		border: 2rpx solid #8c6248 !important;
+	}
+
+	.btn-back {
+		background: #fff;
+		border: 2rpx solid #e8e0cc !important;
+		height: 80rpx;
+		margin-top: 8rpx;
+	}
+
+	.btn-text {
+		font-size: 30rpx;
+		font-weight: bold;
+	}
+
+	.btn-primary-text {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #ffffff;
+	}
+
+	.btn-outline-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.btn-back-text {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.analyzing-card {
+		background: #fff;
+		border-radius: 24rpx;
+		padding: 48rpx 32rpx;
+		border: 1rpx solid #e8e0cc;
+		box-shadow: 0 16rpx 48rpx rgba(90, 62, 43, 0.1);
+		text-align: center;
+	}
+
+	.analyze-progress-track {
+		width: 100%;
+		height: 12rpx;
+		background: #f0e8d8;
+		border-radius: 6rpx;
+		overflow: hidden;
+		margin-bottom: 12rpx;
+	}
+
+	.analyze-progress-fill {
+		height: 100%;
+		background: linear-gradient(90deg, #c4a574, #5a3e2b);
+		border-radius: 6rpx;
+		transition: width 0.4s ease;
+	}
+
+	.analyze-progress-text {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		display: block;
+		margin-bottom: 16rpx;
+	}
+
+	.analyzing-status {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		display: block;
+		margin-bottom: 8rpx;
+	}
+
+	.analyzing-patience {
+		font-size: 24rpx;
+		color: #8c7662;
+		display: block;
+	}
+
+	.result-scroll {
+		width: 100%;
+		padding-bottom: 200rpx;
+		box-sizing: border-box;
+	}
+
+	.report-mode {
+		position: relative;
+		width: 100%;
+	}
+
+	.report-sticky-unlock {
+		position: fixed;
+		left: 50%;
+		transform: translateX(-50%);
+		bottom: 110rpx;
+		width: 100%;
+		max-width: 600px;
+		padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+		box-sizing: border-box;
+		background: rgba(253, 247, 238, 0.96);
+		border-top: 1rpx solid #e8e0cc;
+		box-shadow: 0 -8rpx 24rpx rgba(90, 62, 43, 0.1);
+		z-index: 850;
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10rpx;
+	}
+
+	.sticky-unlock-btn {
+		width: 100%;
+		height: 88rpx;
+		border-radius: 44rpx;
+		background: linear-gradient(135deg, #7a522f, #5a3e2b);
+		border: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 8rpx 24rpx rgba(90, 62, 43, 0.22);
+	}
+
+	.sticky-unlock-btn-text {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #fffaf1;
+	}
+
+	.sticky-unlock-tip {
+		font-size: 22rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.4;
+	}
+
+	.match-module-card.is-locked {
+		cursor: pointer;
+	}
+
+	.match-module-card.is-locked:active {
+		opacity: 0.92;
+	}
+
+	.result-actions.compact {
+		flex-direction: row;
+		justify-content: center;
+		gap: 32rpx;
+		margin-top: 8rpx;
+		padding-top: 16rpx;
+		border-top: 1rpx solid #f0eadd;
+	}
+
+	.result-link {
+		font-size: 26rpx;
+		color: #5a3e2b;
+		text-decoration: underline;
+		padding: 8rpx 0;
+	}
+
+	.result-link.muted {
+		color: #8c7662;
+	}
+
+	.report-hero {
+		text-align: center;
+		padding: 16rpx 0 28rpx;
+		margin-bottom: 8rpx;
+	}
+
+	.report-hero-photos {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 0;
+		margin-bottom: 16rpx;
+	}
+
+	.hero-photo {
+		width: 108rpx;
+		height: 108rpx;
+		border-radius: 50%;
+		border: 4rpx solid #fff;
+		box-shadow: 0 6rpx 20rpx rgba(90, 62, 43, 0.18);
+	}
+
+	.hero-photo-a {
+		margin-right: -20rpx;
+		z-index: 1;
+	}
+
+	.hero-photo-b {
+		margin-left: -20rpx;
+		z-index: 1;
+	}
+
+	.hero-score-ring {
+		width: 168rpx;
+		height: 168rpx;
+		border-radius: 50%;
+		background: linear-gradient(145deg, #fff5f3, #fde8e4);
+		border: 6rpx solid #eec5be;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		z-index: 2;
+		box-shadow: 0 8rpx 28rpx rgba(183, 80, 70, 0.2);
+	}
+
+	.hero-score-num {
+		font-size: 52rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		line-height: 1;
+	}
+
+	.hero-score-unit {
+		font-size: 20rpx;
+		color: #8c7662;
+		margin-top: 4rpx;
+	}
+
+	.hero-level {
+		font-size: 34rpx;
+		font-weight: bold;
+		color: #b75046;
+		display: block;
+		margin-bottom: 8rpx;
+	}
+
+	.report-persist-hint {
+		font-size: 22rpx;
+		color: #6b8e23;
+		display: block;
+		margin-top: 8rpx;
+	}
+
+	.preview-quote {
+		border-left: 6rpx solid #c4a574;
+		background: #faf6ef;
+	}
+
+	.detail-section-head {
+		margin: 28rpx 0 16rpx;
+		border-left: 8rpx solid #5a3e2b;
+		padding-left: 16rpx;
+	}
+
+	.detail-section-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.detail-cards-wrap.locked .detail-text {
+		filter: blur(5px);
+		user-select: none;
+	}
+
+	.match-module-card {
+		position: relative;
+	}
+
+	.detail-card-head {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12rpx;
+		margin-bottom: 12rpx;
+	}
+
+	.detail-card-head .detail-card-title {
+		margin-bottom: 0;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.module-price-tag {
+		flex-shrink: 0;
+		font-size: 24rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		background: #f8efdf;
+		border-radius: 999rpx;
+		padding: 6rpx 14rpx;
+	}
+
+	.module-content {
+		position: relative;
+	}
+
+	.module-content.locked .detail-text {
+		filter: blur(5px);
+		user-select: none;
+	}
+
+	.module-lock-overlay {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 16rpx;
+		background: linear-gradient(180deg, rgba(250, 248, 244, 0.2), rgba(250, 248, 244, 0.92));
+	}
+
+	.module-lock-overlay.compact {
+		padding: 8rpx;
+	}
+
+	.module-unlock-btn {
+		width: 100%;
+		max-width: 420rpx;
+		height: 72rpx;
+		border-radius: 36rpx;
+		background: linear-gradient(135deg, #5a3e2b, #3d2a1d);
+		border: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0 20rpx;
+	}
+
+	.module-unlock-text {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #fffaf1;
+		text-align: center;
+		line-height: 1.3;
+	}
+
+	.bundle-unlock-wrap {
+		margin-top: 8rpx;
+		padding-top: 8rpx;
+	}
+
+	.bundle-btn {
+		width: 100%;
+		max-width: none;
+		height: 88rpx;
+		background: linear-gradient(135deg, #7a522f, #5a3e2b);
+		box-shadow: 0 8rpx 24rpx rgba(90, 62, 43, 0.25);
+	}
+
+	.detail-card-item {
+		background: #faf8f4;
+		border-radius: 16rpx;
+		padding: 24rpx;
+		margin-bottom: 16rpx;
+		border: 1rpx solid #f0eadd;
+	}
+
+	.detail-card-item.half {
+		flex: 1;
+		margin-bottom: 0;
+	}
+
+	.detail-card-row {
+		display: flex;
+		flex-direction: row;
+		gap: 16rpx;
+		margin-bottom: 16rpx;
+	}
+
+	.detail-card-title {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #c4a574;
+		display: block;
+		margin-bottom: 10rpx;
+	}
+
+	.detail-text {
+		font-size: 26rpx;
+		color: #5a3e2b;
+		line-height: 1.65;
+		display: block;
+	}
+
+	.detail-text.list-line::before {
+		content: '· ';
+		color: #c4a574;
+	}
+
+	.result-card {
+		background: #fff;
+		border-radius: 20rpx;
+		padding: 32rpx;
+		border: 1rpx solid #e8e0cc;
+		box-shadow: 0 8rpx 32rpx rgba(90, 62, 43, 0.08);
+	}
+
+	.result-title {
+		font-size: 38rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+		display: block;
+	}
+
+	.result-time {
+		font-size: 24rpx;
+		color: #8c7662;
+		margin: 8rpx 0 24rpx;
+		display: block;
+	}
+
+	.report-couple-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 24rpx;
+		margin-bottom: 28rpx;
+		padding: 24rpx;
+		background: #faf6ef;
+		border-radius: 16rpx;
+	}
+
+	.report-couple-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10rpx;
+	}
+
+	.report-couple-photo {
+		width: 120rpx;
+		height: 120rpx;
+		border-radius: 50%;
+		border: 3rpx solid #c4a574;
+	}
+
+	.report-couple-label {
+		font-size: 24rpx;
+		color: #8c7662;
+	}
+
+	.report-couple-heart {
+		font-size: 36rpx;
+		color: #c75050;
+	}
+
+	.score-card {
+		text-align: center;
+		padding: 36rpx 24rpx;
+		background: linear-gradient(135deg, #fff5f3, #fde8e4);
+		border-radius: 20rpx;
+		margin-bottom: 24rpx;
+		border: 1rpx solid #eec5be;
+	}
+
+	.score-label {
+		font-size: 28rpx;
+		color: #8c7662;
+		display: block;
+	}
+
+	.score-value {
+		font-size: 96rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+		display: block;
+		line-height: 1.15;
+	}
+
+	.score-level {
+		font-size: 32rpx;
+		color: #b75046;
+		display: block;
+		font-weight: bold;
+	}
+
+	.preview-card {
+		padding: 24rpx;
+		background: #f9f5ec;
+		border-radius: 12rpx;
+		margin-bottom: 24rpx;
+	}
+
+	.preview-tag {
+		font-size: 22rpx;
+		color: #c4a574;
+		display: block;
+		margin-bottom: 8rpx;
+	}
+
+	.preview-text {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		line-height: 1.7;
+	}
+
+	.locked-section {
+		position: relative;
+		padding: 24rpx;
+		background: #faf8f4;
+		border-radius: 12rpx;
+		overflow: hidden;
+	}
+
+	.locked-section:not(.unlocked) .detail-text {
+		filter: blur(4px);
+		user-select: none;
+	}
+
+	.detail-block {
+		margin-bottom: 20rpx;
+	}
+
+	.detail-row {
+		display: flex;
+		gap: 16rpx;
+		margin-bottom: 20rpx;
+	}
+
+	.detail-mini {
+		flex: 1;
+	}
+
+	.detail-label {
+		font-size: 24rpx;
+		color: #c4a574;
+		display: block;
+		margin-bottom: 8rpx;
+		font-weight: bold;
+	}
+
+	.detail-text {
+		font-size: 26rpx;
+		color: #5a3e2b;
+		line-height: 1.65;
+		display: block;
+	}
+
+	.lock-overlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(253, 247, 238, 0.78);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.lock-text {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		padding: 16rpx 32rpx;
+		border: 2rpx solid #c4a574;
+		border-radius: 32rpx;
+		background: #fff;
+	}
+
+	.payment-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.65);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.payment-dialog {
+		width: 640rpx;
+		max-width: 92vw;
+		max-height: 88vh;
+		padding: 48rpx 40rpx 36rpx;
+		border-radius: 12rpx;
+		background-color: #fff;
+		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		border: 4rpx solid #5a3e2b;
+		overflow-y: auto;
+	}
+
+	.payment-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 16rpx;
+		text-align: center;
+	}
+
+	.payment-price {
+		font-size: 52rpx;
+		font-weight: bold;
+		color: #2f1d13;
+		margin-bottom: 12rpx;
+	}
+
+	.payment-desc {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+		text-align: center;
+		margin-bottom: 24rpx;
+	}
+
+	.payment-topic {
+		width: 100%;
+		padding: 18rpx 20rpx;
+		border-radius: 18rpx;
+		background-color: #fbf7ef;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 22rpx;
+		box-sizing: border-box;
+	}
+
+	.payment-topic-label {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		margin-bottom: 6rpx;
+	}
+
+	.payment-topic-name {
+		display: block;
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.payment-method-tabs {
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		gap: 14rpx;
+		margin-bottom: 28rpx;
+	}
+
+	.payment-method-tab {
+		flex: 1;
+		height: 76rpx;
+		border-radius: 10rpx;
+		border: 2rpx solid #d8c8ad;
+		background-color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.payment-method-tab.active {
+		background-color: #5a3e2b;
+		border-color: #5a3e2b;
+	}
+
+	.payment-method-text {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.payment-method-tab.active .payment-method-text {
+		color: #fff;
+	}
+
+	.paypal-panel,
+	.alipay-panel {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.payment-loading {
+		width: 100%;
+		padding: 24rpx 0 32rpx;
+		display: flex;
+		justify-content: center;
+	}
+
+	.payment-loading-text {
+		font-size: 26rpx;
+		color: #8c7662;
+	}
+
+	.paypal-button-host {
+		width: 100%;
+		min-height: 120rpx;
+		margin-bottom: 24rpx;
+	}
+
+	.alipay-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 14rpx;
+		width: 100%;
+		text-align: center;
+	}
+
+	.alipay-pay-block {
+		width: 100%;
+		padding: 20rpx 22rpx;
+		border-radius: 18rpx;
+		background-color: #fbf7ef;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 16rpx;
+		box-sizing: border-box;
+	}
+
+	.alipay-pay-loading-text {
+		font-size: 26rpx;
+		color: #8c7662;
+		text-align: center;
+	}
+
+	.alipay-pay-label {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		margin-bottom: 10rpx;
+		text-align: center;
+	}
+
+	.alipay-amount-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 12rpx;
+		margin-bottom: 10rpx;
+	}
+
+	.alipay-hero-amount {
+		font-size: 44rpx;
+		font-weight: 700;
+		color: #5a3e2b;
+	}
+
+	.alipay-copy-btn {
+		height: 48rpx;
+		min-height: 48rpx;
+		padding: 0 18rpx;
+		border-radius: 24rpx;
+		background-color: #fff;
+		border: 1rpx solid #d8c8ad;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		box-sizing: border-box;
+	}
+
+	.alipay-copy-text {
+		font-size: 22rpx;
+		color: #5a3e2b;
+		font-weight: 600;
+		line-height: 1;
+	}
+
+	.alipay-pay-hint,
+	.alipay-pay-sub {
+		display: block;
+		font-size: 22rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.45;
+	}
+
+	.alipay-countdown-row {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 16rpx;
+		margin-top: 16rpx;
+		padding-top: 16rpx;
+		border-top: 1rpx solid #eadfca;
+	}
+
+	.alipay-countdown-label {
+		font-size: 24rpx;
+		color: #8c7662;
+	}
+
+	.alipay-countdown-time {
+		font-size: 36rpx;
+		font-weight: 700;
+		color: #5a3e2b;
+	}
+
+	.alipay-qr {
+		width: 400rpx;
+		max-width: 100%;
+		border-radius: 10rpx;
+		border: 1rpx solid #eadfca;
+		margin-bottom: 12rpx;
+	}
+
+	.alipay-notice {
+		font-size: 24rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.5;
+		margin-bottom: 12rpx;
+	}
+
+	.alipay-paid-btn {
+		width: 100%;
+		height: 80rpx;
+		border-radius: 40rpx;
+		background: #5a3e2b;
+		border: none;
+		margin-bottom: 12rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.payment-cancel-btn {
+		width: 100%;
+		height: 76rpx;
+		border-radius: 10rpx;
+		background-color: #fff;
+		border: 2rpx solid #d8c8ad;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: 8rpx;
+	}
+</style>

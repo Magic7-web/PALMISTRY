@@ -1,4 +1,4 @@
-import type { FaceReport } from '@/types/index';
+import type { FaceReport, FaceImprovementResult } from '@/types/index';
 
 /** 面相页会话快照，用于 Tab 切换后恢复状态 */
 export interface FaceSessionSnapshot {
@@ -7,6 +7,8 @@ export interface FaceSessionSnapshot {
 	imageScale: number;
 	imageOffsetX: number;
 	imageOffsetY: number;
+	improvementData: FaceImprovementResult | null;
+	improvementUnlocked: boolean;
 }
 
 const FACE_SESSION_KEY = 'face_reading_session_snapshot';

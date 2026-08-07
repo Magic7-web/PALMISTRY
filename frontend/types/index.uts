@@ -333,6 +333,74 @@ export interface FaceAnalysisResult {
 }
 
 /**
+ * 情侣合婚分析结果
+ */
+export interface FaceMatchResult {
+	isInvalid?: boolean;
+	errorMsg?: string;
+	errorMsgEn?: string;
+	compatibilityScore: number;
+	compatibilityLevel: string;
+	compatibilityLevelEn?: string;
+	previewSummary: string;
+	previewSummaryEn?: string;
+	complementarity: string;
+	complementarityEn?: string;
+	domesticLeader: string;
+	domesticLeaderEn?: string;
+	careerLeader: string;
+	careerLeaderEn?: string;
+	shortTermTrend: string;
+	shortTermTrendEn?: string;
+	midTermTrend: string;
+	midTermTrendEn?: string;
+	conflictPoints: string[];
+	conflictPointsEn?: string[];
+	advice: string[];
+	adviceEn?: string[];
+	shareTeaser: string;
+	shareTeaserEn?: string;
+	disclaimer: string;
+	disclaimerEn?: string;
+}
+
+/**
+ * 形象开运深度方案（二次 AI）
+ */
+export interface FaceImprovementResult {
+	hairstyle: string;
+	hairstyleEn?: string;
+	eyebrow: string;
+	eyebrowEn?: string;
+	accessories: string;
+	accessoriesEn?: string;
+	makeupAndColor: string;
+	makeupAndColorEn?: string;
+	deskDirection: string;
+	deskDirectionEn?: string;
+	bedroomDirection: string;
+	bedroomDirectionEn?: string;
+	avoidItems: string[];
+	avoidItemsEn?: string[];
+	premiumSummary: string;
+	premiumSummaryEn?: string;
+	disclaimer: string;
+	disclaimerEn?: string;
+}
+
+/**
+ * 合婚报告
+ */
+export interface FaceMatchReport {
+	id: string;
+	matchId: string;
+	analyzeTime: string;
+	personAImage: string;
+	personBImage: string;
+	fullData: FaceMatchResult;
+}
+
+/**
  * 面相分析报告
  */
 export interface FaceReport {

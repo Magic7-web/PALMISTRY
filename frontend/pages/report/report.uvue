@@ -242,10 +242,13 @@
 			</view>
 		</view>
 		</view>
+
+		<app-tab-bar current="palm"></app-tab-bar>
 	</view>
 </template>
 
 <script lang="uts">
+	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
 	import type { PalmistryReport, ReportResult, DimensionDetail, PalmistryAnalysisResult } from '@/types/index';
 	import { analyzePalmistry, type DetectedLine } from '@/utils/qwenApi';
 	import {
@@ -273,6 +276,9 @@
 
 	export default {
 		name: 'ReportPage',
+		components: {
+			AppTabBar
+		},
 		data(): ReportPageData {
 			return {
 				locale: getAppLocale(),
@@ -849,6 +855,8 @@
 		flex-direction: column;
 		width: 100%;
 		min-height: 100vh;
+		padding-bottom: 130rpx;
+		box-sizing: border-box;
 		background-color: #fdf7ee;
 		background-image: 
 			radial-gradient(#f4ebd0 1px, transparent 0),

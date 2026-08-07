@@ -3,7 +3,7 @@
  */
 
 import { QWEN_CONFIG } from './config';
-import type { PalmistryAnalysisResult, FollowUpReadingResult, FaceAnalysisResult } from '@/types/index';
+import type { PalmistryAnalysisResult, FollowUpReadingResult, FaceAnalysisResult, FaceMatchResult, FaceImprovementResult } from '@/types/index';
 import type { AppLocale } from '@/utils/locale';
 import { isApiReadyImage } from '@/utils/imageHelper';
 
@@ -129,6 +129,21 @@ interface FaceAnalyzeRequest {
 	gender?: 'male' | 'female';
 	locale?: AppLocale;
 	analysis_type?: 'face';
+}
+
+interface FaceMatchAnalyzeRequest {
+	personAImage?: string | null;
+	personBImage: string;
+	/** 从面相报告带入时，A 方用已有报告 JSON，仅需上传 B 方照片 */
+	personAReportJson?: string | null;
+	locale?: AppLocale;
+	analysis_type?: 'face_match' | 'face_match_report';
+}
+
+interface FaceImprovementAnalyzeRequest {
+	reportJson: string;
+	locale?: AppLocale;
+	analysis_type?: 'face_improvement';
 }
 
 /**
@@ -1195,4 +1210,412 @@ function parseFaceResponse(content: string | any): FaceAnalysisResult {
 		console.error('原始 content:', content);
 		return createFailedFaceResult('识别失败，请重试或检查图片质量', 'Analysis failed, please retry');
 	}
+}
+
+function buildFaceMatchPrompt(locale: AppLocale): string {
+	const localeHint =
+		locale === 'en'
+			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
+			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
+
+	const invalidStub = `{
+  "isInvalid": true,
+  "errorMsg": "【合婚警示】照片不清晰或非正脸，请双方各上传一张清晰正面照。",
+  "errorMsgEn": "Please upload clear front-facing photos for both people.",
+  "compatibilityScore": 0,
+  "compatibilityLevel": "-",
+  "compatibilityLevelEn": "-",
+  "previewSummary": "-",
+  "previewSummaryEn": "-",
+  "complementarity": "-",
+  "complementarityEn": "-",
+  "domesticLeader": "-",
+  "domesticLeaderEn": "-",
+  "careerLeader": "-",
+  "careerLeaderEn": "-",
+  "shortTermTrend": "-",
+  "shortTermTrendEn": "-",
+  "midTermTrend": "-",
+  "midTermTrendEn": "-",
+  "conflictPoints": [],
+  "conflictPointsEn": [],
+  "advice": [],
+  "adviceEn": [],
+  "shareTeaser": "-",
+  "shareTeaserEn": "-",
+  "disclaimer": "-",
+  "disclaimerEn": "-"
+}`;
+
+	return `🪬 你是一位精通面相合婚的传统命理师，正在根据【两张正面人脸照片】分析情侣/夫妻合婚指数。
+
+【语言与输出】${localeHint}
+【任务类型】analysis_type: face_match（面相合婚，NOT 手相）
+
+⚠️ 第一步：校验两张图是否均为清晰正面人脸。若任一不合格，仅返回：${invalidStub}
+
+🔍 第二步：基于传统面相学（夫妻宫、五官互补、三停均衡、气色相合等）输出 JSON：
+
+- compatibilityScore：0-100 整数合婚指数
+- compatibilityLevel / compatibilityLevelEn：如「天作之合」「相辅相成」「需磨合」等
+- previewSummary：60-90字免费预览摘要（可分享）
+- complementarity：120-180字，五官与气质互补分析
+- domesticLeader / careerLeader：谁更适合主内/主外（中文名或「均衡」）
+- shortTermTrend / midTermTrend：短期3个月与中期1-3年相处趋势
+- conflictPoints：3-5条潜在摩擦点（数组）
+- advice：3-5条相处建议（数组）
+- shareTeaser：30-50字朋友圈分享文案
+- disclaimer：民俗文化娱乐参考免责声明
+
+禁止医疗/法律/投资保证；禁止手相内容。只返回纯 JSON，无 markdown。`;
+}
+
+function buildFaceMatchWithReportPrompt(locale: AppLocale, reportJson: string): string {
+	const localeHint =
+		locale === 'en'
+			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
+			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
+
+	const invalidStub = `{
+  "isInvalid": true,
+  "errorMsg": "【合婚警示】对方照片不清晰或非正脸，请上传清晰正面照。",
+  "errorMsgEn": "Please upload a clear front-facing photo of your partner.",
+  "compatibilityScore": 0,
+  "compatibilityLevel": "-",
+  "compatibilityLevelEn": "-",
+  "previewSummary": "-",
+  "previewSummaryEn": "-",
+  "complementarity": "-",
+  "complementarityEn": "-",
+  "domesticLeader": "-",
+  "domesticLeaderEn": "-",
+  "careerLeader": "-",
+  "careerLeaderEn": "-",
+  "shortTermTrend": "-",
+  "shortTermTrendEn": "-",
+  "midTermTrend": "-",
+  "midTermTrendEn": "-",
+  "conflictPoints": [],
+  "conflictPointsEn": [],
+  "advice": [],
+  "adviceEn": [],
+  "shareTeaser": "-",
+  "shareTeaserEn": "-",
+  "disclaimer": "-",
+  "disclaimerEn": "-"
+}`;
+
+	return `🪬 你是一位精通面相合婚的传统命理师。
+
+【语言与输出】${localeHint}
+【任务类型】analysis_type: face_match_report（基于已有面相报告 + 对方照片合婚）
+
+【A 方（用户本人）已有完整面相报告 JSON】
+${reportJson}
+
+【B 方】请根据随附的【一张正面人脸照片】识别其面相特征，并与 A 方报告中的脸型、五官、宫位、婚恋运等结论进行合婚推演。
+
+⚠️ 第一步：校验 B 方照片是否为清晰正面人脸。若不合格，仅返回：${invalidStub}
+
+🔍 第二步：结合 A 方报告 + B 方照片面相，输出合婚 JSON（字段与双图合婚一致）：
+
+- compatibilityScore：0-100 整数
+- compatibilityLevel / compatibilityLevelEn
+- previewSummary：60-90字免费预览
+- complementarity：120-180字，A/B 互补分析（须引用 A 方报告要点与 B 方可见特征）
+- domesticLeader / careerLeader
+- shortTermTrend / midTermTrend
+- conflictPoints / advice：各 3-5 条数组
+- shareTeaser / disclaimer
+
+禁止手相内容；禁止医疗/法律/投资保证。只返回纯 JSON，无 markdown。`;
+}
+
+function buildFaceImprovementPrompt(locale: AppLocale, reportJson: string): string {
+	const localeHint =
+		locale === 'en'
+			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
+			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
+
+	return `🪬 你是一位面相开运顾问。用户已完成首次面相分析，现需要【形象开运深度方案】（第二次解读）。
+
+【语言与输出】${localeHint}
+【任务类型】analysis_type: face_improvement
+
+【用户已有面相报告 JSON】
+${reportJson}
+
+请基于上述报告中的脸型、五官、宫位与运势结论，输出可执行的「形象开运」方案 JSON（勿重复首报原文，要给出增量、具体、可落地建议）：
+
+{
+  "hairstyle": "发型建议，60-100字",
+  "hairstyleEn": "...",
+  "eyebrow": "眉形/修眉建议",
+  "eyebrowEn": "...",
+  "accessories": "眼镜/饰品/穿搭建议",
+  "accessoriesEn": "...",
+  "makeupAndColor": "妆容与幸运色",
+  "makeupAndColorEn": "...",
+  "deskDirection": "办公/学习方位",
+  "deskDirectionEn": "...",
+  "bedroomDirection": "睡眠/卧室布局",
+  "bedroomDirectionEn": "...",
+  "avoidItems": ["忌用色或形象雷区1", "..."],
+  "avoidItemsEn": ["...", "..."],
+  "premiumSummary": "80-120字免费预览摘要，概括最核心3条开运要点",
+  "premiumSummaryEn": "...",
+  "disclaimer": "民俗文化参考，非科学/medical保证",
+  "disclaimerEn": "..."
+}
+
+只返回纯 JSON，无 markdown。`;
+}
+
+function createFailedFaceMatchResult(message: string, messageEn: string): FaceMatchResult {
+	return {
+		isInvalid: true,
+		errorMsg: message,
+		errorMsgEn: messageEn,
+		compatibilityScore: 0,
+		compatibilityLevel: '-',
+		compatibilityLevelEn: '-',
+		previewSummary: message,
+		previewSummaryEn: messageEn,
+		complementarity: message,
+		complementarityEn: messageEn,
+		domesticLeader: '-',
+		domesticLeaderEn: '-',
+		careerLeader: '-',
+		careerLeaderEn: '-',
+		shortTermTrend: message,
+		shortTermTrendEn: messageEn,
+		midTermTrend: message,
+		midTermTrendEn: messageEn,
+		conflictPoints: [message],
+		conflictPointsEn: [messageEn],
+		advice: [message],
+		adviceEn: [messageEn],
+		shareTeaser: message,
+		shareTeaserEn: messageEn,
+		disclaimer: message,
+		disclaimerEn: messageEn
+	};
+}
+
+function createFailedFaceImprovementResult(message: string, messageEn: string): FaceImprovementResult {
+	return {
+		hairstyle: message,
+		hairstyleEn: messageEn,
+		eyebrow: message,
+		eyebrowEn: messageEn,
+		accessories: message,
+		accessoriesEn: messageEn,
+		makeupAndColor: message,
+		makeupAndColorEn: messageEn,
+		deskDirection: message,
+		deskDirectionEn: messageEn,
+		bedroomDirection: message,
+		bedroomDirectionEn: messageEn,
+		avoidItems: [message],
+		avoidItemsEn: [messageEn],
+		premiumSummary: message,
+		premiumSummaryEn: messageEn,
+		disclaimer: message,
+		disclaimerEn: messageEn
+	};
+}
+
+function parseFaceMatchResponse(content: string | any): FaceMatchResult {
+	try {
+		let jsonString = normalizeQwenMessageContent(content);
+		jsonString = jsonString.trim();
+		jsonString = jsonString.replace(/```json\s*/g, '');
+		jsonString = jsonString.replace(/```\s*/g, '');
+		jsonString = jsonString.trim();
+		const startIndex = jsonString.indexOf('{');
+		const endIndex = jsonString.lastIndexOf('}');
+		if (startIndex >= 0 && endIndex > startIndex) {
+			jsonString = jsonString.substring(startIndex, endIndex + 1);
+		}
+		const result = JSON.parse(jsonString) as FaceMatchResult;
+		if (result.compatibilityScore == null || result.previewSummary == null) {
+			throw new Error('返回结果格式不正确');
+		}
+		if (result.conflictPoints == null) {
+			result.conflictPoints = [];
+		}
+		if (result.advice == null) {
+			result.advice = [];
+		}
+		return result;
+	} catch (error) {
+		console.error('合婚 JSON 解析失败:', error);
+		return createFailedFaceMatchResult('合婚分析失败，请重试', 'Match analysis failed, please retry');
+	}
+}
+
+function parseFaceImprovementResponse(content: string | any): FaceImprovementResult {
+	try {
+		let jsonString = normalizeQwenMessageContent(content);
+		jsonString = jsonString.trim();
+		jsonString = jsonString.replace(/```json\s*/g, '');
+		jsonString = jsonString.replace(/```\s*/g, '');
+		jsonString = jsonString.trim();
+		const startIndex = jsonString.indexOf('{');
+		const endIndex = jsonString.lastIndexOf('}');
+		if (startIndex >= 0 && endIndex > startIndex) {
+			jsonString = jsonString.substring(startIndex, endIndex + 1);
+		}
+		const result = JSON.parse(jsonString) as FaceImprovementResult;
+		if (result.premiumSummary == null || result.hairstyle == null) {
+			throw new Error('返回结果格式不正确');
+		}
+		if (result.avoidItems == null) {
+			result.avoidItems = [];
+		}
+		return result;
+	} catch (error) {
+		console.error('开运 JSON 解析失败:', error);
+		return createFailedFaceImprovementResult('开运方案生成失败，请重试', 'Improvement plan failed, please retry');
+	}
+}
+
+async function callQwenTextOrVision<T>(
+	apiRequest: UTSJSONObject,
+	parseFn: (content: string | any) => T
+): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		uni.request({
+			url: QWEN_CONFIG.endpoint,
+			method: 'POST',
+			header: buildQwenRequestHeaders(),
+			data: apiRequest,
+			timeout: QWEN_CONFIG.timeout,
+			success: (res: any) => {
+				if (res.statusCode !== 200) {
+					reject(new Error(`API调用失败: HTTP ${res.statusCode}, ${extractProxyErrorMessage(res)}`));
+					return;
+				}
+				if (res.data != null && res.data.success === false) {
+					reject(new Error(extractProxyErrorMessage(res)));
+					return;
+				}
+				if (!res.data) {
+					reject(new Error('API返回数据为空'));
+					return;
+				}
+				let responseData = res.data;
+				if (typeof res.data === 'string') {
+					try {
+						responseData = JSON.parse(res.data);
+					} catch (error) {
+						reject(new Error('API返回数据格式错误'));
+						return;
+					}
+				}
+				const qwenResponse = responseData as QwenResponse;
+				if (
+					!qwenResponse ||
+					!qwenResponse.output ||
+					!qwenResponse.output.choices ||
+					qwenResponse.output.choices.length === 0
+				) {
+					reject(new Error('API返回数据格式错误：缺少output.choices'));
+					return;
+				}
+				const content = qwenResponse.output.choices[0].message.content;
+				try {
+					resolve(parseFn(content));
+				} catch (error: any) {
+					reject(new Error(`解析返回结果失败: ${error.message || 'JSON格式错误'}`));
+				}
+			},
+			fail: (error: any) => {
+				reject(new Error(`API调用失败: ${error.errMsg || '网络错误'}`));
+			}
+		});
+	});
+}
+
+/**
+ * 情侣合婚（双图，或报告+单图）
+ */
+export async function analyzeFaceMatch(request: FaceMatchAnalyzeRequest): Promise<FaceMatchResult> {
+	const locale: AppLocale = request.locale != null ? request.locale : 'zh';
+	const hasReport = request.personAReportJson != null && request.personAReportJson.length > 0;
+
+	if (hasReport) {
+		const prompt = buildFaceMatchWithReportPrompt(locale, request.personAReportJson!);
+		const apiRequest: UTSJSONObject = {
+			model: QWEN_CONFIG.model,
+			analysis_type: request.analysis_type != null ? request.analysis_type : 'face_match_report',
+			input: {
+				messages: [
+					{
+						role: 'user',
+						content: [
+							{ type: 'text', text: prompt },
+							{ type: 'image', image: request.personBImage }
+						]
+					}
+				]
+			},
+			parameters: {
+				temperature: 0.15,
+				max_tokens: 8000,
+				top_p: 0.85
+			}
+		};
+		return callQwenTextOrVision(apiRequest, parseFaceMatchResponse);
+	}
+
+	const prompt = buildFaceMatchPrompt(locale);
+	const apiRequest: UTSJSONObject = {
+		model: QWEN_CONFIG.model,
+		analysis_type: request.analysis_type != null ? request.analysis_type : 'face_match',
+		input: {
+			messages: [
+				{
+					role: 'user',
+					content: [
+						{ type: 'text', text: prompt },
+						{ type: 'image', image: request.personAImage != null ? request.personAImage : '' },
+						{ type: 'image', image: request.personBImage }
+					]
+				}
+			]
+		},
+		parameters: {
+			temperature: 0.15,
+			max_tokens: 8000,
+			top_p: 0.85
+		}
+	};
+	return callQwenTextOrVision(apiRequest, parseFaceMatchResponse);
+}
+
+/**
+ * 形象开运深度方案（基于已有报告 JSON，纯文本二次请求）
+ */
+export async function analyzeFaceImprovement(request: FaceImprovementAnalyzeRequest): Promise<FaceImprovementResult> {
+	const locale: AppLocale = request.locale != null ? request.locale : 'zh';
+	const prompt = buildFaceImprovementPrompt(locale, request.reportJson);
+	const apiRequest: UTSJSONObject = {
+		model: QWEN_CONFIG.model,
+		analysis_type: request.analysis_type != null ? request.analysis_type : 'face_improvement',
+		input: {
+			messages: [
+				{
+					role: 'user',
+					content: [{ type: 'text', text: prompt }]
+				}
+			]
+		},
+		parameters: {
+			temperature: 0.2,
+			max_tokens: 6000,
+			top_p: 0.85
+		}
+	};
+	return callQwenTextOrVision(apiRequest, parseFaceImprovementResponse);
 }
