@@ -2,6 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import fetch from 'node-fetch';
 import { registerPaymentRoutes } from './paymentRoutes.js';
 
 dotenv.config();
@@ -21,7 +22,7 @@ const app = express();
 
 app.use(
   express.json({
-    limit: '10mb'
+    limit: '25mb'
   })
 );
 

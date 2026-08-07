@@ -45,7 +45,7 @@ export async function resolveImageForApi(
 			return path;
 		}
 		try {
-			const converted = await convertImageToBase64(path);
+			const converted = await convertImageToBase64ForApi(path);
 			if (isApiReadyImage(converted)) {
 				return converted;
 			}
@@ -55,6 +55,97 @@ export async function resolveImageForApi(
 	}
 
 	throw new Error('无法获取有效图片，请重新拍照后再试');
+}
+
+/**
+ * API 请求允许的 base64 字符串最大长度（约 3MB 图片）
+ */
+const API_IMAGE_MAX_LENGTH = 3 * 1024 * 1024;
+
+/**
+ * H5 端用 canvas 压缩过大的 data URL
+ */
+function compressDataUrlOnH5(dataUrl: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		// #ifdef H5
+		const img = new Image();
+		img.onload = () => {
+			try {
+				const canvas = document.createElement('canvas');
+				let width = img.width;
+				let height = img.height;
+				const maxDim = 1280;
+				if (width > maxDim || height > maxDim) {
+					if (width >= height) {
+						height = Math.round((height * maxDim) / width);
+						width = maxDim;
+					} else {
+						width = Math.round((width * maxDim) / height);
+						height = maxDim;
+					}
+				}
+				canvas.width = width;
+				canvas.height = height;
+				const ctx = canvas.getContext('2d');
+				if (ctx == null) {
+					resolve(dataUrl);
+					return;
+				}
+				ctx.drawImage(img, 0, 0, width, height);
+				let quality = 0.82;
+				let result = canvas.toDataURL('image/jpeg', quality);
+				while (result.length > API_IMAGE_MAX_LENGTH && quality > 0.45) {
+					quality -= 0.08;
+					result = canvas.toDataURL('image/jpeg', quality);
+				}
+				console.log(
+					'图片压缩完成，原长度:',
+					dataUrl.length,
+					'压缩后:',
+					result.length,
+					'quality:',
+					quality
+				);
+				resolve(result);
+			} catch (error) {
+				console.warn('图片压缩失败，使用原图', error);
+				resolve(dataUrl);
+			}
+		};
+		img.onerror = () => {
+			reject(new Error('图片压缩加载失败'));
+		};
+		img.src = dataUrl;
+		// #endif
+		// #ifndef H5
+		resolve(dataUrl);
+		// #endif
+	});
+}
+
+/**
+ * 若 base64 过大则压缩，避免 POST 413
+ */
+export function compressImageForApi(dataUrl: string): Promise<string> {
+	if (!dataUrl.startsWith('data:image/')) {
+		return Promise.resolve(dataUrl);
+	}
+	if (dataUrl.length <= API_IMAGE_MAX_LENGTH) {
+		return Promise.resolve(dataUrl);
+	}
+	console.log('图片过大，开始压缩，当前长度:', dataUrl.length);
+	return compressDataUrlOnH5(dataUrl);
+}
+
+/**
+ * 转为 base64 并压缩，供 API 调用使用
+ */
+export async function convertImageToBase64ForApi(imagePath: string): Promise<string> {
+	const raw = await convertImageToBase64(imagePath);
+	if (raw.startsWith('data:image/')) {
+		return await compressImageForApi(raw);
+	}
+	return raw;
 }
 
 /**

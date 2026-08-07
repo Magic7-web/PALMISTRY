@@ -638,10 +638,13 @@
 				</button>
 			</view>
 		</view>
+
+		<app-tab-bar current="palm"></app-tab-bar>
 </view>
 </template>
 
 <script lang="uts">
+	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
 	import type {
 		PalmistryReport,
 		ReportResult,
@@ -654,7 +657,7 @@
 	} from '@/types/index';
 	import { analyzePalmistry, analyzeFollowUpReading } from '@/utils/qwenApi';
 	import {
-		convertImageToBase64,
+		convertImageToBase64ForApi,
 		resolveImageForApi,
 		isApiReadyImage,
 		isEphemeralImagePath
@@ -741,6 +744,9 @@
 
 	export default {
 		name: 'CameraPage',
+		components: {
+			AppTabBar
+		},
 		data(): CameraPageData {
 			return {
 				locale: getAppLocale(),
@@ -2152,7 +2158,7 @@
 
 				try {
 					console.log('开始转换图片为base64...');
-					const imageBase64 = await convertImageToBase64(this.capturedImage);
+					const imageBase64 = await convertImageToBase64ForApi(this.capturedImage);
 					// 持久化 base64，避免刷新后 blob URL 失效导致追问接口 400
 					this.capturedImage = imageBase64;
 
@@ -2563,6 +2569,8 @@
 		align-items: center;
 		position: relative;
 		min-height: 100vh;
+		padding-bottom: 130rpx;
+		box-sizing: border-box;
 		box-shadow: 0 0 80rpx rgba(90, 62, 43, 0.15);
 		background-color: #fdf7ee;
 		/* 侧边装饰线，模拟卷轴 */

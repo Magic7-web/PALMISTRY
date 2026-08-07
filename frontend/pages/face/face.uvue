@@ -1,0 +1,2321 @@
+<template>
+	<view class="face-container">
+		<view class="bg-decoration">
+			<view class="bg-bagua"></view>
+		</view>
+
+		<view class="face-content-wrapper">
+			<!-- 拍照入口 -->
+			<template v-if="reportData == null && !isAnalyzing && capturedImage == null">
+				<view class="face-header">
+					<view class="header-main">
+						<text class="header-title">{{ ui.headerTitle }}</text>
+						<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
+					</view>
+					<view class="header-deco"></view>
+					<text class="header-subtitle">{{ ui.headerSubtitle }}</text>
+				</view>
+
+				<view class="face-content capture-mode">
+					<view class="guide-area">
+						<text class="guide-heading">{{ ui.guideText }}</text>
+						<view class="guide-box">
+							<view class="face-outline">
+								<view class="face-outline-inner"></view>
+								<view class="face-outline-cross-h"></view>
+								<view class="face-outline-cross-v"></view>
+							</view>
+						</view>
+						<view class="guide-tips">
+							<text class="guide-tip-item">{{ ui.guideTip1 }}</text>
+							<text class="guide-tip-item">{{ ui.guideTip2 }}</text>
+							<text class="guide-tip-item">{{ ui.guideTip3 }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="face-footer">
+					<button class="face-btn btn-primary" @click="handleTakePhoto">
+						<text class="btn-text">{{ ui.footerPhoto }}</text>
+					</button>
+					<button class="face-btn btn-secondary" @click="handleChooseFromAlbum">
+						<text class="btn-text">{{ ui.footerAlbum }}</text>
+					</button>
+				</view>
+			</template>
+
+			<!-- 照片预览 -->
+			<template v-else-if="reportData == null && !isAnalyzing && capturedImage != null">
+				<view class="face-header">
+					<view class="header-main">
+						<text class="header-title">{{ ui.headerTitle }}</text>
+						<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
+					</view>
+					<view class="header-deco"></view>
+					<text class="header-subtitle">{{ ui.previewTitle }}</text>
+				</view>
+
+				<view class="face-content preview-mode">
+					<view class="preview-area">
+						<text class="preview-hint">{{ ui.previewHint }}</text>
+						<text class="preview-adjust-hint">{{ ui.previewAdjustHint }}</text>
+						<view class="preview-frame-wrap">
+							<view
+								class="preview-container"
+								@touchstart.prevent="handleTouchStart"
+								@touchmove.prevent="handleTouchMove"
+								@touchend.prevent="handleTouchEnd"
+								@mousedown="handleMouseDown"
+								@mousemove="handleMouseMove"
+								@mouseup="handleMouseUp"
+								@mouseleave="handleMouseUp"
+							>
+								<view
+									class="image-wrapper"
+									:style="{
+										transform: `translate(${imageOffsetX}rpx, ${imageOffsetY}rpx) scale(${imageScale})`,
+										transition: isMoving || isScaling ? 'none' : 'transform 0.1s ease-out'
+									}"
+								>
+									<image class="preview-image" :src="capturedImage" mode="aspectFit"></image>
+								</view>
+								<view class="preview-vignette"></view>
+								<view class="preview-face-overlay">
+									<view class="preview-face-border"></view>
+									<view class="preview-corner preview-corner-tl"></view>
+									<view class="preview-corner preview-corner-tr"></view>
+									<view class="preview-corner preview-corner-bl"></view>
+									<view class="preview-corner preview-corner-br"></view>
+								</view>
+								<view class="scale-controls" @touchstart.stop @mousedown.stop>
+									<button class="scale-btn" @click.stop="zoomIn">
+										<text class="scale-icon">+</text>
+									</button>
+									<button class="scale-btn" @click.stop="zoomOut">
+										<text class="scale-icon">−</text>
+									</button>
+									<button class="scale-btn reset-btn" @click.stop="resetTransform">
+										<text class="scale-icon">↺</text>
+									</button>
+								</view>
+							</view>
+						</view>
+						<view class="preview-tips">
+							<text class="guide-tip-item">{{ ui.guideTip1 }}</text>
+							<text class="guide-tip-item">{{ ui.guideTip2 }}</text>
+							<text class="guide-tip-item">{{ ui.guideTip3 }}</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="face-footer">
+					<button class="face-btn btn-primary" @click="handleConfirm">
+						<text class="btn-text">{{ ui.previewConfirm }}</text>
+					</button>
+					<button class="face-btn btn-secondary" @click="handleCancel">
+						<text class="btn-text">{{ ui.previewRetake }}</text>
+					</button>
+				</view>
+			</template>
+
+			<!-- 分析中 -->
+			<template v-else-if="reportData == null && isAnalyzing">
+				<view class="face-header analyzing-header">
+					<view class="header-main">
+						<text class="header-title">{{ ui.headerTitle }}</text>
+						<image class="header-stamp" src="/static/favicon.png" mode="aspectFit"></image>
+					</view>
+					<view class="header-deco"></view>
+				</view>
+
+				<view class="face-content analyzing-mode">
+					<view class="analyzing-area">
+						<view class="scan-frame-wrap">
+							<view class="scan-animation-container portrait">
+								<image
+									v-if="capturedImage != null"
+									class="scan-preview-image"
+									:src="capturedImage"
+									mode="aspectFit"
+								></image>
+								<view class="preview-vignette"></view>
+								<view class="scan-glow"></view>
+								<view class="scan-line"></view>
+								<view class="preview-face-overlay">
+									<view class="preview-face-border scan-pulse"></view>
+								</view>
+							</view>
+						</view>
+
+						<view class="analyze-status-card">
+							<text class="analyze-status-title">{{ ui.analyzingMain }}</text>
+							<view class="analyze-progress-head">
+								<text class="analyze-progress-value">{{ analyzeProgress }}%</text>
+								<view class="analyze-progress-track">
+									<view class="analyze-progress-fill" :style="{ width: analyzeProgress + '%' }"></view>
+								</view>
+							</view>
+							<view class="analyze-steps">
+								<view
+									class="analyze-step"
+									v-for="(step, index) in analyzeStepItems"
+									:key="step.key"
+									:class="{ active: analyzeStep > index, current: analyzeStep === index }"
+								>
+									<view class="analyze-step-dot"></view>
+									<text class="analyze-step-label">{{ step.label }}</text>
+								</view>
+							</view>
+							<text class="analyzing-status">{{ analyzingStatus }}</text>
+							<text class="analyzing-patience-hint">{{ ui.analyzingPatienceHint }}</text>
+						</view>
+
+						<view class="scan-dimension-panel">
+							<view class="scan-dimension-header">
+								<text class="scan-dimension-title">{{ ui.analyzeDimensionTitle }}</text>
+								<text class="scan-dimension-current">{{ dynamicScanText }}</text>
+							</view>
+							<view class="scan-dimension-grid">
+								<view
+									class="scan-dimension-item"
+									v-for="(item, index) in scanTermList"
+									:key="index"
+									:class="item.status"
+								>
+									<view class="scan-dimension-mark">
+										<text v-if="item.status === 'done'" class="mark-done">✓</text>
+										<view v-else-if="item.status === 'active'" class="mark-spinner"></view>
+										<text v-else class="mark-pending">·</text>
+									</view>
+									<text class="scan-dimension-label">{{ item.term }}</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+			</template>
+
+			<!-- 报告 -->
+			<view class="face-content report-mode" v-else-if="reportData != null">
+				<view class="result-area">
+					<scroll-view class="result-scroll" scroll-y="true">
+						<view class="result-card">
+							<view class="result-header">
+								<view class="result-header-top-row">
+									<view class="result-header-text-block">
+										<text class="result-title">{{ ui.resultTitle }}</text>
+										<text class="result-time">{{ reportData.analyzeTime }}</text>
+									</view>
+									<view class="result-lang-inline">
+										<button class="result-lang-btn" :class="{ active: locale === 'zh' }" @click="setLocale('zh')">中文</button>
+										<button class="result-lang-btn" :class="{ active: locale === 'en' }" @click="setLocale('en')">EN</button>
+									</view>
+								</view>
+							</view>
+
+							<view class="face-visual-section">
+								<image class="face-photo" :src="reportData.imagePath" mode="aspectFit"></image>
+							</view>
+
+							<view v-if="reportData.fullData">
+								<!-- 模块一：基础档案 -->
+								<view class="summary-section">
+									<view class="section-header">
+										<text class="section-title">{{ ui.chapterArchive }}</text>
+									</view>
+									<view class="archive-card">
+										<view class="archive-row">
+											<text class="archive-label">{{ ui.labelConfidence }}</text>
+											<text class="archive-value">{{ reportData.fullData.archive.confidence }}%</text>
+										</view>
+										<view class="archive-row">
+											<text class="archive-label">{{ ui.labelFaceElement }}</text>
+											<text class="archive-value">{{ pickTxt(reportData.fullData.archive.faceElement, reportData.fullData.archive.faceElementEn) }}</text>
+										</view>
+										<view class="archive-row">
+											<text class="archive-label">{{ ui.labelSpiritScore }}</text>
+											<text class="archive-value">{{ reportData.fullData.archive.spiritScore }} {{ ui.scoreUnit }}</text>
+										</view>
+										<view class="archive-block">
+											<text class="archive-label">{{ ui.labelComplexion }}</text>
+											<text class="archive-text">{{ pickTxt(reportData.fullData.archive.complexionOverview, reportData.fullData.archive.complexionOverviewEn) }}</text>
+										</view>
+										<view class="archive-block muted">
+											<text class="archive-text small">{{ pickTxt(reportData.fullData.archive.classics, reportData.fullData.archive.classicsEn) }}</text>
+											<text class="archive-text small">{{ pickTxt(reportData.fullData.archive.disclaimer, reportData.fullData.archive.disclaimerEn) }}</text>
+										</view>
+									</view>
+								</view>
+
+								<!-- 模块二：三停流年 -->
+								<view class="features-section">
+									<view class="section-header">
+										<text class="section-title">{{ ui.chapterThreeSections }}</text>
+									</view>
+									<view class="three-section-card" v-for="item in threeSectionItems" :key="item.key">
+										<view class="three-section-head">
+											<text class="three-section-name">{{ pickTxt(item.section.name, item.section.nameEn) }}</text>
+											<text class="three-section-age">{{ pickTxt(item.section.ageRange, item.section.ageRangeEn) }}</text>
+											<text class="three-section-score">{{ item.section.score }}{{ ui.scoreUnit }}</text>
+										</view>
+										<text class="three-section-summary">{{ pickTxt(item.section.summary, item.section.summaryEn) }}</text>
+										<text class="three-section-details">{{ pickTxt(item.section.details, item.section.detailsEn) }}</text>
+									</view>
+									<view class="balance-card">
+										<text class="balance-label">{{ ui.labelBalance }}：{{ reportData.fullData.threeSections.balanceScore }}{{ ui.scoreUnit }}</text>
+										<text class="balance-text">{{ pickTxt(reportData.fullData.threeSections.imbalanceNote, reportData.fullData.threeSections.imbalanceNoteEn) }}</text>
+									</view>
+								</view>
+
+								<!-- 模块三：五官深度 -->
+								<view class="dimensions-section">
+									<view class="section-header">
+										<text class="section-title">{{ ui.chapterFiveOfficials }}</text>
+									</view>
+									<view class="official-card" v-for="(official, index) in reportData.fullData.fiveOfficials" :key="index">
+										<text class="official-name">{{ pickTxt(official.name, official.nameEn) }}</text>
+										<view class="official-row">
+											<text class="official-label">{{ ui.labelAppearance }}</text>
+											<text class="official-text">{{ pickTxt(official.appearance, official.appearanceEn) }}</text>
+										</view>
+										<view class="official-row">
+											<text class="official-label">{{ ui.labelCharacter }}</text>
+											<text class="official-text">{{ pickTxt(official.character, official.characterEn) }}</text>
+										</view>
+										<view class="official-row">
+											<text class="official-label">{{ ui.labelInfluence }}</text>
+											<text class="official-text">{{ pickTxt(official.influence, official.influenceEn) }}</text>
+										</view>
+									</view>
+								</view>
+
+								<!-- 模块四：十二宫重点 -->
+								<view class="features-section">
+									<view class="section-header">
+										<text class="section-title">{{ ui.chapterKeyPalaces }}</text>
+									</view>
+									<view class="palace-card" v-for="(palace, index) in reportData.fullData.keyPalaces" :key="index">
+										<view class="palace-head">
+											<text class="palace-name">{{ pickTxt(palace.name, palace.nameEn) }}</text>
+											<text class="palace-fortune">{{ pickTxt(palace.fortuneLevel, palace.fortuneLevelEn) }}</text>
+										</view>
+										<view class="palace-row">
+											<text class="palace-label">{{ ui.labelLocation }}</text>
+											<text class="palace-text">{{ pickTxt(palace.location, palace.locationEn) }}</text>
+										</view>
+										<view class="palace-row">
+											<text class="palace-label">{{ ui.labelFeature }}</text>
+											<text class="palace-text">{{ pickTxt(palace.feature, palace.featureEn) }}</text>
+										</view>
+										<view class="palace-row">
+											<text class="palace-label">{{ ui.labelTrend }}</text>
+											<text class="palace-text">{{ pickTxt(palace.trend, palace.trendEn) }}</text>
+										</view>
+										<view class="palace-row">
+											<text class="palace-label">{{ ui.labelAdvice }}</text>
+											<text class="palace-text">{{ pickTxt(palace.advice, palace.adviceEn) }}</text>
+										</view>
+									</view>
+								</view>
+
+								<!-- 模块五：核心运势 -->
+								<view class="summary-section">
+									<view class="section-header">
+										<text class="section-title">{{ ui.chapterCoreFortunes }}</text>
+									</view>
+									<view class="fortune-card" v-for="item in coreFortuneItems" :key="item.key">
+										<view class="fortune-head">
+											<text class="fortune-label">{{ pickTxt(item.fortune.label, item.fortune.labelEn) }}</text>
+											<text class="fortune-stars">{{ formatStars(item.fortune.stars) }}</text>
+										</view>
+										<text class="fortune-trend">{{ pickTxt(item.fortune.trend, item.fortune.trendEn) }}</text>
+										<text class="fortune-summary">{{ pickTxt(item.fortune.summary, item.fortune.summaryEn) }}</text>
+									</view>
+								</view>
+
+								<!-- 模块六：趋吉指南 -->
+								<view class="suggestions-section">
+									<view class="section-header">
+										<text class="section-title">{{ ui.chapterImprovement }}</text>
+									</view>
+									<view class="suggestions-card">
+										<view class="suggestion-group">
+											<view class="suggestion-header">
+												<text class="suggestion-dot career-dot"></text>
+												<text class="suggestion-type">{{ ui.labelAppearanceTips }}</text>
+											</view>
+											<text class="suggestion-text">{{ pickTxt(reportData.fullData.improvement.appearanceTips, reportData.fullData.improvement.appearanceTipsEn) }}</text>
+										</view>
+										<view class="suggestion-group">
+											<view class="suggestion-header">
+												<text class="suggestion-dot life-dot"></text>
+												<text class="suggestion-type">{{ ui.labelBehaviorTips }}</text>
+											</view>
+											<text class="suggestion-text">{{ pickTxt(reportData.fullData.improvement.behaviorTips, reportData.fullData.improvement.behaviorTipsEn) }}</text>
+										</view>
+										<view class="suggestion-group">
+											<view class="suggestion-header">
+												<text class="suggestion-dot career-dot"></text>
+												<text class="suggestion-type">{{ ui.labelLifePlanning }}</text>
+											</view>
+											<text class="suggestion-text">{{ pickTxt(reportData.fullData.improvement.lifePlanning, reportData.fullData.improvement.lifePlanningEn) }}</text>
+										</view>
+										<view class="overall-card closing-card">
+											<text class="overall-title">{{ ui.labelClosingNote }}</text>
+											<text class="overall-text">{{ pickTxt(reportData.fullData.improvement.closingNote, reportData.fullData.improvement.closingNoteEn) }}</text>
+										</view>
+									</view>
+								</view>
+							</view>
+
+							<view class="result-actions">
+								<button class="result-btn btn-primary" @click="handleDownloadReport">
+									<text class="btn-text">{{ ui.downloadReport }}</text>
+								</button>
+								<button class="result-btn btn-secondary" @click="handleReset">
+									<text class="btn-text">{{ ui.retakePhoto }}</text>
+								</button>
+							</view>
+						</view>
+					</scroll-view>
+				</view>
+			</view>
+		</view>
+
+		<view class="wechat-mask" v-if="showWechatDialog">
+			<view class="wechat-dialog">
+				<text class="wechat-title">{{ ui.wechatTitle }}</text>
+				<image class="wechat-qrcode" src="/static/wechact.jpg" mode="widthFix"></image>
+				<text class="wechat-desc">{{ ui.wechatDesc }}</text>
+				<button class="wechat-close-btn" @click="showWechatDialog = false">
+					<text class="btn-text">{{ ui.wechatOk }}</text>
+				</button>
+			</view>
+		</view>
+
+		<app-tab-bar current="face"></app-tab-bar>
+	</view>
+</template>
+
+<script lang="uts">
+	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
+	import type { FaceReport, FaceAnalysisResult, FaceThreeSection, FaceFortuneScore } from '@/types/index';
+	import { analyzeFace } from '@/utils/qwenApi';
+	import { convertImageToBase64ForApi } from '@/utils/imageHelper';
+	import { uploadImageToServer } from '@/utils/imageUpload';
+	import { saveFaceSession, loadFaceSession, clearFaceSession } from '@/utils/faceSessionStore';
+	import {
+		getAppLocale,
+		setAppLocale,
+		getFaceUi,
+		pickLocaleText,
+		FACE_SCAN_TERMS_ZH,
+		FACE_SCAN_TERMS_EN,
+		type AppLocale
+	} from '@/utils/locale';
+
+	interface ThreeSectionDisplayItem {
+		key: string;
+		section: FaceThreeSection;
+	}
+
+	interface CoreFortuneDisplayItem {
+		key: string;
+		fortune: FaceFortuneScore;
+	}
+
+	interface AnalyzeStepItem {
+		key: string;
+		label: string;
+	}
+
+	interface ScanTermDisplayItem {
+		term: string;
+		status: 'done' | 'active' | 'pending';
+	}
+
+	interface FacePageData {
+		locale: AppLocale;
+		capturedImage: string | null;
+		reportData: FaceReport | null;
+		isAnalyzing: boolean;
+		analyzeStep: number;
+		scanTermIndex: number;
+		scanTermPassed: boolean[];
+		analyzingStatus: string;
+		dynamicScanText: string;
+		showWechatDialog: boolean;
+		imageScale: number;
+		imageOffsetX: number;
+		imageOffsetY: number;
+		lastTouchDistance: number;
+		lastTouchX: number;
+		lastTouchY: number;
+		isMoving: boolean;
+		isScaling: boolean;
+	}
+
+	export default {
+		name: 'FacePage',
+		components: {
+			AppTabBar
+		},
+		data(): FacePageData {
+			return {
+				locale: getAppLocale(),
+				capturedImage: null,
+				reportData: null,
+				isAnalyzing: false,
+				analyzeStep: 0,
+				scanTermIndex: 0,
+				scanTermPassed: [],
+				analyzingStatus: '',
+				dynamicScanText: '',
+				showWechatDialog: false,
+				imageScale: 1.0,
+				imageOffsetX: 0,
+				imageOffsetY: 0,
+				lastTouchDistance: 0,
+				lastTouchX: 0,
+				lastTouchY: 0,
+				isMoving: false,
+				isScaling: false
+			};
+		},
+		computed: {
+			ui(): Record<string, string> {
+				return getFaceUi(this.locale);
+			},
+			threeSectionItems(): ThreeSectionDisplayItem[] {
+				if (this.reportData == null || this.reportData.fullData == null) {
+					return [];
+				}
+				const t = this.reportData.fullData.threeSections;
+				return [
+					{ key: 'upper', section: t.upper },
+					{ key: 'middle', section: t.middle },
+					{ key: 'lower', section: t.lower }
+				];
+			},
+			coreFortuneItems(): CoreFortuneDisplayItem[] {
+				if (this.reportData == null || this.reportData.fullData == null) {
+					return [];
+				}
+				const f = this.reportData.fullData.coreFortunes;
+				return [
+					{ key: 'career', fortune: f.career },
+					{ key: 'wealth', fortune: f.wealth },
+					{ key: 'love', fortune: f.love }
+				];
+			},
+			analyzeProgress(): number {
+				if (this.analyzeStep === 0) {
+					return 28;
+				}
+				if (this.analyzeStep === 1) {
+					return 62;
+				}
+				if (this.analyzeStep === 2) {
+					return 90;
+				}
+				return 0;
+			},
+			analyzeStepItems(): AnalyzeStepItem[] {
+				return [
+					{ key: 'extract', label: this.ui.analyzeStepExtract },
+					{ key: 'fate', label: this.ui.analyzeStepFate },
+					{ key: 'report', label: this.ui.analyzeStepReport }
+				];
+			},
+			scanTermList(): ScanTermDisplayItem[] {
+				const terms = this.locale === 'en' ? FACE_SCAN_TERMS_EN : FACE_SCAN_TERMS_ZH;
+				const items: ScanTermDisplayItem[] = [];
+				for (let i = 0; i < terms.length; i += 1) {
+					let status: 'done' | 'active' | 'pending' = 'pending';
+					if (i === this.scanTermIndex) {
+						status = 'active';
+					} else if (this.scanTermPassed[i] === true) {
+						status = 'done';
+					}
+					items.push({ term: terms[i], status });
+				}
+				return items;
+			}
+		},
+		onShow() {
+			this.syncLocaleFromStorage();
+			this.applyNavTitle();
+			this.restoreFaceSession();
+		},
+		onHide() {
+			this.persistFaceSession();
+		},
+		methods: {
+			applyNavTitle(): void {
+				uni.setNavigationBarTitle({ title: getFaceUi(this.locale).navTitle });
+			},
+			syncLocaleFromStorage(): void {
+				const saved = getAppLocale();
+				if (this.locale !== saved) {
+					this.locale = saved;
+				}
+			},
+			setLocale(next: AppLocale): void {
+				if (this.locale === next) {
+					return;
+				}
+				this.locale = next;
+				setAppLocale(next);
+				this.applyNavTitle();
+			},
+			pickTxt(zhText: string, enText?: string | null): string {
+				return pickLocaleText(this.locale, zhText, enText);
+			},
+			formatStars(stars: number): string {
+				const safe = Math.max(0, Math.min(5, Math.round(stars)));
+				let result = '';
+				for (let i = 0; i < 5; i += 1) {
+					result += i < safe ? '★' : '☆';
+				}
+				return result;
+			},
+			persistFaceSession(): void {
+				saveFaceSession({
+					capturedImage: this.capturedImage,
+					reportData: this.reportData,
+					imageScale: this.imageScale,
+					imageOffsetX: this.imageOffsetX,
+					imageOffsetY: this.imageOffsetY
+				});
+			},
+			restoreFaceSession(): void {
+				const snapshot = loadFaceSession();
+				if (snapshot == null) {
+					return;
+				}
+				this.capturedImage = snapshot.capturedImage;
+				this.reportData = snapshot.reportData;
+				this.imageScale = snapshot.imageScale;
+				this.imageOffsetX = snapshot.imageOffsetX;
+				this.imageOffsetY = snapshot.imageOffsetY;
+			},
+			formatNumber(num: number): string {
+				return num < 10 ? `0${num}` : `${num}`;
+			},
+			handleTakePhoto(): void {
+				uni.chooseImage({
+					count: 1,
+					sizeType: ['compressed'],
+					sourceType: ['camera'],
+					success: (res) => {
+						if (res.tempFilePaths != null && res.tempFilePaths.length > 0) {
+							this.capturedImage = res.tempFilePaths[0];
+							this.resetPreviewTransform();
+							this.persistFaceSession();
+						}
+					},
+					fail: () => {
+						uni.showToast({ title: this.locale === 'en' ? 'Camera failed' : '拍照失败', icon: 'none' });
+					}
+				});
+			},
+			handleChooseFromAlbum(): void {
+				uni.chooseImage({
+					count: 1,
+					sizeType: ['compressed'],
+					sourceType: ['album'],
+					success: (res) => {
+						if (res.tempFilePaths != null && res.tempFilePaths.length > 0) {
+							this.capturedImage = res.tempFilePaths[0];
+							this.resetPreviewTransform();
+							this.persistFaceSession();
+						}
+					},
+					fail: () => {
+						uni.showToast({ title: this.locale === 'en' ? 'Album failed' : '选择图片失败', icon: 'none' });
+					}
+				});
+			},
+			resetPreviewTransform(): void {
+				this.imageScale = 1.0;
+				this.imageOffsetX = 0;
+				this.imageOffsetY = 0;
+				this.lastTouchDistance = 0;
+				this.isMoving = false;
+				this.isScaling = false;
+			},
+			handleTouchStart(e: any): void {
+				const target = e.target || e.currentTarget;
+				if (target != null && target.classList != null && target.classList.contains('scale-btn')) {
+					return;
+				}
+				e.preventDefault && e.preventDefault();
+				const touches = e.touches || [];
+				if (touches.length === 1) {
+					this.isMoving = true;
+					this.isScaling = false;
+					const touch = touches[0];
+					this.lastTouchX = touch.clientX || touch.x || 0;
+					this.lastTouchY = touch.clientY || touch.y || 0;
+				} else if (touches.length === 2) {
+					this.isMoving = false;
+					this.isScaling = true;
+					const touch1 = touches[0];
+					const touch2 = touches[1];
+					const x1 = touch1.clientX || touch1.x || 0;
+					const y1 = touch1.clientY || touch1.y || 0;
+					const x2 = touch2.clientX || touch2.x || 0;
+					const y2 = touch2.clientY || touch2.y || 0;
+					this.lastTouchDistance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+				}
+			},
+			handleTouchMove(e: any): void {
+				e.preventDefault && e.preventDefault();
+				const touches = e.touches || [];
+				if (touches.length === 1 && this.isMoving) {
+					const touch = touches[0];
+					const currentX = touch.clientX || touch.x || 0;
+					const currentY = touch.clientY || touch.y || 0;
+					this.imageOffsetX += (currentX - this.lastTouchX) * 2;
+					this.imageOffsetY += (currentY - this.lastTouchY) * 2;
+					this.lastTouchX = currentX;
+					this.lastTouchY = currentY;
+				} else if (touches.length === 2) {
+					this.isMoving = false;
+					this.isScaling = true;
+					const touch1 = touches[0];
+					const touch2 = touches[1];
+					const x1 = touch1.clientX || touch1.x || 0;
+					const y1 = touch1.clientY || touch1.y || 0;
+					const x2 = touch2.clientX || touch2.x || 0;
+					const y2 = touch2.clientY || touch2.y || 0;
+					const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+					if (this.lastTouchDistance > 0) {
+						let newScale = this.imageScale * (distance / this.lastTouchDistance);
+						this.imageScale = Math.max(0.5, Math.min(3.0, newScale));
+					}
+					this.lastTouchDistance = distance;
+				}
+			},
+			handleTouchEnd(e: any): void {
+				e.preventDefault && e.preventDefault();
+				this.isMoving = false;
+				this.isScaling = false;
+				this.lastTouchDistance = 0;
+			},
+			handleMouseDown(e: any): void {
+				const target = e.target || e.currentTarget;
+				if (target != null && target.classList != null && target.classList.contains('scale-btn')) {
+					return;
+				}
+				if (e.touches != null && e.touches.length > 0) {
+					return;
+				}
+				this.isMoving = true;
+				this.isScaling = false;
+				this.lastTouchX = e.clientX || e.x || 0;
+				this.lastTouchY = e.clientY || e.y || 0;
+			},
+			handleMouseMove(e: any): void {
+				if (e.touches != null && e.touches.length > 0) {
+					return;
+				}
+				if (this.isMoving) {
+					const currentX = e.clientX || e.x || 0;
+					const currentY = e.clientY || e.y || 0;
+					this.imageOffsetX += (currentX - this.lastTouchX) * 2;
+					this.imageOffsetY += (currentY - this.lastTouchY) * 2;
+					this.lastTouchX = currentX;
+					this.lastTouchY = currentY;
+				}
+			},
+			handleMouseUp(): void {
+				this.isMoving = false;
+				this.isScaling = false;
+			},
+			zoomIn(e?: any): void {
+				if (e != null) {
+					e.preventDefault && e.preventDefault();
+					e.stopPropagation && e.stopPropagation();
+				}
+				this.imageScale = Math.min(3.0, this.imageScale + 0.2);
+			},
+			zoomOut(e?: any): void {
+				if (e != null) {
+					e.preventDefault && e.preventDefault();
+					e.stopPropagation && e.stopPropagation();
+				}
+				this.imageScale = Math.max(0.5, this.imageScale - 0.2);
+			},
+			resetTransform(e?: any): void {
+				if (e != null) {
+					e.preventDefault && e.preventDefault();
+					e.stopPropagation && e.stopPropagation();
+				}
+				this.resetPreviewTransform();
+			},
+			handleCancel(): void {
+				this.capturedImage = null;
+				this.resetPreviewTransform();
+				this.persistFaceSession();
+			},
+			handleConfirm(): void {
+				if (this.capturedImage == null) {
+					uni.showToast({ title: getFaceUi(this.locale).toastNeedPhoto, icon: 'none' });
+					return;
+				}
+				this.runAnalysis();
+			},
+			async prepareImageForApi(imagePath: string): Promise<string> {
+				try {
+					return await convertImageToBase64ForApi(imagePath);
+				} catch (error) {
+					console.warn('base64 转换失败，尝试上传图片:', error);
+					return await uploadImageToServer(imagePath);
+				}
+			},
+			async runAnalysis(): Promise<void> {
+				if (this.capturedImage == null) {
+					return;
+				}
+
+				const u = getFaceUi(this.locale);
+				this.isAnalyzing = true;
+				this.analyzeStep = 0;
+				this.analyzingStatus = u.analyzingExtract;
+				this.reportData = null;
+
+				const scanTerms = this.locale === 'en' ? FACE_SCAN_TERMS_EN : FACE_SCAN_TERMS_ZH;
+				const passedFlags: boolean[] = [];
+				for (let i = 0; i < scanTerms.length; i += 1) {
+					passedFlags.push(false);
+				}
+				passedFlags[0] = true;
+				this.scanTermIndex = 0;
+				this.scanTermPassed = passedFlags;
+				this.dynamicScanText = scanTerms[0];
+				let termIndex = 0;
+				const termInterval = setInterval(() => {
+					termIndex = (termIndex + 1) % scanTerms.length;
+					this.scanTermIndex = termIndex;
+					this.scanTermPassed[termIndex] = true;
+					this.dynamicScanText = scanTerms[termIndex];
+				}, 1500);
+
+				try {
+					const imageBase64 = await this.prepareImageForApi(this.capturedImage);
+					this.capturedImage = imageBase64;
+					this.analyzeStep = 1;
+					this.analyzingStatus = getFaceUi(this.locale).analyzingFate;
+					this.persistFaceSession();
+
+					const result = await analyzeFace({
+						imagePath: imageBase64,
+						locale: this.locale,
+						analysis_type: 'face'
+					});
+
+					if (result.isInvalid === true) {
+						uni.showToast({
+							title: pickLocaleText(this.locale, result.errorMsg || '请上传清晰正脸照片', result.errorMsgEn),
+							icon: 'none',
+							duration: 5000
+						});
+						return;
+					}
+
+					this.analyzeStep = 2;
+					this.analyzingStatus = getFaceUi(this.locale).analyzingReport;
+					await new Promise((resolve) => setTimeout(resolve, 800));
+					this.generateReportFromAPI(result);
+
+					uni.showToast({ title: getFaceUi(this.locale).toastSuccess, icon: 'success' });
+				} catch (error: any) {
+					console.error('面相分析失败:', error);
+					uni.showToast({
+						title: error.message || (this.locale === 'en' ? 'Analysis failed' : '分析失败，请重试'),
+						icon: 'none',
+						duration: 5000
+					});
+				} finally {
+					this.isAnalyzing = false;
+					this.analyzeStep = 0;
+					this.scanTermIndex = 0;
+					this.scanTermPassed = [];
+					this.analyzingStatus = '';
+					clearInterval(termInterval);
+				}
+			},
+			generateReportFromAPI(apiResult: FaceAnalysisResult): void {
+				const now = new Date();
+				const timeString = `${now.getFullYear()}-${this.formatNumber(now.getMonth() + 1)}-${this.formatNumber(now.getDate())} ${this.formatNumber(now.getHours())}:${this.formatNumber(now.getMinutes())}`;
+
+				this.reportData = {
+					id: `face_report_${Date.now()}`,
+					imagePath: this.capturedImage || '',
+					analyzeTime: timeString,
+					results: [],
+					fullData: apiResult
+				};
+				this.persistFaceSession();
+			},
+			handleReset(): void {
+				this.capturedImage = null;
+				this.reportData = null;
+				this.resetPreviewTransform();
+				clearFaceSession();
+			},
+			handleDownloadReport(): void {
+				this.showWechatDialog = true;
+			}
+		}
+	};
+</script>
+
+<style>
+	.face-container {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		min-height: 100vh;
+		background-color: #fdf7ee;
+		background-image:
+			radial-gradient(#f4ebd0 1px, transparent 0),
+			radial-gradient(#f4ebd0 1px, transparent 0);
+		background-size: 40px 40px;
+		background-position: 0 0, 20px 20px;
+		overflow-x: hidden;
+		box-sizing: border-box;
+		align-items: center;
+		font-family: "STKaiti", "Kaiti", "SimKai", serif;
+		position: relative;
+	}
+
+	.bg-decoration {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 0;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		overflow: hidden;
+	}
+
+	.bg-bagua {
+		width: 1200rpx;
+		height: 1200rpx;
+		opacity: 0.03;
+		background-image: url('https://img.alicdn.com/imgextra/i4/O1CN01Z5vXvz1Z5vXvz1Z5v_!!6000000000001-2-tps-1024-1024.png');
+		background-size: contain;
+		background-repeat: no-repeat;
+		animation: rotateBg 60s linear infinite;
+	}
+
+	@keyframes rotateBg {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	.face-content-wrapper {
+		width: 100%;
+		max-width: 600px;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		position: relative;
+		min-height: 100vh;
+		padding-bottom: 130rpx;
+		box-sizing: border-box;
+		box-shadow: 0 0 80rpx rgba(90, 62, 43, 0.15);
+		background-color: #fdf7ee;
+		border-left: 2rpx solid #e8e0cc;
+		border-right: 2rpx solid #e8e0cc;
+	}
+
+	.face-header {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+		padding: 36rpx 30rpx 24rpx;
+		box-sizing: border-box;
+		flex-shrink: 0;
+	}
+
+	.header-main {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 15rpx;
+		margin-bottom: 12rpx;
+	}
+
+	.header-stamp {
+		width: 72rpx;
+		height: 72rpx;
+		opacity: 0.9;
+	}
+
+	.header-deco {
+		width: 260rpx;
+		height: 4rpx;
+		background-color: #5a3e2b;
+		margin-bottom: 16rpx;
+		position: relative;
+	}
+
+	.header-deco::before,
+	.header-deco::after {
+		content: "";
+		position: absolute;
+		width: 10rpx;
+		height: 10rpx;
+		border: 2rpx solid #5a3e2b;
+		transform: rotate(45deg);
+		top: -5rpx;
+	}
+
+	.header-deco::before {
+		left: -15rpx;
+	}
+
+	.header-deco::after {
+		right: -15rpx;
+	}
+
+	.header-title {
+		font-size: 44rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		letter-spacing: 6rpx;
+	}
+
+	.header-subtitle {
+		font-size: 26rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.6;
+		padding: 0 40rpx;
+		opacity: 0.9;
+	}
+
+	.face-content {
+		width: 92%;
+		box-sizing: border-box;
+	}
+
+	.face-content.capture-mode,
+	.face-content.stage-mode,
+	.face-content.preview-mode,
+	.face-content.analyzing-mode {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 28rpx 24rpx 32rpx;
+		margin: 0 0 8rpx;
+		background-color: #fff;
+		background-image:
+			linear-gradient(rgba(232, 224, 204, 0.12) 1rpx, transparent 1rpx),
+			linear-gradient(90deg, rgba(232, 224, 204, 0.12) 1rpx, transparent 1rpx);
+		background-size: 20rpx 20rpx;
+		border-radius: 16rpx;
+		border: 2rpx solid #e8e0cc;
+		box-shadow: inset 0 0 40rpx rgba(0, 0, 0, 0.02);
+		min-height: 520rpx;
+	}
+
+	.face-content.preview-mode {
+		justify-content: flex-start;
+		min-height: 560rpx;
+	}
+
+	.face-content.analyzing-mode {
+		justify-content: flex-start;
+		min-height: auto;
+		padding: 20rpx 20rpx 28rpx;
+	}
+
+	.face-content.report-mode {
+		flex: 1;
+		width: 100%;
+		padding: 0;
+		margin: 0;
+		background: transparent;
+		border: none;
+		box-shadow: none;
+		min-height: 0;
+	}
+
+	.guide-area,
+	.preview-area,
+	.analyzing-area {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+	}
+
+	.guide-area {
+		justify-content: center;
+		gap: 24rpx;
+	}
+
+	.guide-heading {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		text-align: center;
+		line-height: 1.5;
+		padding: 0 10rpx;
+	}
+
+	.guide-box {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		padding: 16rpx 0 8rpx;
+		box-sizing: border-box;
+	}
+
+	.face-outline {
+		position: relative;
+		width: 300rpx;
+		height: 380rpx;
+		border: 3rpx dashed #c8b99b;
+		border-radius: 150rpx 150rpx 100rpx 100rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: #fdfaf5;
+	}
+
+	.face-outline-inner {
+		width: 220rpx;
+		height: 290rpx;
+		border: 2rpx solid rgba(90, 62, 43, 0.15);
+		border-radius: 110rpx 110rpx 72rpx 72rpx;
+	}
+
+	.face-outline-cross-h,
+	.face-outline-cross-v {
+		position: absolute;
+		background-color: rgba(200, 185, 155, 0.45);
+	}
+
+	.face-outline-cross-h {
+		width: 180rpx;
+		height: 2rpx;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+	}
+
+	.face-outline-cross-v {
+		width: 2rpx;
+		height: 220rpx;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+	}
+
+	.guide-tips {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 12rpx 16rpx;
+		width: 100%;
+		padding: 0 8rpx;
+		box-sizing: border-box;
+	}
+
+	.guide-tip-item {
+		font-size: 22rpx;
+		color: #8c7662;
+		background-color: #faf6ef;
+		border: 1rpx solid #e8e0cc;
+		border-radius: 24rpx;
+		padding: 10rpx 20rpx;
+		line-height: 1.4;
+	}
+
+	.preview-area {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+		flex: 1;
+		gap: 24rpx;
+	}
+
+	.preview-hint {
+		font-size: 26rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.6;
+		padding: 0 12rpx;
+	}
+
+	.preview-adjust-hint {
+		font-size: 22rpx;
+		color: #b76e4a;
+		text-align: center;
+		line-height: 1.5;
+		padding: 0 12rpx 4rpx;
+	}
+
+	.preview-frame-wrap {
+		width: 100%;
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 480rpx;
+	}
+
+	.preview-container {
+		position: relative;
+		width: 100%;
+		height: 100%;
+		min-height: 480rpx;
+		max-height: 560rpx;
+		background-color: #2a2118;
+		border-radius: 16rpx;
+		border: 3rpx solid #5a3e2b;
+		overflow: hidden;
+		box-shadow: 0 12rpx 36rpx rgba(90, 62, 43, 0.18);
+		touch-action: none;
+	}
+
+	.image-wrapper {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		transform-origin: center center;
+		touch-action: none;
+		z-index: 1;
+	}
+
+	.preview-image {
+		width: 100%;
+		height: 100%;
+	}
+
+	.scale-controls {
+		position: absolute;
+		top: 20rpx;
+		right: 20rpx;
+		display: flex;
+		flex-direction: column;
+		gap: 15rpx;
+		z-index: 20;
+		pointer-events: auto;
+	}
+
+	.scale-btn {
+		width: 72rpx;
+		height: 72rpx;
+		border-radius: 50%;
+		background-color: rgba(90, 62, 43, 0.85);
+		border: 2rpx solid rgba(253, 247, 238, 0.45);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.25);
+		padding: 0;
+	}
+
+	.scale-btn:active {
+		background-color: rgba(183, 110, 74, 0.95);
+		transform: scale(0.92);
+	}
+
+	.scale-icon {
+		font-size: 36rpx;
+		color: #fdf7ee;
+		font-weight: bold;
+		line-height: 1;
+	}
+
+	.reset-btn .scale-icon {
+		font-size: 32rpx;
+	}
+
+	.preview-vignette {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: radial-gradient(ellipse at center, rgba(42, 33, 24, 0) 38%, rgba(42, 33, 24, 0.55) 100%);
+		pointer-events: none;
+		z-index: 2;
+	}
+
+	.preview-face-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		pointer-events: none;
+		z-index: 3;
+	}
+
+	.preview-face-border {
+		width: 62%;
+		height: 78%;
+		border: 3rpx dashed rgba(255, 255, 255, 0.85);
+		border-radius: 50% 50% 42% 42%;
+	}
+
+	.preview-corner {
+		position: absolute;
+		width: 36rpx;
+		height: 36rpx;
+		border-color: rgba(253, 247, 238, 0.9);
+		border-style: solid;
+	}
+
+	.preview-corner-tl {
+		top: 24rpx;
+		left: 24rpx;
+		border-width: 4rpx 0 0 4rpx;
+	}
+
+	.preview-corner-tr {
+		top: 24rpx;
+		right: 24rpx;
+		border-width: 4rpx 4rpx 0 0;
+	}
+
+	.preview-corner-bl {
+		bottom: 24rpx;
+		left: 24rpx;
+		border-width: 0 0 4rpx 4rpx;
+	}
+
+	.preview-corner-br {
+		bottom: 24rpx;
+		right: 24rpx;
+		border-width: 0 4rpx 4rpx 0;
+	}
+
+	.preview-tips {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 12rpx 16rpx;
+		width: 100%;
+		padding-bottom: 4rpx;
+		box-sizing: border-box;
+	}
+
+	.analyzing-header {
+		padding: 28rpx 30rpx 12rpx;
+	}
+
+	.analyzing-area {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		width: 100%;
+		gap: 20rpx;
+	}
+
+	.scan-frame-wrap {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.scan-animation-container {
+		position: relative;
+		width: 100%;
+		background-color: #2a2118;
+		border-radius: 16rpx;
+		border: 3rpx solid #5a3e2b;
+		overflow: hidden;
+		box-shadow: 0 8rpx 24rpx rgba(90, 62, 43, 0.15);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.scan-animation-container.portrait {
+		height: 520rpx;
+		min-height: 520rpx;
+		max-height: 560rpx;
+	}
+
+	.scan-preview-image {
+		width: 100%;
+		height: 100%;
+	}
+
+	.scan-glow {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 80rpx;
+		background: linear-gradient(to bottom, rgba(183, 110, 74, 0.35), transparent);
+		animation: scanMovePortrait 2.8s linear infinite;
+		z-index: 4;
+		pointer-events: none;
+	}
+
+	.scan-line {
+		position: absolute;
+		top: 0;
+		left: 24rpx;
+		right: 24rpx;
+		height: 4rpx;
+		background: linear-gradient(90deg, transparent, #f0c4a8, #b76e4a, #f0c4a8, transparent);
+		box-shadow: 0 0 16rpx rgba(183, 110, 74, 0.8);
+		animation: scanMovePortrait 2.8s linear infinite;
+		z-index: 5;
+		pointer-events: none;
+	}
+
+	@keyframes scanMovePortrait {
+		0% { transform: translateY(0); opacity: 0.4; }
+		15% { opacity: 1; }
+		85% { opacity: 1; }
+		100% { transform: translateY(520rpx); opacity: 0.4; }
+	}
+
+	.scan-pulse {
+		animation: facePulse 2s ease-in-out infinite;
+	}
+
+	@keyframes facePulse {
+		0% { opacity: 0.55; transform: scale(0.98); }
+		50% { opacity: 1; transform: scale(1); }
+		100% { opacity: 0.55; transform: scale(0.98); }
+	}
+
+	.analyze-status-card {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 16rpx;
+		padding: 24rpx;
+		box-sizing: border-box;
+		background: linear-gradient(180deg, #fffdf9 0%, #faf6ef 100%);
+		border: 2rpx solid #e8e0cc;
+		border-radius: 16rpx;
+		box-shadow: 0 4rpx 16rpx rgba(90, 62, 43, 0.06);
+	}
+
+	.analyze-status-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		text-align: center;
+		line-height: 1.5;
+	}
+
+	.analyze-progress-head {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 16rpx;
+		width: 100%;
+	}
+
+	.analyze-progress-value {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #b76e4a;
+		min-width: 72rpx;
+		text-align: right;
+	}
+
+	.analyze-progress-track {
+		flex: 1;
+		height: 12rpx;
+		background-color: #f0e8da;
+		border-radius: 8rpx;
+		overflow: hidden;
+	}
+
+	.analyze-progress-fill {
+		height: 100%;
+		background: linear-gradient(90deg, #8c7662, #5a3e2b);
+		border-radius: 8rpx;
+		transition: width 0.6s ease;
+	}
+
+	.analyze-steps {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		width: 100%;
+		gap: 8rpx;
+		padding: 4rpx 0 8rpx;
+	}
+
+	.analyze-step {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8rpx;
+		opacity: 0.45;
+	}
+
+	.analyze-step.active,
+	.analyze-step.current {
+		opacity: 1;
+	}
+
+	.analyze-step-dot {
+		width: 16rpx;
+		height: 16rpx;
+		border-radius: 50%;
+		background-color: #e8e0cc;
+		border: 2rpx solid #c8b99b;
+	}
+
+	.analyze-step.active .analyze-step-dot {
+		background-color: #5a3e2b;
+		border-color: #5a3e2b;
+	}
+
+	.analyze-step.current .analyze-step-dot {
+		background-color: #b76e4a;
+		border-color: #b76e4a;
+		box-shadow: 0 0 0 6rpx rgba(183, 110, 74, 0.2);
+	}
+
+	.analyze-step-label {
+		font-size: 20rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.3;
+	}
+
+	.analyze-step.current .analyze-step-label {
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.analyzing-status {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		text-align: center;
+		line-height: 1.5;
+	}
+
+	.analyzing-patience-hint {
+		font-size: 22rpx;
+		color: #8c7662;
+		text-align: center;
+		line-height: 1.5;
+	}
+
+	.scan-dimension-panel {
+		width: 100%;
+		padding: 24rpx 20rpx;
+		box-sizing: border-box;
+		background-color: #fff;
+		border: 2rpx solid #e8e0cc;
+		border-radius: 16rpx;
+		box-shadow: inset 0 0 24rpx rgba(90, 62, 43, 0.03);
+	}
+
+	.scan-dimension-header {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10rpx;
+		margin-bottom: 20rpx;
+		padding-bottom: 16rpx;
+		border-bottom: 1rpx dashed #e8e0cc;
+	}
+
+	.scan-dimension-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.scan-dimension-current {
+		font-size: 24rpx;
+		color: #b76e4a;
+		text-align: center;
+		line-height: 1.4;
+	}
+
+	.scan-dimension-grid {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 12rpx;
+		width: 100%;
+	}
+
+	.scan-dimension-item {
+		width: calc(50% - 6rpx);
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 10rpx;
+		padding: 16rpx 14rpx;
+		box-sizing: border-box;
+		background-color: #faf6ef;
+		border: 1rpx solid #ebe3d4;
+		border-radius: 12rpx;
+		opacity: 0.65;
+	}
+
+	.scan-dimension-item.active {
+		opacity: 1;
+		background-color: #f3ebe0;
+		border-color: #b76e4a;
+		box-shadow: 0 4rpx 12rpx rgba(183, 110, 74, 0.12);
+	}
+
+	.scan-dimension-item.done {
+		opacity: 1;
+		background-color: #f7f3eb;
+		border-color: #d8cbb8;
+	}
+
+	.scan-dimension-mark {
+		width: 28rpx;
+		height: 28rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.mark-done {
+		font-size: 22rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.mark-pending {
+		font-size: 28rpx;
+		color: #c8b99b;
+		line-height: 1;
+	}
+
+	.mark-spinner {
+		width: 18rpx;
+		height: 18rpx;
+		border-radius: 50%;
+		border: 3rpx solid #e8e0cc;
+		border-top-color: #b76e4a;
+		animation: spinMark 0.8s linear infinite;
+	}
+
+	@keyframes spinMark {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	.scan-dimension-label {
+		flex: 1;
+		font-size: 22rpx;
+		color: #8c7662;
+		line-height: 1.35;
+	}
+
+	.scan-dimension-item.active .scan-dimension-label {
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+
+	.scan-dimension-item.done .scan-dimension-label {
+		color: #6b5645;
+	}
+
+	.face-footer {
+		display: flex;
+		flex-direction: column;
+		width: 92%;
+		padding: 0 0 36rpx;
+		gap: 20rpx;
+		box-sizing: border-box;
+		flex-shrink: 0;
+	}
+
+	.face-btn {
+		width: 100%;
+		height: 96rpx;
+		border-radius: 48rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+	}
+
+	.btn-primary {
+		background-color: #5a3e2b;
+		color: #fff;
+	}
+
+	.btn-secondary {
+		background-color: #fff;
+		color: #5a3e2b;
+		border: 1rpx solid #5a3e2b;
+	}
+
+	.btn-text {
+		font-weight: bold;
+		color: inherit;
+	}
+
+	.result-area {
+		width: 100%;
+		height: calc(100vh - 40rpx);
+	}
+
+	.result-scroll {
+		height: 100%;
+	}
+
+	.result-card {
+		padding: 30rpx 25rpx 60rpx;
+		box-sizing: border-box;
+	}
+
+	.result-header-top-row {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 24rpx;
+	}
+
+	.result-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		display: block;
+	}
+
+	.result-time {
+		font-size: 24rpx;
+		color: #8c7662;
+		margin-top: 8rpx;
+		display: block;
+	}
+
+	.result-lang-inline {
+		display: flex;
+		flex-direction: row;
+		gap: 10rpx;
+	}
+
+	.result-lang-btn {
+		padding: 6rpx 18rpx;
+		border-radius: 24rpx;
+		border: 2rpx solid #c8b99b;
+		background-color: #fff;
+		font-size: 22rpx;
+		color: #8c7662;
+	}
+
+	.result-lang-btn.active {
+		background-color: #5a3e2b;
+		color: #fff;
+		border-color: #5a3e2b;
+	}
+
+	.face-visual-section {
+		background-color: #fff;
+		border-radius: 12rpx;
+		padding: 20rpx;
+		border: 1rpx solid #e8e0cc;
+		margin-bottom: 30rpx;
+	}
+
+	.face-photo {
+		width: 100%;
+		height: 480rpx;
+		border-radius: 8rpx;
+	}
+
+	.section-header {
+		margin-bottom: 24rpx;
+		border-left: 8rpx solid #5a3e2b;
+		padding-left: 20rpx;
+	}
+
+	.section-title {
+		font-size: 34rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.summary-section,
+	.features-section,
+	.dimensions-section,
+	.suggestions-section {
+		margin-bottom: 30rpx;
+	}
+
+	.harsh-warning-card {
+		background-color: #fff9f8;
+		border: 2rpx solid #d9a09a;
+		border-radius: 12rpx;
+		overflow: hidden;
+		margin-bottom: 30rpx;
+	}
+
+	.warning-header {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 15rpx;
+		padding: 25rpx 30rpx;
+		background: linear-gradient(to right, #fdecea, #fff9f8);
+		border-bottom: 2rpx solid #f5d0cd;
+	}
+
+	.warning-stamp {
+		width: 45rpx;
+		height: 45rpx;
+	}
+
+	.warning-title {
+		color: #a82e2e;
+		font-weight: bold;
+		font-size: 32rpx;
+	}
+
+	.warning-content {
+		padding: 30rpx;
+	}
+
+	.warning-text {
+		color: #5a3e2b;
+		font-size: 28rpx;
+		line-height: 1.8;
+	}
+
+	.summary-grid {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 20rpx;
+		background-color: #fff;
+		border-radius: 12rpx;
+		padding: 30rpx 20rpx;
+		border: 1rpx solid #e8e0cc;
+	}
+
+	.summary-item {
+		width: 30%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 12rpx;
+	}
+
+	.summary-score-circle {
+		width: 100rpx;
+		height: 100rpx;
+		border-radius: 50%;
+		border: 4rpx solid #b76e4a;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: #fdfaf5;
+	}
+
+	.summary-score {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.summary-score-unit {
+		font-size: 20rpx;
+		color: #8c7662;
+	}
+
+	.summary-dim-name {
+		font-size: 24rpx;
+		color: #5a3e2b;
+		text-align: center;
+	}
+
+	.overall-card {
+		margin-top: 24rpx;
+		background-color: #fff;
+		border-radius: 12rpx;
+		padding: 30rpx;
+		border: 1rpx solid #e8e0cc;
+	}
+
+	.overall-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 16rpx;
+		display: block;
+	}
+
+	.overall-text {
+		font-size: 28rpx;
+		color: #636366;
+		line-height: 1.75;
+	}
+
+	.features-card,
+	.suggestions-card {
+		background-color: #fff;
+		border-radius: 12rpx;
+		padding: 30rpx;
+		border: 1rpx solid #e8e0cc;
+	}
+
+	.feature-item {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: flex-start;
+		padding-bottom: 20rpx;
+		margin-bottom: 20rpx;
+		border-bottom: 1rpx dashed #f0eadd;
+		gap: 20rpx;
+	}
+
+	.feature-item:last-child {
+		border-bottom: none;
+		margin-bottom: 0;
+		padding-bottom: 0;
+	}
+
+	.feature-label {
+		font-size: 28rpx;
+		color: #8c7662;
+		flex-shrink: 0;
+	}
+
+	.feature-value {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+		text-align: right;
+		flex: 1;
+	}
+
+	.feature-detail-card {
+		background-color: #fff;
+		border-radius: 12rpx;
+		padding: 28rpx 30rpx;
+		border: 1rpx solid #e8e0cc;
+		margin-top: 20rpx;
+	}
+
+	.feature-detail-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 12rpx;
+		display: block;
+	}
+
+	.feature-detail-desc {
+		font-size: 28rpx;
+		color: #636366;
+		line-height: 1.7;
+	}
+
+	.dimension-card {
+		background-color: #fff;
+		border-radius: 12rpx;
+		padding: 30rpx;
+		border: 1rpx solid #e8e0cc;
+		margin-bottom: 20rpx;
+	}
+
+	.dimension-header {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 20rpx;
+		margin-bottom: 16rpx;
+		padding-bottom: 16rpx;
+		border-bottom: 1rpx dashed #f0eadd;
+	}
+
+	.dim-icon-box {
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 50%;
+		background-color: #fdfaf5;
+		border: 1rpx solid #e8e0cc;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.dim-custom-icon {
+		width: 52rpx;
+		height: 52rpx;
+	}
+
+	.dimension-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.dimension-content {
+		font-size: 28rpx;
+		color: #636366;
+		line-height: 1.75;
+		white-space: pre-line;
+	}
+
+	.suggestion-group {
+		margin-bottom: 24rpx;
+	}
+
+	.suggestion-header {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 12rpx;
+		margin-bottom: 12rpx;
+	}
+
+	.suggestion-dot {
+		width: 14rpx;
+		height: 14rpx;
+		border-radius: 50%;
+	}
+
+	.career-dot { background-color: #b7a04a; }
+	.life-dot { background-color: #6b8e23; }
+
+	.suggestion-type {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.suggestion-text {
+		font-size: 28rpx;
+		color: #636366;
+		line-height: 1.6;
+	}
+
+	.suggestion-footer {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 12rpx;
+		background-color: #fdfaf5;
+		padding: 20rpx;
+		border-radius: 8rpx;
+		border: 1rpx solid #f0eadd;
+	}
+
+	.tip-icon { font-size: 28rpx; }
+
+	.tip-text {
+		font-size: 24rpx;
+		color: #8c7662;
+		line-height: 1.5;
+		flex: 1;
+	}
+
+	.result-actions {
+		display: flex;
+		flex-direction: row;
+		gap: 24rpx;
+		margin-top: 20rpx;
+	}
+
+	.result-btn {
+		flex: 1;
+		height: 96rpx;
+		border-radius: 48rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+	}
+
+	.wechat-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 999;
+	}
+
+	.wechat-dialog {
+		width: 620rpx;
+		padding: 50rpx 40rpx 40rpx;
+		border-radius: 12rpx;
+		background-color: #fff;
+		border: 4rpx solid #5a3e2b;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		box-sizing: border-box;
+	}
+
+	.wechat-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 30rpx;
+	}
+
+	.wechat-qrcode {
+		width: 400rpx;
+		margin-bottom: 30rpx;
+	}
+
+	.wechat-desc {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.6;
+		text-align: center;
+		margin-bottom: 40rpx;
+	}
+
+	.wechat-close-btn {
+		width: 100%;
+		height: 90rpx;
+		border-radius: 45rpx;
+		background-color: #5a3e2b;
+		color: #fff;
+		border: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.archive-card,
+	.three-section-card,
+	.official-card,
+	.palace-card,
+	.fortune-card,
+	.balance-card {
+		background-color: #fff;
+		border-radius: 12rpx;
+		padding: 24rpx 28rpx;
+		border: 1rpx solid #e8e0cc;
+		margin-bottom: 20rpx;
+	}
+
+	.archive-row {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		padding: 12rpx 0;
+		border-bottom: 1rpx dashed #f0eadd;
+	}
+
+	.archive-row:last-of-type {
+		border-bottom: none;
+	}
+
+	.archive-label,
+	.official-label,
+	.palace-label,
+	.balance-label {
+		font-size: 26rpx;
+		color: #8c7662;
+		flex-shrink: 0;
+	}
+
+	.archive-value {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		font-weight: bold;
+		text-align: right;
+	}
+
+	.archive-block {
+		margin-top: 16rpx;
+	}
+
+	.archive-block.muted {
+		background-color: #faf6ef;
+		border-radius: 10rpx;
+		padding: 16rpx 20rpx;
+	}
+
+	.archive-text {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.7;
+		display: block;
+	}
+
+	.archive-text.small {
+		font-size: 22rpx;
+		color: #8c7662;
+		margin-top: 8rpx;
+	}
+
+	.three-section-head {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 12rpx;
+		margin-bottom: 12rpx;
+		flex-wrap: wrap;
+	}
+
+	.three-section-name {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.three-section-age {
+		font-size: 22rpx;
+		color: #8c7662;
+		background-color: #faf6ef;
+		padding: 4rpx 14rpx;
+		border-radius: 16rpx;
+	}
+
+	.three-section-score {
+		margin-left: auto;
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #b76e4a;
+	}
+
+	.three-section-summary {
+		font-size: 28rpx;
+		color: #5a3e2b;
+		line-height: 1.6;
+		margin-bottom: 10rpx;
+		display: block;
+	}
+
+	.three-section-details {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.75;
+		display: block;
+	}
+
+	.balance-text {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.7;
+		margin-top: 10rpx;
+		display: block;
+	}
+
+	.official-name,
+	.palace-name {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+		margin-bottom: 16rpx;
+		display: block;
+	}
+
+	.official-row,
+	.palace-row {
+		margin-bottom: 12rpx;
+	}
+
+	.official-text,
+	.palace-text {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.7;
+		margin-top: 6rpx;
+		display: block;
+	}
+
+	.palace-head {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 14rpx;
+	}
+
+	.palace-fortune {
+		font-size: 24rpx;
+		color: #b76e4a;
+		font-weight: bold;
+		background-color: #faf6ef;
+		padding: 6rpx 16rpx;
+		border-radius: 16rpx;
+	}
+
+	.fortune-head {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 10rpx;
+	}
+
+	.fortune-label {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #5a3e2b;
+	}
+
+	.fortune-stars {
+		font-size: 28rpx;
+		color: #b76e4a;
+		letter-spacing: 2rpx;
+	}
+
+	.fortune-trend {
+		font-size: 24rpx;
+		color: #8c7662;
+		margin-bottom: 10rpx;
+		display: block;
+	}
+
+	.fortune-summary {
+		font-size: 26rpx;
+		color: #636366;
+		line-height: 1.75;
+		display: block;
+	}
+
+	.closing-card {
+		margin-top: 20rpx;
+		background-color: #faf6ef;
+	}
+</style>

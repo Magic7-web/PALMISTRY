@@ -394,6 +394,248 @@ export function getReportUi(locale: AppLocale): Record<ReportUiKey, string> {
 	return locale === 'en' ? REPORT_UI_EN : REPORT_UI_ZH;
 }
 
+/** 面相页文案 */
+export type FaceUiKey =
+	| 'navTitle'
+	| 'headerTitle'
+	| 'headerSubtitle'
+	| 'langZh'
+	| 'langEn'
+	| 'genderLabel'
+	| 'male'
+	| 'female'
+	| 'resultTitle'
+	| 'warningTitle'
+	| 'chapterArchive'
+	| 'chapterThreeSections'
+	| 'chapterFiveOfficials'
+	| 'chapterKeyPalaces'
+	| 'chapterCoreFortunes'
+	| 'chapterImprovement'
+	| 'labelConfidence'
+	| 'labelFaceElement'
+	| 'labelSpiritScore'
+	| 'labelComplexion'
+	| 'labelBalance'
+	| 'labelAppearance'
+	| 'labelCharacter'
+	| 'labelInfluence'
+	| 'labelLocation'
+	| 'labelFeature'
+	| 'labelFortune'
+	| 'labelTrend'
+	| 'labelAdvice'
+	| 'labelAppearanceTips'
+	| 'labelBehaviorTips'
+	| 'labelLifePlanning'
+	| 'labelClosingNote'
+	| 'retakePhoto'
+	| 'downloadReport'
+	| 'wechatTitle'
+	| 'wechatDesc'
+	| 'wechatOk'
+	| 'analyzingMain'
+	| 'analyzingPatienceHint'
+	| 'analyzingExtract'
+	| 'analyzingFate'
+	| 'analyzingReport'
+	| 'analyzingDone'
+	| 'analyzeStepExtract'
+	| 'analyzeStepFate'
+	| 'analyzeStepReport'
+	| 'analyzeDimensionTitle'
+	| 'previewRetake'
+	| 'previewConfirm'
+	| 'previewTitle'
+	| 'previewHint'
+	| 'previewAdjustHint'
+	| 'guideText'
+	| 'guideTip1'
+	| 'guideTip2'
+	| 'guideTip3'
+	| 'footerPhoto'
+	| 'footerAlbum'
+	| 'toastNeedPhoto'
+	| 'toastSuccess'
+	| 'scoreUnit'
+	| 'featureFaceShape'
+	| 'featureComplexion'
+	| 'featureSpecialMarks'
+	| 'careerAdviceTag'
+	| 'lifeAdviceTag'
+	| 'overallCardTitle';
+
+const FACE_UI_ZH: Record<FaceUiKey, string> = {
+	navTitle: '免费看面相 - 林公测算',
+	headerTitle: '免费看面相 - 林公测算',
+	headerSubtitle: '通过传统面相学洞察您的性格、财运与姻缘',
+	langZh: '中文',
+	langEn: 'EN',
+	genderLabel: '选择性别',
+	male: '男',
+	female: '女',
+	resultTitle: '面相分析报告',
+	warningTitle: '天机·凶吉预警',
+	chapterArchive: '模块一 · 基础档案',
+	chapterThreeSections: '模块二 · 三停流年',
+	chapterFiveOfficials: '模块三 · 五官深度',
+	chapterKeyPalaces: '模块四 · 十二宫重点',
+	chapterCoreFortunes: '模块五 · 核心运势',
+	chapterImprovement: '模块六 · 趋吉指南',
+	labelConfidence: 'AI识别置信度',
+	labelFaceElement: '脸型五行',
+	labelSpiritScore: '精气神',
+	labelComplexion: '气色总览',
+	labelBalance: '三停均衡',
+	labelAppearance: '外观特征',
+	labelCharacter: '心性解读',
+	labelInfluence: '运势影响',
+	labelLocation: '宫位位置',
+	labelFeature: '识别特征',
+	labelFortune: '吉凶',
+	labelTrend: '短期趋势',
+	labelAdvice: '改良建议',
+	labelAppearanceTips: '形象微调',
+	labelBehaviorTips: '行为修养',
+	labelLifePlanning: '生活规划',
+	labelClosingNote: '整体总判',
+	retakePhoto: '重新拍照',
+	downloadReport: '下载报告',
+	wechatTitle: '获取完整面相命理推演',
+	wechatDesc:
+		'你现在看到的只是面相命理的一角。若想进一步洞察姻缘、财运、事业走向，请添加小助手微信，对接资深命理老师为您推演全局运势。',
+	wechatOk: '我知道了',
+	analyzingMain: '正在通过 AI 识面推演...',
+	analyzingPatienceHint: '分析面相需要1到2分钟的时间，请您耐心等待',
+	analyzingExtract: '正在通过 AI 提取面部特征...',
+	analyzingFate: '面部特征提取成功，正在推演命格...',
+	analyzingReport: '命理推演完成，正在生成报告...',
+	analyzingDone: '分析完成',
+	analyzeStepExtract: '提取特征',
+	analyzeStepFate: '推演命格',
+	analyzeStepReport: '生成报告',
+	analyzeDimensionTitle: '五官命理扫描',
+	previewRetake: '重新拍照',
+	previewConfirm: '开始分析',
+	previewTitle: '确认您的照片',
+	previewHint: '请确认面部清晰、居中，无误后即可开始面相分析',
+	previewAdjustHint: '可拖动调整位置，双指或右侧按钮放大缩小',
+	guideText: '上传或拍摄一张清晰的正脸照片',
+	guideTip1: '正对镜头，面部居中',
+	guideTip2: '光线均匀，避免逆光',
+	guideTip3: '五官清晰，无遮挡',
+	footerPhoto: '拍照',
+	footerAlbum: '从相册选择',
+	toastNeedPhoto: '请先拍照或上传照片',
+	toastSuccess: '分析成功',
+	scoreUnit: '分',
+	featureFaceShape: '脸型：',
+	featureComplexion: '气色：',
+	featureSpecialMarks: '特殊征兆：',
+	careerAdviceTag: '事业建议',
+	lifeAdviceTag: '生活建议',
+	overallCardTitle: '命定终局建议'
+};
+
+const FACE_UI_EN: Record<FaceUiKey, string> = {
+	navTitle: 'Free Face Reading',
+	headerTitle: 'Free Face Reading',
+	headerSubtitle: 'Insight into personality, wealth and relationships through traditional face reading',
+	langZh: '中文',
+	langEn: 'EN',
+	genderLabel: 'Gender',
+	male: 'Male',
+	female: 'Female',
+	resultTitle: 'Face Reading Report',
+	warningTitle: 'Destiny Alert',
+	chapterArchive: 'Module 1 · Profile',
+	chapterThreeSections: 'Module 2 · Three Sections',
+	chapterFiveOfficials: 'Module 3 · Five Officials',
+	chapterKeyPalaces: 'Module 4 · Key Palaces',
+	chapterCoreFortunes: 'Module 5 · Core Fortune',
+	chapterImprovement: 'Module 6 · Guidance',
+	labelConfidence: 'AI confidence',
+	labelFaceElement: 'Face element',
+	labelSpiritScore: 'Vitality',
+	labelComplexion: 'Complexion',
+	labelBalance: 'Balance',
+	labelAppearance: 'Appearance',
+	labelCharacter: 'Character',
+	labelInfluence: 'Influence',
+	labelLocation: 'Location',
+	labelFeature: 'Feature',
+	labelFortune: 'Fortune',
+	labelTrend: 'Trend',
+	labelAdvice: 'Advice',
+	labelAppearanceTips: 'Appearance',
+	labelBehaviorTips: 'Behavior',
+	labelLifePlanning: 'Life planning',
+	labelClosingNote: 'Closing',
+	retakePhoto: 'Retake',
+	downloadReport: 'Download',
+	wechatTitle: 'Full face reading via WeChat',
+	wechatDesc:
+		'This is only part of your reading. For love, wealth and career, add our assistant on WeChat for a full consultation.',
+	wechatOk: 'OK',
+	analyzingMain: 'Analyzing your face with AI...',
+	analyzingPatienceHint: 'Face analysis takes 1–2 minutes. Please wait patiently.',
+	analyzingExtract: 'Extracting facial features...',
+	analyzingFate: 'Features captured, reading destiny...',
+	analyzingReport: 'Generating your report...',
+	analyzingDone: 'Done',
+	analyzeStepExtract: 'Extract',
+	analyzeStepFate: 'Destiny',
+	analyzeStepReport: 'Report',
+	analyzeDimensionTitle: 'Facial Scan',
+	previewRetake: 'Retake',
+	previewConfirm: 'Analyze',
+	previewTitle: 'Confirm your photo',
+	previewHint: 'Make sure your face is clear and centered before analysis',
+	previewAdjustHint: 'Drag to reposition, pinch or use buttons to zoom',
+	guideText: 'Take or upload a clear front-facing photo',
+	guideTip1: 'Face the camera, centered',
+	guideTip2: 'Even lighting, avoid backlight',
+	guideTip3: 'Clear features, no obstruction',
+	footerPhoto: 'Camera',
+	footerAlbum: 'Album',
+	toastNeedPhoto: 'Please take or upload a photo first',
+	toastSuccess: 'Analysis complete',
+	scoreUnit: 'pts',
+	featureFaceShape: 'Face shape: ',
+	featureComplexion: 'Complexion: ',
+	featureSpecialMarks: 'Special marks: ',
+	careerAdviceTag: 'Career',
+	lifeAdviceTag: 'Life',
+	overallCardTitle: 'Overall guidance'
+};
+
+export function getFaceUi(locale: AppLocale): Record<FaceUiKey, string> {
+	return locale === 'en' ? FACE_UI_EN : FACE_UI_ZH;
+}
+
+/** 面相分析中轮播术语 */
+export const FACE_SCAN_TERMS_ZH: string[] = [
+	'扫描天庭（额头）...',
+	'解析眉相走势...',
+	'观测眼窝神采...',
+	'感应鼻准财帛...',
+	'读取口相情缘...',
+	'判定下巴晚运...',
+	'感应五行气色...',
+	'捕捉面部征兆...'
+];
+
+export const FACE_SCAN_TERMS_EN: string[] = [
+	'Scanning forehead...',
+	'Reading brow lines...',
+	'Observing the eyes...',
+	'Checking nose bridge...',
+	'Reading lip shape...',
+	'Judging chin fortune...',
+	'Sensing complexion...',
+	'Capturing facial signs...'
+];
+
 /** 分析中轮播术语 */
 export const SCAN_TERMS_ZH: string[] = [
 	'定位坤宫（财位）...',

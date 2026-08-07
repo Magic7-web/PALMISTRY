@@ -225,3 +225,120 @@ export interface ActiveReportSnapshot {
 	reportData?: PalmistryReport | null
 	createdAt: string
 }
+
+/**
+ * 面相三停分段
+ */
+export interface FaceThreeSection {
+	name: string;
+	nameEn?: string;
+	ageRange: string;
+	ageRangeEn?: string;
+	score: number;
+	summary: string;
+	summaryEn?: string;
+	details: string;
+	detailsEn?: string;
+}
+
+/**
+ * 面相五官（五大官）
+ */
+export interface FaceOfficialItem {
+	name: string;
+	nameEn?: string;
+	appearance: string;
+	appearanceEn?: string;
+	character: string;
+	characterEn?: string;
+	influence: string;
+	influenceEn?: string;
+}
+
+/**
+ * 面相十二宫（重点宫位）
+ */
+export interface FacePalaceItem {
+	name: string;
+	nameEn?: string;
+	location: string;
+	locationEn?: string;
+	feature: string;
+	featureEn?: string;
+	fortuneLevel: string;
+	fortuneLevelEn?: string;
+	trend: string;
+	trendEn?: string;
+	advice: string;
+	adviceEn?: string;
+}
+
+/**
+ * 面相核心运势评分
+ */
+export interface FaceFortuneScore {
+	label: string;
+	labelEn?: string;
+	stars: number;
+	trend: string;
+	trendEn?: string;
+	summary: string;
+	summaryEn?: string;
+}
+
+/**
+ * 面相识别结果（手机端六模块精简版）
+ */
+export interface FaceAnalysisResult {
+	isInvalid?: boolean;
+	errorMsg?: string;
+	errorMsgEn?: string;
+	archive: {
+		confidence: number;
+		classics: string;
+		classicsEn?: string;
+		disclaimer: string;
+		disclaimerEn?: string;
+		faceElement: string;
+		faceElementEn?: string;
+		spiritScore: number;
+		complexionOverview: string;
+		complexionOverviewEn?: string;
+	};
+	threeSections: {
+		upper: FaceThreeSection;
+		middle: FaceThreeSection;
+		lower: FaceThreeSection;
+		balanceScore: number;
+		imbalanceNote: string;
+		imbalanceNoteEn?: string;
+	};
+	fiveOfficials: FaceOfficialItem[];
+	keyPalaces: FacePalaceItem[];
+	coreFortunes: {
+		career: FaceFortuneScore;
+		wealth: FaceFortuneScore;
+		love: FaceFortuneScore;
+	};
+	improvement: {
+		appearanceTips: string;
+		appearanceTipsEn?: string;
+		behaviorTips: string;
+		behaviorTipsEn?: string;
+		lifePlanning: string;
+		lifePlanningEn?: string;
+		closingNote: string;
+		closingNoteEn?: string;
+	};
+}
+
+/**
+ * 面相分析报告
+ */
+export interface FaceReport {
+	id: string
+	imagePath: string
+	analyzeTime: string
+	results: ReportResult[]
+	fullData?: FaceAnalysisResult
+}

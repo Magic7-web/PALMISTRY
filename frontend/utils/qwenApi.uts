@@ -3,7 +3,7 @@
  */
 
 import { QWEN_CONFIG } from './config';
-import type { PalmistryAnalysisResult, FollowUpReadingResult } from '@/types/index';
+import type { PalmistryAnalysisResult, FollowUpReadingResult, FaceAnalysisResult } from '@/types/index';
 import type { AppLocale } from '@/utils/locale';
 import { isApiReadyImage } from '@/utils/imageHelper';
 
@@ -119,6 +119,16 @@ interface FollowUpAnalyzeRequest {
 		title: string;
 		prompt: string;
 	}>;
+}
+
+/**
+ * 面相识别请求参数
+ */
+interface FaceAnalyzeRequest {
+	imagePath: string;
+	gender?: 'male' | 'female';
+	locale?: AppLocale;
+	analysis_type?: 'face';
 }
 
 /**
@@ -354,6 +364,142 @@ ${moduleList}
 2. moduleId 必须与输入模块一一对应。
 3. 每个模块必须同时填写 answer 与 answerEn，不得省略。
 4. 如果是多个模块，请按顺序返回多项 answers。`;
+}
+
+/**
+ * 构建面相分析提示词（手机端六模块精简版，区别于手相报告）
+ */
+function buildFacePrompt(locale: AppLocale): string {
+	const localeHint =
+		locale === 'en'
+			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
+			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
+
+	const invalidStub = `{
+  "isInvalid": true,
+  "errorMsg": "【命理警示】此图非正脸或天机晦暗，请上传清晰的正面人脸照片。",
+  "errorMsgEn": "Please upload a clear front-facing photo.",
+  "archive": { "confidence": 0, "classics": "-", "classicsEn": "-", "disclaimer": "-", "disclaimerEn": "-", "faceElement": "-", "faceElementEn": "-", "spiritScore": 0, "complexionOverview": "-", "complexionOverviewEn": "-" },
+  "threeSections": {
+    "upper": { "name": "上停", "nameEn": "Upper", "ageRange": "15-30岁", "ageRangeEn": "15-30", "score": 0, "summary": "-", "summaryEn": "-", "details": "-", "detailsEn": "-" },
+    "middle": { "name": "中停", "nameEn": "Middle", "ageRange": "31-50岁", "ageRangeEn": "31-50", "score": 0, "summary": "-", "summaryEn": "-", "details": "-", "detailsEn": "-" },
+    "lower": { "name": "下停", "nameEn": "Lower", "ageRange": "51岁+", "ageRangeEn": "51+", "score": 0, "summary": "-", "summaryEn": "-", "details": "-", "detailsEn": "-" },
+    "balanceScore": 0, "imbalanceNote": "-", "imbalanceNoteEn": "-"
+  },
+  "fiveOfficials": [],
+  "keyPalaces": [],
+  "coreFortunes": {
+    "career": { "label": "事业官禄", "labelEn": "Career", "stars": 0, "trend": "-", "trendEn": "-", "summary": "-", "summaryEn": "-" },
+    "wealth": { "label": "财帛", "labelEn": "Wealth", "stars": 0, "trend": "-", "trendEn": "-", "summary": "-", "summaryEn": "-" },
+    "love": { "label": "婚恋", "labelEn": "Love", "stars": 0, "trend": "-", "trendEn": "-", "summary": "-", "summaryEn": "-" }
+  },
+  "improvement": { "appearanceTips": "-", "appearanceTipsEn": "-", "behaviorTips": "-", "behaviorTipsEn": "-", "lifePlanning": "-", "lifePlanningEn": "-", "closingNote": "-", "closingNoteEn": "-" }
+}`;
+
+	return `🪬 你是一位精通麻衣神相、柳庄相法的专业面相师，正在为【手机端面相报告】撰写结论。
+
+【任务类型】analysis_type: face（面相分析，NOT 手相/掌纹）
+【分析对象】正面人脸照片（请根据照片自行判断性别与大致年龄段）
+
+【语言与输出】${localeHint}
+
+⚠️ 禁止输出手相、掌纹、生命线、智慧线、感情线等内容。本报告必须完全基于【面部】特征，遵循传统面相学逻辑。
+
+⚠️ 第一步：图片合法性校验
+若图片不是清晰正面人脸，必须仅返回：${invalidStub}
+
+🔍 第二步：按以下【六大模块】输出 JSON（无 markdown 包裹）：
+
+模块1 archive｜基础档案：confidence(0-100 AI识别置信度)、classics(参考古籍)、disclaimer(民俗文化参考免责声明)、faceElement(脸型五行：金/木/水/火/土)、spiritScore(0-10精气神)、complexionOverview(肤色气色总览)
+
+模块2 threeSections｜三停流年：upper/middle/lower 各含 name、ageRange、score(0-10)、summary(40-60字)、details(80-120字)；balanceScore(三停均衡0-10)；imbalanceNote(失衡短板解读)
+
+模块3 fiveOfficials｜五大官（必须5项）：采听官(耳)、保寿官(眉)、监察官(眼)、审辨官(鼻)、出纳官(口)。每项含 appearance(外观特征)、character(心性解读)、influence(运势影响)，各40-70字
+
+模块4 keyPalaces｜十二宫重点（选6个最关键宫位，不要全凑数）：从命宫、财帛宫、兄弟宫、田宅宫、男女宫、疾厄宫、夫妻宫、迁移宫、官禄宫、福德宫、父母宫、奴仆宫中选。每项含 location、feature(AI识别特征)、fortuneLevel(吉/平/凶)、trend(短期趋势)、advice(改良建议)
+
+模块5 coreFortunes｜三大核心运势：career/wealth/love 各含 stars(1-5整数星级)、trend(升/稳/降)、summary(60-90字)。侧重面相学逻辑，勿重复手相话术
+
+模块6 improvement｜趋吉指南：appearanceTips(形象微调)、behaviorTips(相由心生修养)、lifePlanning(生活规划)、closingNote(总判结语，强调面相定根基、努力改运势，弱化宿命感)
+
+JSON 结构示例（字段名必须一致）：
+{
+  "isInvalid": false,
+  "archive": { "confidence": 88, "classics": "参考《麻衣神相》《柳庄相法》", "classicsEn": "...", "disclaimer": "...", "disclaimerEn": "...", "faceElement": "木型脸", "faceElementEn": "Wood face", "spiritScore": 7.5, "complexionOverview": "...", "complexionOverviewEn": "..." },
+  "threeSections": { "upper": {...}, "middle": {...}, "lower": {...}, "balanceScore": 7.0, "imbalanceNote": "...", "imbalanceNoteEn": "..." },
+  "fiveOfficials": [{ "name": "采听官（耳）", "nameEn": "Ears", "appearance": "...", "appearanceEn": "...", "character": "...", "characterEn": "...", "influence": "...", "influenceEn": "..." }],
+  "keyPalaces": [{ "name": "命宫", "nameEn": "Life Palace", "location": "印堂", "locationEn": "...", "feature": "...", "featureEn": "...", "fortuneLevel": "吉", "fortuneLevelEn": "Auspicious", "trend": "...", "trendEn": "...", "advice": "...", "adviceEn": "..." }],
+  "coreFortunes": {
+    "career": { "label": "事业官禄运", "labelEn": "Career", "stars": 4, "trend": "稳步上升", "trendEn": "Rising", "summary": "...", "summaryEn": "..." },
+    "wealth": { "label": "财帛运", "labelEn": "Wealth", "stars": 3, "trend": "...", "trendEn": "...", "summary": "...", "summaryEn": "..." },
+    "love": { "label": "婚恋运", "labelEn": "Love", "stars": 4, "trend": "...", "trendEn": "...", "summary": "...", "summaryEn": "..." }
+  },
+  "improvement": { "appearanceTips": "...", "appearanceTipsEn": "...", "behaviorTips": "...", "behaviorTipsEn": "...", "lifePlanning": "...", "lifePlanningEn": "...", "closingNote": "...", "closingNoteEn": "..." }
+}
+
+要求：fiveOfficials 必须恰好5项；keyPalaces 必须6项；语气专业、具体、基于图片可见特征，禁止编造与图片无关的细节；禁止医疗/法律/投资保证。`;
+}
+
+function createFailedFaceResult(message: string, messageEn: string): FaceAnalysisResult {
+	const emptySection = {
+		name: '-',
+		nameEn: '-',
+		ageRange: '-',
+		ageRangeEn: '-',
+		score: 0,
+		summary: message,
+		summaryEn: messageEn,
+		details: message,
+		detailsEn: messageEn
+	};
+	const emptyFortune = {
+		label: '-',
+		labelEn: '-',
+		stars: 0,
+		trend: '-',
+		trendEn: '-',
+		summary: message,
+		summaryEn: messageEn
+	};
+	return {
+		archive: {
+			confidence: 0,
+			classics: '-',
+			classicsEn: '-',
+			disclaimer: message,
+			disclaimerEn: messageEn,
+			faceElement: '-',
+			faceElementEn: '-',
+			spiritScore: 0,
+			complexionOverview: message,
+			complexionOverviewEn: messageEn
+		},
+		threeSections: {
+			upper: emptySection,
+			middle: emptySection,
+			lower: emptySection,
+			balanceScore: 0,
+			imbalanceNote: message,
+			imbalanceNoteEn: messageEn
+		},
+		fiveOfficials: [],
+		keyPalaces: [],
+		coreFortunes: {
+			career: emptyFortune,
+			wealth: emptyFortune,
+			love: emptyFortune
+		},
+		improvement: {
+			appearanceTips: message,
+			appearanceTipsEn: messageEn,
+			behaviorTips: message,
+			behaviorTipsEn: messageEn,
+			lifePlanning: message,
+			lifePlanningEn: messageEn,
+			closingNote: message,
+			closingNoteEn: messageEn
+		}
+	};
 }
 
 /**
@@ -915,5 +1061,138 @@ function parseQwenResponse(content: string | any): PalmistryAnalysisResult {
 				tip: '本报告仅为传统掌纹文化的娱乐化呈现，不具备科学参考价值'
 			}
 		};
+	}
+}
+
+/**
+ * 调用千问 VL 模型分析面相
+ */
+export async function analyzeFace(request: FaceAnalyzeRequest): Promise<FaceAnalysisResult> {
+	try {
+		const imageData = request.imagePath;
+		const locale: AppLocale = request.locale != null ? request.locale : 'zh';
+		const prompt = buildFacePrompt(locale);
+
+		const apiRequest: UTSJSONObject = {
+			model: QWEN_CONFIG.model,
+			analysis_type: request.analysis_type != null ? request.analysis_type : 'face',
+			input: {
+				messages: [
+					{
+						role: 'user',
+						content: [
+							{ type: 'text', text: prompt },
+							{ type: 'image', image: imageData }
+						]
+					}
+				]
+			},
+			parameters: {
+				temperature: 0.1,
+				max_tokens: 10000,
+				top_p: 0.8
+			}
+		};
+
+		return new Promise<FaceAnalysisResult>((resolve, reject) => {
+			uni.request({
+				url: QWEN_CONFIG.endpoint,
+				method: 'POST',
+				header: buildQwenRequestHeaders(),
+				data: apiRequest,
+				timeout: QWEN_CONFIG.timeout,
+				success: (res: any) => {
+					if (res.statusCode !== 200) {
+						reject(new Error(`API调用失败: HTTP ${res.statusCode}, ${extractProxyErrorMessage(res)}`));
+						return;
+					}
+					if (res.data != null && res.data.success === false) {
+						reject(new Error(extractProxyErrorMessage(res)));
+						return;
+					}
+					if (!res.data) {
+						reject(new Error('API返回数据为空'));
+						return;
+					}
+
+					let responseData = res.data;
+					if (typeof res.data === 'string') {
+						try {
+							responseData = JSON.parse(res.data);
+						} catch (error) {
+							reject(new Error('API返回数据格式错误'));
+							return;
+						}
+					}
+
+					const qwenResponse = responseData as QwenResponse;
+					if (
+						!qwenResponse ||
+						!qwenResponse.output ||
+						!qwenResponse.output.choices ||
+						qwenResponse.output.choices.length === 0
+					) {
+						reject(new Error('API返回数据格式错误：缺少output.choices'));
+						return;
+					}
+
+					const content = qwenResponse.output.choices[0].message.content;
+					try {
+						const result = parseFaceResponse(content);
+						resolve(result);
+					} catch (error: any) {
+						reject(new Error(`解析返回结果失败: ${error.message || 'JSON格式错误'}`));
+					}
+				},
+				fail: (error: any) => {
+					const errorMsg = error.errMsg || '网络错误';
+					reject(new Error(`API调用失败: ${errorMsg}`));
+				}
+			});
+		});
+	} catch (error) {
+		console.error('面相识别失败:', error);
+		throw error;
+	}
+}
+
+/**
+ * 解析面相 API 返回的 JSON 内容
+ */
+function parseFaceResponse(content: string | any): FaceAnalysisResult {
+	try {
+		let jsonString = normalizeQwenMessageContent(content);
+		jsonString = jsonString.trim();
+		jsonString = jsonString.replace(/```json\s*/g, '');
+		jsonString = jsonString.replace(/```\s*/g, '');
+		jsonString = jsonString.trim();
+		const startIndex = jsonString.indexOf('{');
+		const endIndex = jsonString.lastIndexOf('}');
+		if (startIndex >= 0 && endIndex > startIndex) {
+			jsonString = jsonString.substring(startIndex, endIndex + 1);
+		}
+
+		const result = JSON.parse(jsonString) as FaceAnalysisResult;
+		if (
+			!result.archive ||
+			!result.threeSections ||
+			!result.fiveOfficials ||
+			!result.keyPalaces ||
+			!result.coreFortunes ||
+			!result.improvement
+		) {
+			throw new Error('返回结果格式不正确：缺少必要字段');
+		}
+		if (result.fiveOfficials == null) {
+			result.fiveOfficials = [];
+		}
+		if (result.keyPalaces == null) {
+			result.keyPalaces = [];
+		}
+		return result;
+	} catch (error) {
+		console.error('面相 JSON 解析失败:', error);
+		console.error('原始 content:', content);
+		return createFailedFaceResult('识别失败，请重试或检查图片质量', 'Analysis failed, please retry');
 	}
 }

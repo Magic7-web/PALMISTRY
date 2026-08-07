@@ -1,0 +1,155 @@
+<template>
+	<view class="app-tab-bar">
+		<view class="app-tab-bar-inner">
+			<view
+				class="tab-item"
+				v-for="item in tabs"
+				:key="item.key"
+				:class="{ active: current === item.key }"
+				@click="onTabClick(item.key)"
+			>
+				<image
+					class="tab-icon"
+					:src="current === item.key ? item.activeIcon : item.icon"
+					mode="aspectFit"
+				></image>
+				<text class="tab-label">{{ item.label }}</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script lang="uts">
+	import { getAppLocale, type AppLocale } from '@/utils/locale';
+
+	type TabKey = 'palm' | 'face' | 'bazi';
+
+	interface TabItem {
+		key: TabKey;
+		label: string;
+		icon: string;
+		activeIcon: string;
+	}
+
+	export default {
+		name: 'AppTabBar',
+		props: {
+			current: {
+				type: String,
+				default: 'palm'
+			}
+		},
+		data() {
+			return {
+				locale: getAppLocale() as AppLocale
+			};
+		},
+		computed: {
+			tabs(): TabItem[] {
+				const en = this.locale === 'en';
+				return [
+					{
+						key: 'palm',
+						label: en ? 'Palm' : '手相',
+						icon: '/static/tab/palm.png',
+						activeIcon: '/static/tab/palm-active.png'
+					},
+					{
+						key: 'face',
+						label: en ? 'Face' : '面相',
+						icon: '/static/tab/face.png',
+						activeIcon: '/static/tab/face-active.png'
+					},
+					{
+						key: 'bazi',
+						label: en ? 'BaZi' : '八字',
+						icon: '/static/tab/bazi.png',
+						activeIcon: '/static/tab/bazi-active.png'
+					}
+				];
+			}
+		},
+		methods: {
+			syncLocale(): void {
+				this.locale = getAppLocale();
+			},
+			onTabClick(key: TabKey): void {
+				if (key === this.current) {
+					return;
+				}
+				let url = '/pages/camera/camera';
+				if (key === 'face') {
+					url = '/pages/face/face';
+				} else if (key === 'bazi') {
+					url = '/pages/bazi/bazi';
+				}
+				uni.switchTab({
+					url,
+					fail: () => {
+						uni.reLaunch({ url });
+					}
+				});
+			}
+		},
+		created() {
+			this.syncLocale();
+		}
+	};
+</script>
+
+<style>
+	.app-tab-bar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 900;
+		background-color: #fdf7ee;
+		border-top: 1rpx solid #e8e0cc;
+		box-shadow: 0 -4rpx 20rpx rgba(90, 62, 43, 0.08);
+		padding-bottom: env(safe-area-inset-bottom);
+	}
+
+	.app-tab-bar-inner {
+		width: 100%;
+		max-width: 600px;
+		margin: 0 auto;
+		display: flex;
+		flex-direction: row;
+		align-items: stretch;
+		justify-content: space-around;
+		height: 110rpx;
+		box-sizing: border-box;
+	}
+
+	.tab-item {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 6rpx;
+		padding: 8rpx 0;
+	}
+
+	.tab-icon {
+		width: 44rpx;
+		height: 44rpx;
+		opacity: 0.65;
+	}
+
+	.tab-item.active .tab-icon {
+		opacity: 1;
+	}
+
+	.tab-label {
+		font-size: 22rpx;
+		color: #8c7662;
+		line-height: 1.2;
+	}
+
+	.tab-item.active .tab-label {
+		color: #5a3e2b;
+		font-weight: bold;
+	}
+</style>

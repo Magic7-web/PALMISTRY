@@ -9,6 +9,22 @@
 			}
 		},
 		{
+			"path": "pages/face/face",
+			"style": {
+				"navigationBarTitleText": "免费看面相 - 林公测算",
+				"navigationBarBackgroundColor": "#fdf7ee",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/bazi/bazi",
+			"style": {
+				"navigationBarTitleText": "八字排盘 - 林公测算",
+				"navigationBarBackgroundColor": "#fdf7ee",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/report/report",
 			"style": {
 				"navigationBarTitleText": "手相分析报告 - 林公测算",
@@ -19,9 +35,35 @@
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "手相分析",
+		"navigationBarTitleText": "林公测算",
 		"navigationBarBackgroundColor": "#fdf7ee",
 		"backgroundColor": "#fdf7ee"
+	},
+	"tabBar": {
+		"color": "#8c7662",
+		"selectedColor": "#5a3e2b",
+		"backgroundColor": "#fdf7ee",
+		"borderStyle": "white",
+		"list": [
+			{
+				"pagePath": "pages/camera/camera",
+				"text": "手相",
+				"iconPath": "static/tab/palm.png",
+				"selectedIconPath": "static/tab/palm-active.png"
+			},
+			{
+				"pagePath": "pages/face/face",
+				"text": "面相",
+				"iconPath": "static/tab/face.png",
+				"selectedIconPath": "static/tab/face-active.png"
+			},
+			{
+				"pagePath": "pages/bazi/bazi",
+				"text": "八字",
+				"iconPath": "static/tab/bazi.png",
+				"selectedIconPath": "static/tab/bazi-active.png"
+			}
+		]
 	},
 	"uniIdRouter": {}
 }

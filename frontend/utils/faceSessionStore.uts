@@ -1,0 +1,48 @@
+import type { FaceReport } from '@/types/index';
+
+/** 面相页会话快照，用于 Tab 切换后恢复状态 */
+export interface FaceSessionSnapshot {
+	capturedImage: string | null;
+	reportData: FaceReport | null;
+	imageScale: number;
+	imageOffsetX: number;
+	imageOffsetY: number;
+}
+
+const FACE_SESSION_KEY = 'face_reading_session_snapshot';
+
+function safeRead<T>(key: string, fallback: T): T {
+	try {
+		const value = uni.getStorageSync(key);
+		if (value != null) {
+			return value as T;
+		}
+	} catch (error) {
+		console.error(`读取本地存储失败: ${key}`, error);
+	}
+	return fallback;
+}
+
+export function saveFaceSession(snapshot: FaceSessionSnapshot): void {
+	try {
+		if (snapshot.capturedImage == null && snapshot.reportData == null) {
+			uni.removeStorageSync(FACE_SESSION_KEY);
+			return;
+		}
+		uni.setStorageSync(FACE_SESSION_KEY, snapshot);
+	} catch (error) {
+		console.error('保存面相会话失败', error);
+	}
+}
+
+export function loadFaceSession(): FaceSessionSnapshot | null {
+	return safeRead<FaceSessionSnapshot | null>(FACE_SESSION_KEY, null);
+}
+
+export function clearFaceSession(): void {
+	try {
+		uni.removeStorageSync(FACE_SESSION_KEY);
+	} catch (error) {
+		console.error('清除面相会话失败', error);
+	}
+}
