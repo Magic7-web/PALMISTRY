@@ -1,0 +1,15 @@
+# 环境变量（含密钥，绝不提交）
+.env
+**/.env
+
+# 依赖目录
+node_modules/
+**/node_modules/
+
+# macOS 系统文件
+.DS_Store
+**/.DS_Store
+
+# 前端打包产物
+frontend/dist/
+frontend/unpackage/
