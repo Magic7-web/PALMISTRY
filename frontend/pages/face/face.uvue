@@ -525,37 +525,49 @@
 
 				<view class="alipay-panel" v-if="paymentMethod === 'alipay'">
 					<text class="alipay-title">{{ paymentUi.alipayTitle }}</text>
-					<view class="alipay-pay-block" v-if="!paymentTestMode">
-						<view v-if="paymentOrderStatus === 'creating'" class="alipay-pay-loading">
-							<text class="alipay-pay-loading-text">{{ paymentUi.alipayOrderCreating }}</text>
-						</view>
-						<view v-else-if="alipayPrice.length > 0">
-							<text class="alipay-pay-label">{{ paymentUi.alipayUniqueBadge }}</text>
-							<view class="alipay-amount-row">
-								<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
-								<view class="alipay-copy-btn" @click.stop="copyUniquePaymentAmount">
-									<text class="alipay-copy-text">{{ paymentUi.alipayCopyAmount }}</text>
-								</view>
-							</view>
-							<text class="alipay-pay-hint">{{ paymentUi.alipayUniquePayHint }}</text>
-							<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
-							<view
-								class="alipay-countdown-row"
-								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
-							>
-								<text class="alipay-countdown-label">{{ paymentUi.alipayCountdownLabel }}</text>
-								<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
-							</view>
+					<view class="alipay-pay-block" v-if="alipayPaymentPreparing">
+						<view class="alipay-pay-loading">
+							<view class="alipay-pay-spinner"></view>
+							<text class="alipay-pay-loading-text">{{ alipayPreparingText }}</text>
 						</view>
 					</view>
-					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
-					<text class="alipay-notice">{{ getAlipayStatusText() }}</text>
+					<view class="alipay-pay-block" v-else-if="!alipayManualUnlockMode && alipayPrice.length > 0">
+						<text class="alipay-pay-label">{{ paymentUi.alipayUniqueBadge }}</text>
+						<view class="alipay-amount-row">
+							<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+							<view class="alipay-copy-btn" @click.stop="copyUniquePaymentAmount">
+								<text class="alipay-copy-text">{{ paymentUi.alipayCopyAmount }}</text>
+							</view>
+						</view>
+						<text class="alipay-pay-hint">{{ paymentUi.alipayUniquePayHint }}</text>
+						<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
+						<view
+							class="alipay-countdown-row"
+							v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+						>
+							<text class="alipay-countdown-label">{{ paymentUi.alipayCountdownLabel }}</text>
+							<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
+						</view>
+					</view>
+					<view class="alipay-pay-block" v-else-if="alipayManualUnlockMode && alipayPrice.length > 0">
+						<text class="alipay-pay-label">{{ paymentUi.alipayAmountLabel }}</text>
+						<view class="alipay-amount-row">
+							<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+						</view>
+					</view>
+					<image
+						v-if="!alipayPaymentPreparing"
+						class="alipay-qr"
+						:src="alipayQrCode"
+						mode="widthFix"
+					></image>
+					<text v-if="!alipayPaymentPreparing" class="alipay-notice">{{ getAlipayStatusText() }}</text>
 					<button
-						v-if="paymentTestMode"
+						v-if="alipayManualUnlockMode && !alipayPaymentPreparing"
 						class="alipay-paid-btn"
-						@click.stop="confirmAlipayTestUnlock"
+						@click.stop="confirmAlipayManualUnlock"
 					>
-						<text class="btn-primary-text">{{ paymentUi.alipayTestUnlockButton }}</text>
+						<text class="btn-primary-text">{{ alipayManualUnlockButtonText }}</text>
 					</button>
 				</view>
 
@@ -600,7 +612,12 @@
 	} from '@/utils/locale';
 	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
 	import { IMPROVEMENT_PAYMENT } from '@/utils/improvementPaymentConfig';
-	import { createPaymentOrder, fetchPaymentOrder } from '@/utils/paymentApi';
+	import { createPaymentOrder, fetchPaymentOrder, PaymentListenerUnavailableError } from '@/utils/paymentApi';
+	import {
+		checkPaymentListenerAvailable,
+		clearPaymentListenerCache,
+		shouldUseAlipayManualUnlock
+	} from '@/utils/paymentListenerCheck';
 	import {
 		loadPayPalSdk,
 		renderPayPalButtons,
@@ -677,6 +694,9 @@
 		paymentCountdownTimer: number | null;
 		countdownTick: number;
 		paymentTestMode: boolean;
+		paymentFallbackMode: boolean;
+		paymentListenerChecking: boolean;
+		paymentListenerResolved: boolean;
 	}
 
 	export default {
@@ -726,7 +746,10 @@
 				paymentPollTimer: null,
 				paymentCountdownTimer: null,
 				countdownTick: 0,
-				paymentTestMode: PAYMENT_CONFIG.testMode
+				paymentTestMode: PAYMENT_CONFIG.testMode,
+				paymentFallbackMode: false,
+				paymentListenerChecking: false,
+				paymentListenerResolved: false
 			};
 		},
 		computed: {
@@ -838,6 +861,24 @@
 					return this.matchResumeHasReport ? 'View report' : 'In progress';
 				}
 				return this.matchResumeHasReport ? '待查看' : '进行中';
+			},
+			alipayManualUnlockMode(): boolean {
+				return shouldUseAlipayManualUnlock(this.paymentTestMode, this.paymentFallbackMode);
+			},
+			alipayManualUnlockButtonText(): string {
+				if (this.paymentTestMode) {
+					return this.paymentUi.alipayTestUnlockButton;
+				}
+				return this.paymentUi.alipayFallbackUnlockButton;
+			},
+			alipayPaymentPreparing(): boolean {
+				if (this.paymentListenerChecking) {
+					return true;
+				}
+				return !this.alipayManualUnlockMode && this.paymentOrderStatus === 'creating';
+			},
+			alipayPreparingText(): string {
+				return this.paymentUi.alipayOrderCreating;
 			}
 		},
 		onShow() {
@@ -904,19 +945,8 @@
 				this.improvementUnlocked = snapshot.improvementUnlocked === true;
 			},
 			refreshActiveMatchResume(): void {
-				if (this.reportData == null || this.reportData.fullData == null) {
-					this.showMatchResumeBanner = false;
-					return;
-				}
 				const active = loadActiveFaceMatchSession();
 				if (active == null) {
-					this.showMatchResumeBanner = false;
-					return;
-				}
-				const currentReportJson = JSON.stringify(this.reportData.fullData);
-				if (active.personAReportJson != null
-					&& active.personAReportJson.length > 0
-					&& active.personAReportJson !== currentReportJson) {
 					this.showMatchResumeBanner = false;
 					return;
 				}
@@ -1236,8 +1266,15 @@
 				const personAImage = this.reportData.imagePath || this.capturedImage;
 				const personAReportJson = JSON.stringify(this.reportData.fullData);
 
-				// 从面相报告进入：始终复用已有合婚会话，避免丢失已上传的 TA 照片
 				const active = loadActiveFaceMatchSession();
+				if (active != null && (active.hasGeneratedReport === true || active.reportData != null)) {
+					uni.navigateTo({
+						url: `/pages/face/match?matchId=${active.matchId}${active.fromFaceReport ? '&from=report' : ''}`
+					});
+					return;
+				}
+
+				// 从面相报告进入：复用已有合婚会话，避免丢失已上传的 TA 照片
 				if (active != null && (active.fromFaceReport === true || (active.personAReportJson != null && active.personAReportJson.length > 0))) {
 					saveFaceMatchSession({
 						matchId: active.matchId,
@@ -1254,6 +1291,11 @@
 						createdAt: active.createdAt
 					});
 					uni.navigateTo({ url: `/pages/face/match?matchId=${active.matchId}&from=report` });
+					return;
+				}
+
+				if (active != null && active.personBImage != null && active.personBImage.length > 0) {
+					uni.navigateTo({ url: `/pages/face/match?matchId=${active.matchId}` });
 					return;
 				}
 
@@ -1305,6 +1347,7 @@
 					this.persistFaceSession();
 					return;
 				}
+				this.resetPaymentListenerState();
 				this.paymentSummaryLabel = this.locale === 'en'
 					? IMPROVEMENT_PAYMENT.titleEn
 					: IMPROVEMENT_PAYMENT.titleZh;
@@ -1338,6 +1381,33 @@
 					icon: 'success'
 				});
 			},
+			resetPaymentListenerState(): void {
+				this.paymentFallbackMode = false;
+				this.paymentListenerChecking = false;
+				this.paymentListenerResolved = false;
+				clearPaymentListenerCache();
+			},
+			async resolveAlipayPaymentMode(): Promise<void> {
+				if (this.paymentListenerResolved) {
+					return;
+				}
+				if (PAYMENT_CONFIG.testMode) {
+					this.paymentFallbackMode = false;
+					this.paymentListenerResolved = true;
+					return;
+				}
+				this.paymentListenerChecking = true;
+				try {
+					const available = await checkPaymentListenerAvailable();
+					this.paymentFallbackMode = !available;
+				} catch (error) {
+					console.warn('开运支付通道检查失败，启用保底支付', error);
+					this.paymentFallbackMode = true;
+				} finally {
+					this.paymentListenerChecking = false;
+					this.paymentListenerResolved = true;
+				}
+			},
 			selectPaymentMethod(method: PaymentMethod): void {
 				this.paymentMethod = method;
 				clearPayPalButtonContainer('face-improvement-paypal-container');
@@ -1350,7 +1420,7 @@
 							duration: 4000
 						});
 						this.paymentMethod = 'alipay';
-						this.startAlipayOrder();
+						void this.startAlipayOrder();
 						return;
 					}
 					this.paymentLoading = true;
@@ -1360,7 +1430,7 @@
 					return;
 				}
 				this.paymentLoading = false;
-				this.startAlipayOrder();
+				void this.startAlipayOrder();
 			},
 			getAlipayListedPriceHint(): string {
 				return this.paymentUi.alipayListedPriceHint.replace('{price}', this.paymentDisplayPrice);
@@ -1412,6 +1482,12 @@
 			},
 			getAlipayStatusText(): string {
 				const u = this.paymentUi;
+				if (this.paymentListenerChecking) {
+					return u.alipayListenerChecking;
+				}
+				if (this.paymentFallbackMode && !this.paymentTestMode) {
+					return u.alipayFallbackNotice;
+				}
 				if (this.paymentTestMode) {
 					return u.alipayManualNotice;
 				}
@@ -1433,8 +1509,9 @@
 				return u.alipayWaitingPayment;
 			},
 			async startAlipayOrder(): Promise<void> {
-				if (this.paymentTestMode) {
-					this.paymentOrderStatus = 'test';
+				await this.resolveAlipayPaymentMode();
+				if (this.alipayManualUnlockMode) {
+					this.paymentOrderStatus = 'manual';
 					return;
 				}
 				this.stopPaymentPolling();
@@ -1457,6 +1534,12 @@
 					this.paymentOrderStatus = 'pending';
 					this.startPaymentPolling();
 				} catch (error) {
+					if (error instanceof PaymentListenerUnavailableError) {
+						console.warn('开运收款通道已离线，切换保底支付', error);
+						this.paymentFallbackMode = true;
+						this.paymentOrderStatus = 'manual';
+						return;
+					}
 					console.error('Create improvement payment order failed:', error);
 					this.paymentOrderStatus = 'error';
 					uni.showToast({
@@ -1491,7 +1574,7 @@
 				}
 			},
 			async pollPaymentOrderOnce(): Promise<void> {
-				if (this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
+				if (this.alipayManualUnlockMode || this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
 					return;
 				}
 				try {
@@ -1508,12 +1591,15 @@
 					console.error('Poll improvement payment order failed:', error);
 				}
 			},
-			confirmAlipayTestUnlock(): void {
-				if (!this.paymentTestMode) {
+			confirmAlipayManualUnlock(): void {
+				if (!this.alipayManualUnlockMode) {
 					return;
 				}
 				this.stopPaymentPolling();
-				this.completeImprovementUnlock('alipay', `TEST-${Date.now()}`);
+				const orderRef = this.paymentTestMode
+					? `TEST-${Date.now()}`
+					: `MANUAL-${Date.now()}`;
+				this.completeImprovementUnlock('alipay', orderRef);
 			},
 			mountPayPalButtons(): void {
 				const u = this.paymentUi;
@@ -1559,6 +1645,7 @@
 				this.showPaymentDialog = false;
 				this.paymentLoading = false;
 				this.stopPaymentPolling();
+				this.resetPaymentListenerState();
 				this.paymentSummaryLabel = '';
 				this.paymentOrderId = '';
 				this.paymentOrderStatus = '';
@@ -3460,6 +3547,29 @@
 		border: 1rpx solid #eadfca;
 		margin-bottom: 16rpx;
 		box-sizing: border-box;
+	}
+
+	.alipay-pay-loading {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 28rpx 0 20rpx;
+		gap: 18rpx;
+	}
+
+	.alipay-pay-spinner {
+		width: 52rpx;
+		height: 52rpx;
+		border-radius: 50%;
+		border: 5rpx solid #e3d2b5;
+		border-top-color: #5a3e2b;
+		animation: alipayPaySpin 0.85s linear infinite;
+	}
+
+	@keyframes alipayPaySpin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 
 	.alipay-pay-loading-text {

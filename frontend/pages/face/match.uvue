@@ -443,37 +443,49 @@
 
 				<view class="alipay-panel" v-if="paymentMethod === 'alipay'">
 					<text class="alipay-title">{{ paymentUi.alipayTitle }}</text>
-					<view class="alipay-pay-block" v-if="!paymentTestMode">
-						<view v-if="paymentOrderStatus === 'creating'" class="alipay-pay-loading">
-							<text class="alipay-pay-loading-text">{{ paymentUi.alipayOrderCreating }}</text>
-						</view>
-						<view v-else-if="alipayPrice.length > 0">
-							<text class="alipay-pay-label">{{ paymentUi.alipayUniqueBadge }}</text>
-							<view class="alipay-amount-row">
-								<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
-								<view class="alipay-copy-btn" @click="copyUniquePaymentAmount">
-									<text class="alipay-copy-text">{{ paymentUi.alipayCopyAmount }}</text>
-								</view>
-							</view>
-							<text class="alipay-pay-hint">{{ paymentUi.alipayUniquePayHint }}</text>
-							<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
-							<view
-								class="alipay-countdown-row"
-								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
-							>
-								<text class="alipay-countdown-label">{{ paymentUi.alipayCountdownLabel }}</text>
-								<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
-							</view>
+					<view class="alipay-pay-block" v-if="alipayPaymentPreparing">
+						<view class="alipay-pay-loading">
+							<view class="alipay-pay-spinner"></view>
+							<text class="alipay-pay-loading-text">{{ alipayPreparingText }}</text>
 						</view>
 					</view>
-					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
-					<text class="alipay-notice">{{ getAlipayStatusText() }}</text>
+					<view class="alipay-pay-block" v-else-if="!alipayManualUnlockMode && alipayPrice.length > 0">
+						<text class="alipay-pay-label">{{ paymentUi.alipayUniqueBadge }}</text>
+						<view class="alipay-amount-row">
+							<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+							<view class="alipay-copy-btn" @click="copyUniquePaymentAmount">
+								<text class="alipay-copy-text">{{ paymentUi.alipayCopyAmount }}</text>
+							</view>
+						</view>
+						<text class="alipay-pay-hint">{{ paymentUi.alipayUniquePayHint }}</text>
+						<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
+						<view
+							class="alipay-countdown-row"
+							v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+						>
+							<text class="alipay-countdown-label">{{ paymentUi.alipayCountdownLabel }}</text>
+							<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
+						</view>
+					</view>
+					<view class="alipay-pay-block" v-else-if="alipayManualUnlockMode && alipayPrice.length > 0">
+						<text class="alipay-pay-label">{{ paymentUi.alipayAmountLabel }}</text>
+						<view class="alipay-amount-row">
+							<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+						</view>
+					</view>
+					<image
+						v-if="!alipayPaymentPreparing"
+						class="alipay-qr"
+						:src="alipayQrCode"
+						mode="widthFix"
+					></image>
+					<text v-if="!alipayPaymentPreparing" class="alipay-notice">{{ getAlipayStatusText() }}</text>
 					<button
-						v-if="paymentTestMode"
+						v-if="alipayManualUnlockMode && !alipayPaymentPreparing"
 						class="alipay-paid-btn"
-						@click="confirmAlipayTestUnlock"
+						@click="confirmAlipayManualUnlock"
 					>
-						<text class="btn-primary-text">{{ paymentUi.alipayTestUnlockButton }}</text>
+						<text class="btn-primary-text">{{ alipayManualUnlockButtonText }}</text>
 					</button>
 				</view>
 
@@ -498,6 +510,7 @@
 		loadFaceMatchReport,
 		clearFaceMatchSession,
 		loadActiveFaceMatchSession,
+		recoverCompletedMatchSession,
 		type FaceMatchSessionSnapshot
 	} from '@/utils/faceMatchSessionStore';
 	import { loadFaceSession } from '@/utils/faceSessionStore';
@@ -509,7 +522,12 @@
 		type AppLocale
 	} from '@/utils/locale';
 	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
-	import { createPaymentOrder, fetchPaymentOrder } from '@/utils/paymentApi';
+	import { createPaymentOrder, fetchPaymentOrder, PaymentListenerUnavailableError } from '@/utils/paymentApi';
+	import {
+		checkPaymentListenerAvailable,
+		clearPaymentListenerCache,
+		shouldUseAlipayManualUnlock
+	} from '@/utils/paymentListenerCheck';
 	import {
 		loadPayPalSdk,
 		renderPayPalButtons,
@@ -563,6 +581,9 @@
 		paymentCountdownTimer: number | null;
 		countdownTick: number;
 		paymentTestMode: boolean;
+		paymentFallbackMode: boolean;
+		paymentListenerChecking: boolean;
+		paymentListenerResolved: boolean;
 	}
 
 	export default {
@@ -604,7 +625,10 @@
 				paymentPollTimer: null,
 				paymentCountdownTimer: null,
 				countdownTick: 0,
-				paymentTestMode: PAYMENT_CONFIG.testMode
+				paymentTestMode: PAYMENT_CONFIG.testMode,
+				paymentFallbackMode: false,
+				paymentListenerChecking: false,
+				paymentListenerResolved: false
 			};
 		},
 		computed: {
@@ -754,6 +778,24 @@
 					return data.adviceEn;
 				}
 				return data.advice != null ? data.advice : [];
+			},
+			alipayManualUnlockMode(): boolean {
+				return shouldUseAlipayManualUnlock(this.paymentTestMode, this.paymentFallbackMode);
+			},
+			alipayManualUnlockButtonText(): string {
+				if (this.paymentTestMode) {
+					return this.paymentUi.alipayTestUnlockButton;
+				}
+				return this.paymentUi.alipayFallbackUnlockButton;
+			},
+			alipayPaymentPreparing(): boolean {
+				if (this.paymentListenerChecking) {
+					return true;
+				}
+				return !this.alipayManualUnlockMode && this.paymentOrderStatus === 'creating';
+			},
+			alipayPreparingText(): string {
+				return this.paymentUi.alipayOrderCreating;
 			}
 		},
 		onLoad(options: Record<string, any>) {
@@ -827,6 +869,7 @@
 						this.repairReportImages();
 						this.syncUploadTarget();
 						this.syncMatchUrl();
+						this.tryRecoverCompletedReport();
 						return;
 					}
 					matchId = createMatchId();
@@ -847,6 +890,7 @@
 				this.repairReportImages();
 				this.syncUploadTarget();
 				this.syncMatchUrl();
+				this.tryRecoverCompletedReport();
 			},
 			/** 统一判定是否处于「从面相报告进入」模式，避免 onShow 刷新后退回四步流程 */
 			reconcileFromFaceReportMode(): void {
@@ -952,6 +996,9 @@
 						this.personAImage,
 						this.personBImage
 					);
+					if (this.reportData == null) {
+						console.warn('合婚报告标记存在但正文读取失败', snapshot.matchId);
+					}
 				} else {
 					this.reportData = null;
 				}
@@ -969,6 +1016,27 @@
 					this.unlockedModuleIds = [];
 				}
 				this.analysisPending = snapshot.analysisPending === true;
+			},
+			/**
+			 * 当前会话无报告、且无进行中的上传/分析时，尝试恢复到最近一份已完成报告
+			 */
+			tryRecoverCompletedReport(): void {
+				if (this.reportData != null) {
+					return;
+				}
+				const latest = recoverCompletedMatchSession(this.matchId);
+				if (latest == null) {
+					return;
+				}
+				this.matchId = latest.matchId;
+				this.applySnapshot(latest);
+				this.repairReportImages();
+				try {
+					uni.setStorageSync('face_match_active_id', latest.matchId);
+				} catch (error) {
+					console.warn('更新合婚 active_id 失败', error);
+				}
+				this.syncMatchUrl();
 			},
 			refreshSession(): void {
 				if (this.matchId.length === 0) {
@@ -991,6 +1059,7 @@
 					this.syncUploadTarget();
 					this.syncMatchUrl();
 				}
+				this.tryRecoverCompletedReport();
 			},
 			/** 报告正文与照片分存后，补全展示用头像 */
 			repairReportImages(): void {
@@ -1490,6 +1559,33 @@
 				}
 				return true;
 			},
+			resetPaymentListenerState(): void {
+				this.paymentFallbackMode = false;
+				this.paymentListenerChecking = false;
+				this.paymentListenerResolved = false;
+				clearPaymentListenerCache();
+			},
+			async resolveAlipayPaymentMode(): Promise<void> {
+				if (this.paymentListenerResolved) {
+					return;
+				}
+				if (PAYMENT_CONFIG.testMode) {
+					this.paymentFallbackMode = false;
+					this.paymentListenerResolved = true;
+					return;
+				}
+				this.paymentListenerChecking = true;
+				try {
+					const available = await checkPaymentListenerAvailable();
+					this.paymentFallbackMode = !available;
+				} catch (error) {
+					console.warn('合婚支付通道检查失败，启用保底支付', error);
+					this.paymentFallbackMode = true;
+				} finally {
+					this.paymentListenerChecking = false;
+					this.paymentListenerResolved = true;
+				}
+			},
 			openModulePayment(moduleId: string): void {
 				if (!PAYMENT_CONFIG.enabled) {
 					this.unlockModules([moduleId]);
@@ -1500,6 +1596,7 @@
 					return;
 				}
 				this.pendingPaymentModuleId = moduleId;
+				this.resetPaymentListenerState();
 				this.paymentSummaryLabel = this.getModuleTitle(moduleId);
 				this.paymentPrice = module.priceUsd;
 				this.alipayPrice = module.priceCny;
@@ -1517,6 +1614,7 @@
 					return;
 				}
 				this.pendingPaymentModuleId = null;
+				this.resetPaymentListenerState();
 				this.paymentSummaryLabel = this.locale === 'en'
 					? MATCH_PAYMENT_BUNDLE.titleEn
 					: MATCH_PAYMENT_BUNDLE.title;
@@ -1577,7 +1675,7 @@
 							duration: 4000
 						});
 						this.paymentMethod = 'alipay';
-						this.startAlipayOrder();
+						void this.startAlipayOrder();
 						return;
 					}
 					this.paymentLoading = true;
@@ -1587,7 +1685,7 @@
 					return;
 				}
 				this.paymentLoading = false;
-				this.startAlipayOrder();
+				void this.startAlipayOrder();
 			},
 			getAlipayListedPriceHint(): string {
 				return this.paymentUi.alipayListedPriceHint.replace('{price}', this.paymentDisplayPrice);
@@ -1639,6 +1737,12 @@
 			},
 			getAlipayStatusText(): string {
 				const u = this.paymentUi;
+				if (this.paymentListenerChecking) {
+					return u.alipayListenerChecking;
+				}
+				if (this.paymentFallbackMode && !this.paymentTestMode) {
+					return u.alipayFallbackNotice;
+				}
 				if (this.paymentTestMode) {
 					return u.alipayManualNotice;
 				}
@@ -1660,8 +1764,9 @@
 				return u.alipayWaitingPayment;
 			},
 			async startAlipayOrder(): Promise<void> {
-				if (this.paymentTestMode) {
-					this.paymentOrderStatus = 'test';
+				await this.resolveAlipayPaymentMode();
+				if (this.alipayManualUnlockMode) {
+					this.paymentOrderStatus = 'manual';
 					return;
 				}
 				if (this.matchId.length === 0) {
@@ -1694,6 +1799,12 @@
 					this.paymentOrderStatus = 'pending';
 					this.startPaymentPolling();
 				} catch (error) {
+					if (error instanceof PaymentListenerUnavailableError) {
+						console.warn('合婚收款通道已离线，切换保底支付', error);
+						this.paymentFallbackMode = true;
+						this.paymentOrderStatus = 'manual';
+						return;
+					}
 					console.error('Create match payment order failed:', error);
 					this.paymentOrderStatus = 'error';
 					uni.showToast({
@@ -1728,7 +1839,7 @@
 				}
 			},
 			async pollPaymentOrderOnce(): Promise<void> {
-				if (this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
+				if (this.alipayManualUnlockMode || this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
 					return;
 				}
 				try {
@@ -1745,12 +1856,15 @@
 					console.error('Poll match payment order failed:', error);
 				}
 			},
-			confirmAlipayTestUnlock(): void {
-				if (!this.paymentTestMode) {
+			confirmAlipayManualUnlock(): void {
+				if (!this.alipayManualUnlockMode) {
 					return;
 				}
 				this.stopPaymentPolling();
-				this.completeMatchUnlock('alipay', `TEST-${Date.now()}`);
+				const orderRef = this.paymentTestMode
+					? `TEST-${Date.now()}`
+					: `MANUAL-${Date.now()}`;
+				this.completeMatchUnlock('alipay', orderRef);
 			},
 			mountPayPalButtons(): void {
 				const u = this.paymentUi;
@@ -1799,6 +1913,7 @@
 				this.showPaymentDialog = false;
 				this.paymentLoading = false;
 				this.stopPaymentPolling();
+				this.resetPaymentListenerState();
 				this.pendingPaymentModuleId = null;
 				this.paymentSummaryLabel = '';
 				this.paymentOrderId = '';
@@ -3193,6 +3308,29 @@
 		border: 1rpx solid #eadfca;
 		margin-bottom: 16rpx;
 		box-sizing: border-box;
+	}
+
+	.alipay-pay-loading {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 28rpx 0 20rpx;
+		gap: 18rpx;
+	}
+
+	.alipay-pay-spinner {
+		width: 52rpx;
+		height: 52rpx;
+		border-radius: 50%;
+		border: 5rpx solid #e3d2b5;
+		border-top-color: #5a3e2b;
+		animation: alipayPaySpin 0.85s linear infinite;
+	}
+
+	@keyframes alipayPaySpin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 
 	.alipay-pay-loading-text {

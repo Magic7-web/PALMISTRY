@@ -33,10 +33,23 @@ export type PaymentOrderDetail = {
 type ApiEnvelope<T> = {
 	success?: boolean;
 	message?: string;
+	listenerUnavailable?: boolean;
 } & T;
+
+export class PaymentListenerUnavailableError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'PaymentListenerUnavailableError';
+	}
+}
 
 function parseResponse<T>(res: UniApp.RequestSuccessCallbackResult): T {
 	const data = res.data as ApiEnvelope<T>;
+	if (res.statusCode === 503 && data.listenerUnavailable === true) {
+		throw new PaymentListenerUnavailableError(
+			data.message != null ? data.message : 'Payment listener is offline'
+		);
+	}
 	if (res.statusCode >= 400 || data.success === false) {
 		const message = data.message != null ? data.message : `Request failed (${res.statusCode})`;
 		throw new Error(message);

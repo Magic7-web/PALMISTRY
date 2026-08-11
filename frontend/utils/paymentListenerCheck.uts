@@ -1,0 +1,126 @@
+/**
+ * 支付前检查 Android 收款监听是否在线
+ */
+
+export type PaymentListenerStatus = {
+	available: boolean;
+	listenerConnected: boolean;
+	lastHeartbeatAt: number | null;
+	heartbeatAgeMs: number | null;
+	reason: string;
+	waitedMs?: number;
+};
+
+/**
+ * 与服务端 PAYMENT_LISTENER_LIVE_HEARTBEAT_MS 保持一致。
+ * Android 每 10s 上报一次，留 1.5 倍余量，避免 3.x 秒时被误判离线。
+ */
+const LIVE_HEARTBEAT_MS = 15000;
+/** 心跳偏旧时才等待下一轮上报 */
+const WAIT_TIMEOUT_MS = 12000;
+
+export function fetchPaymentListenerStatus(): Promise<PaymentListenerStatus> {
+	return new Promise((resolve, reject) => {
+		uni.request({
+			url: '/api/payment/listener/status',
+			method: 'GET',
+			success: (res) => {
+				try {
+					const data = res.data as PaymentListenerStatus & { success?: boolean; message?: string };
+					if (res.statusCode >= 400 || data.success === false) {
+						reject(new Error(data.message != null ? data.message : `HTTP ${res.statusCode}`));
+						return;
+					}
+					resolve(normalizeListenerStatus(data));
+				} catch (error) {
+					reject(error);
+				}
+			},
+			fail: (error) => {
+				reject(error);
+			}
+		});
+	});
+}
+
+function normalizeListenerStatus(data: PaymentListenerStatus & { success?: boolean }): PaymentListenerStatus {
+	return {
+		available: data.available === true,
+		listenerConnected: data.listenerConnected === true,
+		lastHeartbeatAt: data.lastHeartbeatAt != null ? data.lastHeartbeatAt : null,
+		heartbeatAgeMs: data.heartbeatAgeMs != null ? data.heartbeatAgeMs : null,
+		reason: data.reason != null ? data.reason : 'unknown',
+		waitedMs: data.waitedMs
+	};
+}
+
+function waitForPaymentListenerProbe(timeoutMs: number): Promise<boolean> {
+	return new Promise((resolve) => {
+		uni.request({
+			url: '/api/payment/listener/wait-ready',
+			method: 'POST',
+			data: {
+				timeoutMs
+			},
+			success: (res) => {
+				try {
+					const data = res.data as PaymentListenerStatus & { success?: boolean; message?: string };
+					if (res.statusCode >= 400 || data.success === false) {
+						console.warn('收款通道探测失败，将使用保底支付', data.message);
+						resolve(false);
+						return;
+					}
+					const status = normalizeListenerStatus(data);
+					if (!status.available) {
+						console.warn('收款通道不可用:', status.reason, status.heartbeatAgeMs);
+					}
+					resolve(status.available);
+				} catch (error) {
+					console.warn('收款通道探测解析失败，将使用保底支付', error);
+					resolve(false);
+				}
+			},
+			fail: (error) => {
+				console.warn('收款通道探测请求失败，将使用保底支付', error);
+				resolve(false);
+			}
+		});
+	});
+}
+
+/**
+ * 支付前探测：status 已在线则立即通过；仅心跳偏旧时才等待下一轮上报。
+ */
+export async function waitForPaymentListenerReady(): Promise<boolean> {
+	try {
+		const quick = await fetchPaymentListenerStatus();
+
+		if (quick.reason === 'no_heartbeat' || quick.reason === 'heartbeat_stale') {
+			return false;
+		}
+		if (!quick.available || quick.listenerConnected !== true || quick.lastHeartbeatAt == null) {
+			return false;
+		}
+		if (quick.heartbeatAgeMs == null || quick.heartbeatAgeMs <= LIVE_HEARTBEAT_MS) {
+			return true;
+		}
+	} catch (error) {
+		console.warn('收款通道快速检查失败，将使用保底支付', error);
+		return false;
+	}
+
+	return waitForPaymentListenerProbe(WAIT_TIMEOUT_MS);
+}
+
+/** @deprecated 请使用 waitForPaymentListenerReady；保留兼容旧调用 */
+export async function checkPaymentListenerAvailable(): Promise<boolean> {
+	return waitForPaymentListenerReady();
+}
+
+export function clearPaymentListenerCache(): void {
+	// 已不再缓存探测结果，保留空实现以兼容各页面 reset 调用
+}
+
+export function shouldUseAlipayManualUnlock(testMode: boolean, fallbackMode: boolean): boolean {
+	return testMode || fallbackMode;
+}

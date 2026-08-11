@@ -586,50 +586,62 @@
 				<view class="alipay-panel" v-if="paymentMethod === 'alipay'">
 					<text class="alipay-title">{{ ui.alipayTitle }}</text>
 
-					<view class="alipay-pay-block" v-if="!paymentTestMode">
-						<view v-if="paymentOrderStatus === 'creating'" class="alipay-pay-loading">
-							<text class="alipay-pay-loading-text">{{ ui.alipayOrderCreating }}</text>
+					<view class="alipay-pay-block" v-if="alipayPaymentPreparing">
+						<view class="alipay-pay-loading">
+							<view class="alipay-pay-spinner"></view>
+							<text class="alipay-pay-loading-text">{{ alipayPreparingText }}</text>
 						</view>
-						<view v-else-if="alipayPrice.length > 0">
-							<text class="alipay-pay-label">{{ ui.alipayUniqueBadge }}</text>
-							<view class="alipay-amount-row">
-								<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
-								<button class="alipay-copy-btn" @click="copyUniquePaymentAmount">
-									<text class="alipay-copy-text">{{ ui.alipayCopyAmount }}</text>
-								</button>
-							</view>
-							<text class="alipay-pay-hint">{{ ui.alipayUniquePayHint }}</text>
-							<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
-							<view
-								class="alipay-countdown-row"
-								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
-							>
-								<text class="alipay-countdown-label">{{ ui.alipayCountdownLabel }}</text>
-								<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
-							</view>
-							<text
-								class="alipay-countdown-hint"
-								v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
-							>
-								{{ ui.alipayCountdownHint }}
-							</text>
+					</view>
+					<view class="alipay-pay-block" v-else-if="!alipayManualUnlockMode && alipayPrice.length > 0">
+						<text class="alipay-pay-label">{{ ui.alipayUniqueBadge }}</text>
+						<view class="alipay-amount-row">
+							<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
+							<button class="alipay-copy-btn" @click="copyUniquePaymentAmount">
+								<text class="alipay-copy-text">{{ ui.alipayCopyAmount }}</text>
+							</button>
+						</view>
+						<text class="alipay-pay-hint">{{ ui.alipayUniquePayHint }}</text>
+						<text class="alipay-pay-sub">{{ getAlipayListedPriceHint() }}</text>
+						<view
+							class="alipay-countdown-row"
+							v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+						>
+							<text class="alipay-countdown-label">{{ ui.alipayCountdownLabel }}</text>
+							<text class="alipay-countdown-time">{{ paymentCountdownText }}</text>
+						</view>
+						<text
+							class="alipay-countdown-hint"
+							v-if="paymentOrderStatus === 'pending' && paymentExpiresAt > 0"
+						>
+							{{ ui.alipayCountdownHint }}
+						</text>
+					</view>
+					<view class="alipay-pay-block" v-else-if="alipayManualUnlockMode && alipayPrice.length > 0">
+						<text class="alipay-pay-label">{{ ui.alipayAmountLabel }}</text>
+						<view class="alipay-amount-row">
+							<text class="alipay-hero-amount">¥{{ alipayPrice }}</text>
 						</view>
 					</view>
 
-					<image class="alipay-qr" :src="alipayQrCode" mode="widthFix"></image>
+					<image
+						v-if="!alipayPaymentPreparing"
+						class="alipay-qr"
+						:src="alipayQrCode"
+						mode="widthFix"
+					></image>
 
-					<text class="alipay-notice">{{ getAlipayStatusText() }}</text>
-					<text class="alipay-meta" v-if="paymentOrderId && !paymentTestMode">
+					<text v-if="!alipayPaymentPreparing" class="alipay-notice">{{ getAlipayStatusText() }}</text>
+					<text class="alipay-meta" v-if="paymentOrderId && !alipayManualUnlockMode && !alipayPaymentPreparing">
 						{{ ui.alipayOrderLabel }}: {{ paymentOrderId }}
 					</text>
-					<text class="alipay-meta" v-if="!paymentTestMode">{{ ui.alipayEmailLabel }}: {{ supportEmail }}</text>
+					<text class="alipay-meta" v-if="!alipayManualUnlockMode && !alipayPaymentPreparing">{{ ui.alipayEmailLabel }}: {{ supportEmail }}</text>
 
 					<button
-						v-if="paymentTestMode"
+						v-if="alipayManualUnlockMode && !alipayPaymentPreparing"
 						class="alipay-paid-btn"
-						@click="confirmAlipayTestUnlock"
+						@click="confirmAlipayManualUnlock"
 					>
-						<text class="btn-text">{{ ui.alipayTestUnlockButton }}</text>
+						<text class="btn-text">{{ alipayManualUnlockButtonText }}</text>
 					</button>
 				</view>
 
@@ -664,7 +676,12 @@
 	} from '@/utils/imageHelper';
 	import { getOrderedDimensionKeys as orderDimensionKeys } from '@/utils/dimensionHelper';
 	import { PAYMENT_CONFIG } from '@/utils/paymentConfig';
-	import { createPaymentOrder, fetchPaymentOrder } from '@/utils/paymentApi';
+	import { createPaymentOrder, fetchPaymentOrder, PaymentListenerUnavailableError } from '@/utils/paymentApi';
+	import {
+		checkPaymentListenerAvailable,
+		clearPaymentListenerCache,
+		shouldUseAlipayManualUnlock
+	} from '@/utils/paymentListenerCheck';
 	import {
 		saveActiveReportSnapshot,
 		loadActiveReportSnapshot,
@@ -740,6 +757,9 @@
 		paymentCountdownTimer: number | null;
 		countdownTick: number;
 		paymentTestMode: boolean;
+		paymentFallbackMode: boolean;
+		paymentListenerChecking: boolean;
+		paymentListenerResolved: boolean;
 	}
 
 	export default {
@@ -841,7 +861,10 @@
 				paymentPollTimer: null,
 				paymentCountdownTimer: null,
 				countdownTick: 0,
-				paymentTestMode: PAYMENT_CONFIG.testMode
+				paymentTestMode: PAYMENT_CONFIG.testMode,
+				paymentFallbackMode: false,
+				paymentListenerChecking: false,
+				paymentListenerResolved: false
 			};
 		},
 		computed: {
@@ -913,6 +936,24 @@
 					}
 				}
 				return ordered.length > 0 ? ordered : this.reportData.results;
+			},
+			alipayManualUnlockMode(): boolean {
+				return shouldUseAlipayManualUnlock(this.paymentTestMode, this.paymentFallbackMode);
+			},
+			alipayManualUnlockButtonText(): string {
+				if (this.paymentTestMode) {
+					return this.ui.alipayTestUnlockButton;
+				}
+				return this.ui.alipayFallbackUnlockButton;
+			},
+			alipayPaymentPreparing(): boolean {
+				if (this.paymentListenerChecking) {
+					return true;
+				}
+				return !this.alipayManualUnlockMode && this.paymentOrderStatus === 'creating';
+			},
+			alipayPreparingText(): string {
+				return this.ui.alipayOrderCreating;
 			}
 		},
 		onLoad(options: Record<string, any>) {
@@ -1470,6 +1511,7 @@
 
 				this.pendingFollowUpModule = module;
 				this.paymentTarget = 'followup';
+				this.resetPaymentListenerState();
 				this.paymentSummaryLabel = this.pickTxt(module.title, module.titleEn);
 				this.paymentPrice = module.priceUsd;
 				this.alipayPrice = module.priceCny;
@@ -1501,6 +1543,7 @@
 
 				this.pendingFollowUpModule = null;
 				this.paymentTarget = 'followup';
+				this.resetPaymentListenerState();
 				this.paymentSummaryLabel = this.pickTxt(this.followUpBundle.title, this.followUpBundle.titleEn);
 				this.paymentPrice = this.followUpBundle.priceUsd;
 				this.alipayPrice = this.followUpBundle.priceCny;
@@ -1855,6 +1898,33 @@
 				});
 			},
 
+			resetPaymentListenerState(): void {
+				this.paymentFallbackMode = false;
+				this.paymentListenerChecking = false;
+				this.paymentListenerResolved = false;
+				clearPaymentListenerCache();
+			},
+			async resolveAlipayPaymentMode(): Promise<void> {
+				if (this.paymentListenerResolved) {
+					return;
+				}
+				if (PAYMENT_CONFIG.testMode) {
+					this.paymentFallbackMode = false;
+					this.paymentListenerResolved = true;
+					return;
+				}
+				this.paymentListenerChecking = true;
+				try {
+					const available = await checkPaymentListenerAvailable();
+					this.paymentFallbackMode = !available;
+				} catch (error) {
+					console.warn('手相追问支付通道检查失败，启用保底支付', error);
+					this.paymentFallbackMode = true;
+				} finally {
+					this.paymentListenerChecking = false;
+					this.paymentListenerResolved = true;
+				}
+			},
 			selectPaymentMethod(method: PaymentMethod): void {
 				this.paymentMethod = method;
 				clearPayPalButtonContainer('paypal-button-container');
@@ -1869,7 +1939,7 @@
 						});
 						this.paymentMethod = 'alipay';
 						this.paymentLoading = false;
-						this.startAlipayOrder();
+						void this.startAlipayOrder();
 						return;
 					}
 
@@ -1881,7 +1951,7 @@
 				}
 
 				this.paymentLoading = false;
-				this.startAlipayOrder();
+				void this.startAlipayOrder();
 			},
 
 			getAlipayListedPriceHint(): string {
@@ -1922,6 +1992,12 @@
 
 			getAlipayStatusText(): string {
 				const u = getCameraUi(this.locale);
+				if (this.paymentListenerChecking) {
+					return u.alipayListenerChecking;
+				}
+				if (this.paymentFallbackMode && !this.paymentTestMode) {
+					return u.alipayFallbackNotice;
+				}
 				if (this.paymentTestMode) {
 					return u.alipayManualNotice;
 				}
@@ -1944,8 +2020,9 @@
 			},
 
 			async startAlipayOrder(): Promise<void> {
-				if (this.paymentTestMode) {
-					this.paymentOrderStatus = 'test';
+				await this.resolveAlipayPaymentMode();
+				if (this.alipayManualUnlockMode) {
+					this.paymentOrderStatus = 'manual';
 					return;
 				}
 				if (!this.reportSessionId) {
@@ -1981,6 +2058,12 @@
 					this.paymentOrderStatus = 'pending';
 					this.startPaymentPolling();
 				} catch (error) {
+					if (error instanceof PaymentListenerUnavailableError) {
+						console.warn('手相追问收款通道已离线，切换保底支付', error);
+						this.paymentFallbackMode = true;
+						this.paymentOrderStatus = 'manual';
+						return;
+					}
 					console.error('Create payment order failed:', error);
 					this.paymentOrderStatus = 'error';
 					uni.showToast({
@@ -2018,7 +2101,7 @@
 			},
 
 			async pollPaymentOrderOnce(): Promise<void> {
-				if (this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
+				if (this.alipayManualUnlockMode || this.paymentOrderId.length === 0 || this.paymentOrderStatus === 'paid') {
 					return;
 				}
 
@@ -2039,12 +2122,15 @@
 				}
 			},
 
-			confirmAlipayTestUnlock(): void {
-				if (!this.paymentTestMode) {
+			confirmAlipayManualUnlock(): void {
+				if (!this.alipayManualUnlockMode) {
 					return;
 				}
 				this.stopPaymentPolling();
-				this.completeFollowUpUnlock('alipay', `TEST-${Date.now()}`);
+				const orderRef = this.paymentTestMode
+					? `TEST-${Date.now()}`
+					: `MANUAL-${Date.now()}`;
+				this.completeFollowUpUnlock('alipay', orderRef);
 			},
 
 			/**
@@ -2122,6 +2208,7 @@
 				this.showPaymentDialog = false;
 				this.paymentLoading = false;
 				this.stopPaymentPolling();
+				this.resetPaymentListenerState();
 				this.paymentTarget = null;
 				this.pendingFollowUpModule = null;
 				this.paymentSummaryLabel = '';
@@ -4199,7 +4286,26 @@
 	}
 
 	.alipay-pay-loading {
-		padding: 8rpx 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 28rpx 0 20rpx;
+		gap: 18rpx;
+	}
+
+	.alipay-pay-spinner {
+		width: 52rpx;
+		height: 52rpx;
+		border-radius: 50%;
+		border: 5rpx solid #e3d2b5;
+		border-top-color: #5a3e2b;
+		animation: alipayPaySpin 0.85s linear infinite;
+	}
+
+	@keyframes alipayPaySpin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 
 	.alipay-pay-loading-text {

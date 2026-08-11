@@ -160,31 +160,80 @@ function listMatchStorageIds(): { sessionIds: string[]; reportOnlyIds: string[] 
 }
 
 /**
- * 清理非当前合婚会话，避免 localStorage 堆积大量 face_match_session_match_xxx
- * 仅保留 keepMatchId 对应的 session + report
+ * 清理过期且无报告的合婚会话（不删除已有报告，避免误删用户历史合婚）
  */
-export function pruneStaleMatchSessions(keepMatchId: string): void {
+export function pruneMatchSessionsIfNeeded(keepMatchId: string): void {
 	if (keepMatchId == null || keepMatchId.length === 0) {
 		return;
 	}
-	const { sessionIds, reportOnlyIds } = listMatchStorageIds();
+	const MAX_SESSIONS = 12;
+	const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+	const now = Date.now();
+	const { sessionIds } = listMatchStorageIds();
+
+	type SessionEntry = {
+		id: string;
+		createdAt: number;
+		hasReport: boolean;
+	};
+
+	const entries: SessionEntry[] = [];
 	for (let i = 0; i < sessionIds.length; i += 1) {
 		const id = sessionIds[i];
-		if (id !== keepMatchId) {
-			try {
-				uni.removeStorageSync(getMatchKey(id));
-			} catch (error) {
-				console.warn('清理旧合婚会话失败', id, error);
-			}
-			clearFaceMatchReport(id);
+		const snapshot = safeRead<FaceMatchSessionSnapshot | null>(getMatchKey(id), null);
+		if (snapshot == null) {
+			continue;
+		}
+		const hasReport = snapshot.hasGeneratedReport === true
+			|| snapshot.reportData != null
+			|| safeRead<FaceMatchReportPersisted | null>(getReportKey(id), null) != null;
+		entries.push({
+			id,
+			createdAt: snapshot.createdAt > 0 ? snapshot.createdAt : 0,
+			hasReport
+		});
+	}
+
+	const removeSession = (id: string): void => {
+		if (id === keepMatchId) {
+			return;
+		}
+		try {
+			uni.removeStorageSync(getMatchKey(id));
+		} catch (error) {
+			console.warn('清理旧合婚会话失败', id, error);
+		}
+		clearFaceMatchReport(id);
+	};
+
+	for (let i = 0; i < entries.length; i += 1) {
+		const entry = entries[i];
+		if (entry.id === keepMatchId || entry.hasReport) {
+			continue;
+		}
+		if (entry.createdAt > 0 && now - entry.createdAt > MAX_AGE_MS) {
+			removeSession(entry.id);
 		}
 	}
-	for (let i = 0; i < reportOnlyIds.length; i += 1) {
-		const id = reportOnlyIds[i];
-		if (id !== keepMatchId) {
-			clearFaceMatchReport(id);
-		}
+
+	if (entries.length <= MAX_SESSIONS) {
+		return;
 	}
+
+	const removable = entries
+		.filter((entry) => entry.id !== keepMatchId && !entry.hasReport)
+		.sort((a, b) => a.createdAt - b.createdAt);
+
+	let remaining = entries.length;
+	for (let i = 0; i < removable.length && remaining > MAX_SESSIONS; i += 1) {
+		removeSession(removable[i].id);
+		remaining -= 1;
+	}
+}
+
+/** @deprecated 使用 pruneMatchSessionsIfNeeded */
+export function pruneStaleMatchSessions(keepMatchId: string): void {
+	pruneMatchSessionsIfNeeded(keepMatchId);
 }
 
 /** @returns 是否至少保存了会话元数据；报告单独 key 保存成功时 hasGeneratedReport 为 true */
@@ -216,7 +265,7 @@ export function saveFaceMatchSession(snapshot: FaceMatchSessionSnapshot): boolea
 	try {
 		uni.setStorageSync(getMatchKey(snapshot.matchId), sessionPayload);
 		uni.setStorageSync('face_match_active_id', snapshot.matchId);
-		pruneStaleMatchSessions(snapshot.matchId);
+		pruneMatchSessionsIfNeeded(snapshot.matchId);
 		return reportSaved;
 	} catch (error) {
 		console.error('保存合婚会话失败（含图片），尝试精简保存', error);
@@ -230,7 +279,7 @@ export function saveFaceMatchSession(snapshot: FaceMatchSessionSnapshot): boolea
 		};
 		uni.setStorageSync(getMatchKey(snapshot.matchId), slimPayload);
 		uni.setStorageSync('face_match_active_id', snapshot.matchId);
-		pruneStaleMatchSessions(snapshot.matchId);
+		pruneMatchSessionsIfNeeded(snapshot.matchId);
 		return reportSaved;
 	} catch (error) {
 		console.error('保存合婚会话失败', error);
@@ -281,12 +330,78 @@ export function loadFaceMatchSession(matchId: string): FaceMatchSessionSnapshot 
 	return hydrateReportForSession(raw);
 }
 
+/** 查找最近一份已生成合婚报告的会话 */
+export function findLatestSessionWithReport(): FaceMatchSessionSnapshot | null {
+	const { sessionIds } = listMatchStorageIds();
+	let best: FaceMatchSessionSnapshot | null = null;
+	let bestAt = 0;
+	for (let i = 0; i < sessionIds.length; i += 1) {
+		const id = sessionIds[i];
+		const session = loadFaceMatchSession(id);
+		if (session == null) {
+			continue;
+		}
+		const hasReport = session.reportData != null || session.hasGeneratedReport === true;
+		if (!hasReport) {
+			continue;
+		}
+		const createdAt = session.createdAt > 0 ? session.createdAt : 0;
+		if (session.reportData != null || createdAt >= bestAt) {
+			best = session;
+			bestAt = createdAt;
+		}
+	}
+	return best;
+}
+
 export function loadActiveFaceMatchSession(): FaceMatchSessionSnapshot | null {
-	const matchId = safeRead<string>('face_match_active_id', '');
-	if (!matchId) {
+	const activeId = safeRead<string>('face_match_active_id', '');
+	if (activeId.length === 0) {
+		return findLatestSessionWithReport();
+	}
+	const active = loadFaceMatchSession(activeId);
+	if (active == null) {
+		return findLatestSessionWithReport();
+	}
+	const hasReport = active.reportData != null || active.hasGeneratedReport === true;
+	if (hasReport) {
+		return active;
+	}
+	const inProgress = active.analysisPending === true
+		|| (active.personBImage != null && active.personBImage.length > 0);
+	if (inProgress) {
+		return active;
+	}
+	const latestWithReport = findLatestSessionWithReport();
+	if (latestWithReport != null && latestWithReport.matchId !== activeId) {
+		return latestWithReport;
+	}
+	return active;
+}
+
+/**
+ * 当前会话无报告且未进行中时，返回最近一份已完成报告的会话（供页面恢复展示）
+ */
+export function recoverCompletedMatchSession(currentMatchId: string): FaceMatchSessionSnapshot | null {
+	if (currentMatchId.length === 0) {
+		return findLatestSessionWithReport();
+	}
+	const current = loadFaceMatchSession(currentMatchId);
+	if (current != null) {
+		const inProgress = current.analysisPending === true
+			|| (current.personBImage != null && current.personBImage.length > 0);
+		if (inProgress) {
+			return null;
+		}
+		if (current.reportData != null || current.hasGeneratedReport === true) {
+			return null;
+		}
+	}
+	const latest = findLatestSessionWithReport();
+	if (latest == null || latest.matchId === currentMatchId) {
 		return null;
 	}
-	return loadFaceMatchSession(matchId);
+	return latest;
 }
 
 export function clearFaceMatchSession(matchId: string): void {

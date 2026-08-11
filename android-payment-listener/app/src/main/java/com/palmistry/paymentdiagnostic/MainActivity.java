@@ -8,6 +8,8 @@ import android.content.IntentFilter;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
@@ -21,6 +23,7 @@ import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
@@ -40,6 +43,15 @@ public class MainActivity extends Activity {
     };
 
     private boolean receiverRegistered;
+    private final Handler heartbeatHandler = new Handler(Looper.getMainLooper());
+    private static final long HEARTBEAT_INTERVAL_MS = 10000L;
+    private final Runnable heartbeatRunnable = new Runnable() {
+        @Override
+        public void run() {
+            PaymentNotifyClient.sendHeartbeat(MainActivity.this);
+            heartbeatHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +77,15 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshUi();
+        PaymentNotifyClient.sendHeartbeat(this);
+        heartbeatHandler.removeCallbacks(heartbeatRunnable);
+        heartbeatHandler.postDelayed(heartbeatRunnable, HEARTBEAT_INTERVAL_MS);
+    }
+
+    @Override
+    protected void onPause() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable);
+        super.onPause();
     }
 
     private void registerRecordsUpdateReceiver() {
@@ -203,6 +224,7 @@ public class MainActivity extends Activity {
                 notifySecretInput.getText().toString()
         );
         Toast.makeText(this, R.string.notify_config_saved, Toast.LENGTH_SHORT).show();
+        PaymentNotifyClient.sendHeartbeat(this);
         refreshUi();
     }
 

@@ -46,6 +46,49 @@ public final class PaymentNotifyClient {
         report(context, amountWithSymbol, title, body, postedAt);
     }
 
+    /** 定时心跳：告知后端监听 App 是否在线 */
+    static void sendHeartbeat(Context context) {
+        if (!NotifyConfig.isConfigured(context)) {
+            return;
+        }
+        EXECUTOR.execute(() -> postHeartbeat(context));
+    }
+
+    private static void postHeartbeat(Context context) {
+        HttpURLConnection connection = null;
+        try {
+            String backendUrl = NotifyConfig.getBackendUrl(context);
+            if (!backendUrl.endsWith("/")) {
+                backendUrl = backendUrl + "/";
+            }
+            URL url = new URL(backendUrl + "api/payment/listener/heartbeat");
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(8000);
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            connection.setRequestProperty("x-payment-secret", NotifyConfig.getNotifySecret(context));
+
+            JSONObject payload = new JSONObject();
+            payload.put("listenerConnected", NotifyConfig.isListenerConnected(context));
+            payload.put("deviceInfo", android.os.Build.MODEL);
+            payload.put("source", "android_app");
+
+            byte[] bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
+            try (OutputStream outputStream = connection.getOutputStream()) {
+                outputStream.write(bytes);
+            }
+            connection.getResponseCode();
+        } catch (Exception ignored) {
+            // 心跳失败不影响主流程
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
     private static String postNotify(
             Context context,
             String amountWithSymbol,

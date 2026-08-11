@@ -109,6 +109,9 @@ export type CameraUiKey =
 	| 'alipayOrderPaid'
 	| 'alipayOrderError'
 	| 'alipayTestUnlockButton'
+	| 'alipayFallbackUnlockButton'
+	| 'alipayFallbackNotice'
+	| 'alipayListenerChecking'
 	| 'alipayCountdownLabel'
 	| 'alipayUniqueBadge'
 	| 'alipayUniquePayHint'
@@ -196,6 +199,9 @@ const CAMERA_UI_ZH: Record<CameraUiKey, string> = {
 	alipayOrderPaid: '支付已确认，正在解锁…',
 	alipayOrderError: '创建订单失败，请稍后重试。',
 	alipayTestUnlockButton: '测试模式：跳过验单直接解锁',
+	alipayFallbackUnlockButton: '我已完成支付',
+	alipayFallbackNotice: '收款通道暂不可用，请扫码支付后点击下方按钮确认。',
+	alipayListenerChecking: '正在检查收款通道…',
 	alipayCountdownLabel: '剩余付款时间',
 	alipayCountdownHint: '请在 5 分钟内完成付款。',
 	alipayCopyAmount: '复制',
@@ -282,6 +288,9 @@ const CAMERA_UI_EN: Record<CameraUiKey, string> = {
 	alipayOrderPaid: 'Payment confirmed. Unlocking…',
 	alipayOrderError: 'Failed to create order. Please try again.',
 	alipayTestUnlockButton: 'Test mode: unlock without verification',
+	alipayFallbackUnlockButton: 'I have paid',
+	alipayFallbackNotice: 'Auto verification is offline. Pay via QR code, then tap the button below.',
+	alipayListenerChecking: 'Checking payment channel…',
 	alipayCountdownLabel: 'Time remaining',
 	alipayCountdownHint: 'Please complete payment within 5 minutes.',
 	alipayCopyAmount: 'Copy',
