@@ -10,21 +10,25 @@ export type MatchPaymentModule = {
 
 /** 合婚付费模块（与报告字段一一对应） */
 export const MATCH_PAYMENT_MODULES: MatchPaymentModule[] = [
-	{ id: 'complementarity', priceCny: '4.90', priceUsd: '1.99' },
-	{ id: 'domestic', priceCny: '0.50', priceUsd: '0.19' },
-	{ id: 'career', priceCny: '0.50', priceUsd: '0.19' },
-	{ id: 'shortTrend', priceCny: '1.00', priceUsd: '0.39' },
-	{ id: 'midTrend', priceCny: '1.00', priceUsd: '0.39' },
-	{ id: 'conflict', priceCny: '4.90', priceUsd: '1.99' },
-	{ id: 'advice', priceCny: '4.90', priceUsd: '1.99' }
+	{ id: 'complementarity', priceCny: '6.90', priceUsd: '2.79' },
+	{ id: 'palaceMatch', priceCny: '5.90', priceUsd: '2.39' },
+	{ id: 'domestic', priceCny: '0.90', priceUsd: '0.39' },
+	{ id: 'career', priceCny: '0.90', priceUsd: '0.39' },
+	{ id: 'communication', priceCny: '3.90', priceUsd: '1.59' },
+	{ id: 'shortTrend', priceCny: '1.90', priceUsd: '0.79' },
+	{ id: 'midTrend', priceCny: '1.90', priceUsd: '0.79' },
+	{ id: 'longTrend', priceCny: '2.90', priceUsd: '1.19' },
+	{ id: 'wealthTogether', priceCny: '5.90', priceUsd: '2.39' },
+	{ id: 'conflict', priceCny: '6.90', priceUsd: '2.79' },
+	{ id: 'advice', priceCny: '6.90', priceUsd: '2.79' }
 ];
 
 export const MATCH_PAYMENT_BUNDLE = {
 	id: 'all',
 	title: '全部解锁',
 	titleEn: 'Unlock all',
-	priceCny: '13.90',
-	priceUsd: '5.99',
+	priceCny: '19.90',
+	priceUsd: '8.99',
 	moduleIds: MATCH_PAYMENT_MODULES.map((item) => item.id)
 };
 

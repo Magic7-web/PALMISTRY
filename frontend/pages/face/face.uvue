@@ -817,8 +817,11 @@
 					{ key: 'eyebrow', label: this.ui.improvementEyebrow, value: this.pickTxt(d.eyebrow, d.eyebrowEn) },
 					{ key: 'accessories', label: this.ui.improvementAccessory, value: this.pickTxt(d.accessories, d.accessoriesEn) },
 					{ key: 'color', label: this.ui.improvementColor, value: this.pickTxt(d.makeupAndColor, d.makeupAndColorEn) },
+					{ key: 'behavior', label: this.ui.improvementBehavior, value: this.pickTxt(d.behaviorCharm, d.behaviorCharmEn) },
+					{ key: 'social', label: this.ui.improvementSocial, value: this.pickTxt(d.socialStyle, d.socialStyleEn) },
 					{ key: 'desk', label: this.ui.improvementDesk, value: this.pickTxt(d.deskDirection, d.deskDirectionEn) },
-					{ key: 'bedroom', label: this.ui.improvementBedroom, value: this.pickTxt(d.bedroomDirection, d.bedroomDirectionEn) }
+					{ key: 'bedroom', label: this.ui.improvementBedroom, value: this.pickTxt(d.bedroomDirection, d.bedroomDirectionEn) },
+					{ key: 'daily', label: this.ui.improvementDaily, value: this.pickTxt(d.dailyRitual, d.dailyRitualEn) }
 				];
 			},
 			avoidItemsList(): string[] {
@@ -919,6 +922,7 @@
 				}
 				const hasProgress = active.reportData != null
 					|| active.hasGeneratedReport === true
+					|| active.analysisPending === true
 					|| (active.personBImage != null && active.personBImage.length > 0);
 				if (!hasProgress) {
 					this.showMatchResumeBanner = false;
@@ -1232,9 +1236,9 @@
 				const personAImage = this.reportData.imagePath || this.capturedImage;
 				const personAReportJson = JSON.stringify(this.reportData.fullData);
 
-				// 同一份面相报告：复用已有合婚会话（即使旧会话未标记 fromFaceReport）
+				// 从面相报告进入：始终复用已有合婚会话，避免丢失已上传的 TA 照片
 				const active = loadActiveFaceMatchSession();
-				if (active != null && active.personAReportJson === personAReportJson) {
+				if (active != null && (active.fromFaceReport === true || (active.personAReportJson != null && active.personAReportJson.length > 0))) {
 					saveFaceMatchSession({
 						matchId: active.matchId,
 						personAImage: personAImage != null && personAImage.length > 0 ? personAImage : active.personAImage,
@@ -1242,9 +1246,11 @@
 						reportData: active.reportData,
 						isPartnerFlow: active.isPartnerFlow === true,
 						fromFaceReport: true,
-						personAReportJson: active.personAReportJson,
+						personAReportJson: personAReportJson,
 						matchUnlocked: active.matchUnlocked === true,
 						unlockedModuleIds: active.unlockedModuleIds != null ? active.unlockedModuleIds : [],
+						hasGeneratedReport: active.hasGeneratedReport === true || active.reportData != null,
+						analysisPending: active.analysisPending === true,
 						createdAt: active.createdAt
 					});
 					uni.navigateTo({ url: `/pages/face/match?matchId=${active.matchId}&from=report` });
@@ -1262,6 +1268,7 @@
 					personAReportJson,
 					matchUnlocked: false,
 					unlockedModuleIds: [],
+					analysisPending: false,
 					createdAt: Date.now()
 				});
 				uni.navigateTo({ url: `/pages/face/match?matchId=${matchId}&from=report` });

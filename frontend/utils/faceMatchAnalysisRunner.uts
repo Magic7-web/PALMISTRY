@@ -1,0 +1,140 @@
+import type { FaceMatchResult, FaceMatchReport } from '@/types/index';
+import { analyzeFaceMatch } from '@/utils/qwenApi';
+import type { AppLocale } from '@/utils/locale';
+import {
+	loadFaceMatchSession,
+	saveFaceMatchSession
+} from '@/utils/faceMatchSessionStore';
+
+/** 跨页面存活：合婚 AI 请求进行中时，离开页面不丢失任务 */
+export interface FaceMatchAnalysisJob {
+	matchId: string;
+	promise: Promise<FaceMatchResult>;
+	startedAt: number;
+}
+
+let activeJob: FaceMatchAnalysisJob | null = null;
+
+function formatAnalyzeTime(): string {
+	const now = new Date();
+	const pad = (n: number): string => (n < 10 ? `0${n}` : `${n}`);
+	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/** 分析完成时写入本地（即使用户已离开合婚页） */
+function persistAnalysisResult(matchId: string, result: FaceMatchResult): boolean {
+	const session = loadFaceMatchSession(matchId);
+	if (session == null) {
+		return false;
+	}
+	if (session.hasGeneratedReport === true || session.reportData != null) {
+		return true;
+	}
+	if (result.isInvalid === true) {
+		saveFaceMatchSession({
+			...session,
+			analysisPending: false
+		});
+		return false;
+	}
+	const report: FaceMatchReport = {
+		id: `face_match_${Date.now()}`,
+		matchId,
+		analyzeTime: formatAnalyzeTime(),
+		personAImage: session.personAImage != null ? session.personAImage : '',
+		personBImage: session.personBImage != null ? session.personBImage : '',
+		fullData: result
+	};
+	return saveFaceMatchSession({
+		...session,
+		reportData: report,
+		hasGeneratedReport: true,
+		analysisPending: false
+	});
+}
+
+function markAnalysisFailed(matchId: string): void {
+	const session = loadFaceMatchSession(matchId);
+	if (session == null) {
+		return;
+	}
+	if (session.hasGeneratedReport === true || session.reportData != null) {
+		return;
+	}
+	saveFaceMatchSession({
+		...session,
+		analysisPending: false
+	});
+}
+
+export function getActiveFaceMatchAnalysisJob(): FaceMatchAnalysisJob | null {
+	return activeJob;
+}
+
+export function isFaceMatchAnalysisRunning(matchId: string): boolean {
+	return activeJob != null && activeJob.matchId === matchId;
+}
+
+export interface StartFaceMatchAnalysisParams {
+	matchId: string;
+	personBImage: string;
+	personAImage?: string | null;
+	personAReportJson?: string | null;
+	fromFaceReport: boolean;
+	locale: AppLocale;
+}
+
+/**
+ * 启动或复用进行中的合婚分析（同一 matchId 不重复发请求）
+ */
+export function startFaceMatchAnalysis(params: StartFaceMatchAnalysisParams): Promise<FaceMatchResult> {
+	if (activeJob != null && activeJob.matchId === params.matchId) {
+		return activeJob.promise;
+	}
+
+	const promise = (async (): Promise<FaceMatchResult> => {
+		if (params.fromFaceReport && params.personAReportJson != null && params.personAReportJson.length > 0) {
+			return analyzeFaceMatch({
+				personBImage: params.personBImage,
+				personAReportJson: params.personAReportJson,
+				locale: params.locale,
+				analysis_type: 'face_match_report'
+			});
+		}
+		if (params.personAImage == null || params.personAImage.length === 0) {
+			throw new Error('缺少本人照片');
+		}
+		return analyzeFaceMatch({
+			personAImage: params.personAImage,
+			personBImage: params.personBImage,
+			locale: params.locale
+		});
+	})();
+
+	activeJob = {
+		matchId: params.matchId,
+		promise,
+		startedAt: Date.now()
+	};
+
+	void promise
+		.then((result) => {
+			persistAnalysisResult(params.matchId, result);
+		})
+		.catch(() => {
+			markAnalysisFailed(params.matchId);
+		})
+		.finally(() => {
+			if (activeJob != null && activeJob.matchId === params.matchId) {
+				activeJob = null;
+			}
+		});
+
+	return promise;
+}
+
+export function clearFaceMatchAnalysisJob(matchId: string): void {
+	if (activeJob != null && activeJob.matchId === matchId) {
+		activeJob = null;
+	}
+}

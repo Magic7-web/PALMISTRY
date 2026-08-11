@@ -147,7 +147,9 @@ public class MainActivity extends Activity {
         root.addView(notifyStatusView);
 
         root.addView(createButton(R.string.open_listener_settings, this::openListenerSettings));
-        root.addView(createButton(R.string.refresh_status, v -> refreshUi()));
+        root.addView(createButton(R.string.refresh_status, v -> refreshListenerAndUi(false)));
+        root.addView(createButton(R.string.rescan_and_report, v -> refreshListenerAndUi(true)));
+        root.addView(createButton(R.string.retry_last_report, v -> retryLastMatchedReport()));
         root.addView(createButton(R.string.clear_records, this::clearRecords));
 
         TextView listTitle = new TextView(this);
@@ -213,10 +215,48 @@ public class MainActivity extends Activity {
         refreshUi();
     }
 
+    private void refreshListenerAndUi(boolean reportMatched) {
+        if (isNotificationListenerEnabled()) {
+            AlipayNotificationListenerService.scanActiveNotificationsFromApp(this, reportMatched);
+        }
+        refreshUi();
+        statusView.postDelayed(this::refreshUi, 600);
+        statusView.postDelayed(this::refreshUi, 1500);
+    }
+
+    private void retryLastMatchedReport() {
+        List<org.json.JSONObject> records = NotificationStorage.loadRecords(this);
+        for (org.json.JSONObject record : records) {
+            if (!record.optBoolean("matched", false) || !record.has("amount")) {
+                continue;
+            }
+            PaymentNotifyClient.reportForce(
+                    this,
+                    record.optString("amount", ""),
+                    record.optString("title", ""),
+                    record.optString("body", ""),
+                    record.optLong("time", System.currentTimeMillis())
+            );
+            Toast.makeText(this, "已重试上报最近一条收款记录", Toast.LENGTH_SHORT).show();
+            statusView.postDelayed(this::refreshUi, 800);
+            return;
+        }
+        Toast.makeText(this, "没有可重试的收款记录", Toast.LENGTH_SHORT).show();
+    }
+
     private void refreshUi() {
         boolean enabled = isNotificationListenerEnabled();
-        statusView.setText(enabled ? R.string.status_enabled : R.string.status_disabled);
-        statusView.setTextColor(enabled ? Color.parseColor("#1B7F3A") : Color.parseColor("#C0392B"));
+        boolean connected = NotifyConfig.isListenerConnected(this);
+        if (enabled && connected) {
+            statusView.setText("监听状态：已开启且服务已连接");
+            statusView.setTextColor(Color.parseColor("#1B7F3A"));
+        } else if (enabled) {
+            statusView.setText("监听状态：权限已开，但服务未连接（请点「重新扫描并上报」）");
+            statusView.setTextColor(Color.parseColor("#C0392B"));
+        } else {
+            statusView.setText(R.string.status_disabled);
+            statusView.setTextColor(Color.parseColor("#C0392B"));
+        }
 
         int total = NotificationStorage.loadRecords(this).size();
         int matched = countMatchedRecords();

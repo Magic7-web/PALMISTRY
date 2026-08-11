@@ -474,6 +474,9 @@ export type FaceUiKey =
 	| 'improvementColor'
 	| 'improvementDesk'
 	| 'improvementBedroom'
+	| 'improvementBehavior'
+	| 'improvementSocial'
+	| 'improvementDaily'
 	| 'improvementAvoid'
 	| 'improvementUnlockFull'
 	| 'toastNeedPhoto'
@@ -571,8 +574,11 @@ const FACE_UI_ZH: Record<FaceUiKey, string> = {
 	improvementColor: '妆容幸运色',
 	improvementDesk: '办公方位',
 	improvementBedroom: '卧室布局',
+	improvementBehavior: '神态气场',
+	improvementSocial: '社交形象',
+	improvementDaily: '日常开运',
 	improvementAvoid: '形象雷区',
-	improvementUnlockFull: '解锁完整方案 ¥4.9',
+	improvementUnlockFull: '解锁完整方案 ¥6.9',
 	toastNeedPhoto: '请先拍照或上传照片',
 	toastSuccess: '分析成功',
 	scoreUnit: '分',
@@ -669,8 +675,11 @@ const FACE_UI_EN: Record<FaceUiKey, string> = {
 	improvementColor: 'Makeup & colors',
 	improvementDesk: 'Desk direction',
 	improvementBedroom: 'Bedroom layout',
+	improvementBehavior: 'Presence & aura',
+	improvementSocial: 'Social image',
+	improvementDaily: 'Daily rituals',
 	improvementAvoid: 'Avoid',
-	improvementUnlockFull: 'Unlock full plan $1.99',
+	improvementUnlockFull: 'Unlock full plan $2.79',
 	toastNeedPhoto: 'Please take or upload a photo first',
 	toastSuccess: 'Analysis complete',
 	scoreUnit: 'pts',
@@ -717,8 +726,12 @@ export type MatchUiKey =
 	| 'domesticLeader'
 	| 'careerLeader'
 	| 'complementarity'
+	| 'palaceMatch'
+	| 'communicationStyle'
 	| 'shortTrend'
 	| 'midTrend'
+	| 'longTrend'
+	| 'wealthTogether'
 	| 'conflictTitle'
 	| 'adviceTitle'
 	| 'wechatTitle'
@@ -735,6 +748,7 @@ export type MatchUiKey =
 	| 'matchGuideTip2'
 	| 'matchGuideTip3'
 	| 'changePartnerPhoto'
+	| 'changeSelfPhoto'
 	| 'analyzingPatienceHint'
 	| 'backToFace'
 	| 'stepFromReportUpload'
@@ -746,7 +760,9 @@ export type MatchUiKey =
 	| 'unlockStickyHint'
 	| 'bundleUnlockPrefix'
 	| 'tapUnlockHint'
-	| 'reportPersistHint';
+	| 'reportPersistHint'
+	| 'resumeAnalyzeHint'
+	| 'resumeAnalyzeBtn';
 
 const MATCH_UI_ZH: Record<MatchUiKey, string> = {
 	navTitle: '情侣合婚 - 林公测算',
@@ -775,8 +791,12 @@ const MATCH_UI_ZH: Record<MatchUiKey, string> = {
 	domesticLeader: '主内担当',
 	careerLeader: '主外担当',
 	complementarity: '互补分析',
+	palaceMatch: '宫位合婚',
+	communicationStyle: '沟通模式',
 	shortTrend: '短期趋势（3个月）',
 	midTrend: '中期趋势（1-3年）',
+	longTrend: '长期趋势（3-5年）',
+	wealthTogether: '共建财运',
 	conflictTitle: '潜在摩擦点',
 	adviceTitle: '相处建议',
 	wechatTitle: '获取完整合婚解读',
@@ -794,6 +814,7 @@ const MATCH_UI_ZH: Record<MatchUiKey, string> = {
 	matchGuideTip2: '光线均匀，五官清晰',
 	matchGuideTip3: '建议使用 TA 的正面生活照',
 	changePartnerPhoto: '更换 TA 照片',
+	changeSelfPhoto: '更换本人照片',
 	analyzingPatienceHint: '合婚推演约需 1–2 分钟，请耐心等待',
 	backToFace: '返回面相报告',
 	stepFromReportUpload: '上传 TA',
@@ -805,7 +826,9 @@ const MATCH_UI_ZH: Record<MatchUiKey, string> = {
 	unlockStickyHint: '添加微信查看完整合婚报告',
 	bundleUnlockPrefix: '一次解锁全部 ',
 	tapUnlockHint: '点击未解锁模块可单独购买',
-	reportPersistHint: '合婚报告已保存在本机，未付费也可刷新后查看'
+	reportPersistHint: '合婚报告已保存在本机，未付费也可刷新后查看',
+	resumeAnalyzeHint: '照片已保存，可继续合婚分析',
+	resumeAnalyzeBtn: '继续合婚分析'
 };
 
 const MATCH_UI_EN: Record<MatchUiKey, string> = {
@@ -835,8 +858,12 @@ const MATCH_UI_EN: Record<MatchUiKey, string> = {
 	domesticLeader: 'Domestic lead',
 	careerLeader: 'Career lead',
 	complementarity: 'Complementarity',
+	palaceMatch: 'Palace Match',
+	communicationStyle: 'Communication',
 	shortTrend: 'Short term (3 mo)',
 	midTrend: 'Mid term (1-3 yr)',
+	longTrend: 'Long term (3-5 yr)',
+	wealthTogether: 'Shared Wealth',
 	conflictTitle: 'Friction points',
 	adviceTitle: 'Advice',
 	wechatTitle: 'Full match reading via WeChat',
@@ -854,6 +881,7 @@ const MATCH_UI_EN: Record<MatchUiKey, string> = {
 	matchGuideTip2: 'Even lighting, clear features',
 	matchGuideTip3: 'Use a clear front-facing photo of your partner',
 	changePartnerPhoto: 'Change partner photo',
+	changeSelfPhoto: 'Change my photo',
 	analyzingPatienceHint: 'Match analysis takes 1–2 minutes. Please wait.',
 	backToFace: 'Back to face report',
 	stepFromReportUpload: 'Upload partner',
@@ -865,7 +893,9 @@ const MATCH_UI_EN: Record<MatchUiKey, string> = {
 	unlockStickyHint: 'Add WeChat for the full report',
 	bundleUnlockPrefix: 'Unlock all ',
 	tapUnlockHint: 'Tap a locked card to unlock one module',
-	reportPersistHint: 'Match report saved on this device — viewable after refresh before payment'
+	reportPersistHint: 'Match report saved on this device — viewable after refresh before payment',
+	resumeAnalyzeHint: 'Photos saved — you can continue the match analysis',
+	resumeAnalyzeBtn: 'Continue analysis'
 };
 
 export function getMatchUi(locale: AppLocale): Record<MatchUiKey, string> {

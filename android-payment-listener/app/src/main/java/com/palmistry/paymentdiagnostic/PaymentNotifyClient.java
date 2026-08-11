@@ -31,9 +31,19 @@ public final class PaymentNotifyClient {
         }
 
         EXECUTOR.execute(() -> {
+            NotifyConfig.markReportAttempt(context, amountWithSymbol, postedAt);
             String status = postNotify(context, amountWithSymbol, title, body, postedAt);
             NotifyConfig.saveLastNotifyResult(context, status);
         });
+    }
+
+    static void reportForce(Context context, String amountWithSymbol, String title, String body, long postedAt) {
+        if (!NotifyConfig.isConfigured(context)) {
+            NotifyConfig.saveLastNotifyResult(context, "未配置后端地址或密钥");
+            return;
+        }
+        NotifyConfig.clearReportSignature(context);
+        report(context, amountWithSymbol, title, body, postedAt);
     }
 
     private static String postNotify(
@@ -75,7 +85,7 @@ public final class PaymentNotifyClient {
                     : connection.getErrorStream();
             String responseBody = readStream(stream);
             if (code >= 200 && code < 300) {
-                return "上报成功 HTTP " + code + " " + responseBody;
+                return formatSuccessStatus(responseBody);
             }
             return "上报失败 HTTP " + code + " " + responseBody;
         } catch (Exception error) {
@@ -84,6 +94,27 @@ public final class PaymentNotifyClient {
             if (connection != null) {
                 connection.disconnect();
             }
+        }
+    }
+
+    private static String formatSuccessStatus(String responseBody) {
+        try {
+            JSONObject json = new JSONObject(responseBody);
+            boolean matched = json.optBoolean("matched", false);
+            if (matched) {
+                String orderId = json.optString("orderId", "");
+                if (orderId.isEmpty()) {
+                    return "订单已匹配，H5 将自动解锁";
+                }
+                return "订单已匹配 " + orderId;
+            }
+            String reason = json.optString("reason", "unknown");
+            if ("no_pending_order".equals(reason)) {
+                return "后端已收到，但无待支付订单（请先在 H5 创建订单并付唯一金额）";
+            }
+            return "后端已收到，未匹配：" + reason;
+        } catch (Exception ignored) {
+            return "上报成功 " + responseBody;
         }
     }
 

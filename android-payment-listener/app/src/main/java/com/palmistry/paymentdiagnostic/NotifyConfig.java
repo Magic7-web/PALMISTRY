@@ -13,6 +13,8 @@ public final class NotifyConfig {
     private static final String KEY_NOTIFY_SECRET = "notify_secret";
     private static final String KEY_LAST_STATUS = "last_notify_status";
     private static final String KEY_LAST_AT = "last_notify_at";
+    private static final String KEY_LAST_REPORT_SIGNATURE = "last_report_signature";
+    private static final String KEY_LISTENER_CONNECTED = "listener_connected";
 
     private NotifyConfig() {
     }
@@ -55,6 +57,34 @@ public final class NotifyConfig {
 
     static boolean isConfigured(Context context) {
         return !getBackendUrl(context).isEmpty() && !getNotifySecret(context).isEmpty();
+    }
+
+    static void saveListenerConnected(Context context, boolean connected) {
+        prefs(context).edit().putBoolean(KEY_LISTENER_CONNECTED, connected).apply();
+    }
+
+    static boolean isListenerConnected(Context context) {
+        return prefs(context).getBoolean(KEY_LISTENER_CONNECTED, false);
+    }
+
+    static boolean shouldReportAmount(Context context, String amountWithSymbol, long postedAt) {
+        String signature = buildReportSignature(amountWithSymbol, postedAt);
+        String last = prefs(context).getString(KEY_LAST_REPORT_SIGNATURE, "");
+        return !signature.equals(last);
+    }
+
+    static void markReportAttempt(Context context, String amountWithSymbol, long postedAt) {
+        prefs(context).edit()
+                .putString(KEY_LAST_REPORT_SIGNATURE, buildReportSignature(amountWithSymbol, postedAt))
+                .apply();
+    }
+
+    static void clearReportSignature(Context context) {
+        prefs(context).edit().remove(KEY_LAST_REPORT_SIGNATURE).apply();
+    }
+
+    private static String buildReportSignature(String amountWithSymbol, long postedAt) {
+        return amountWithSymbol + "@" + postedAt;
     }
 
     private static SharedPreferences prefs(Context context) {

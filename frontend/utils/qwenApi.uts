@@ -558,7 +558,7 @@ export async function analyzePalmistry(
 			},
 			parameters: {
 				temperature: 0.1, // 低温度，更稳定的输出
-				max_tokens: 8000, // 免费报告加厚 + 中英双轨需更长输出
+				max_tokens: 12000, // 免费报告加厚 + 中英双轨需更长输出
 				top_p: 0.8
 			}
 		};
@@ -790,7 +790,7 @@ export async function analyzeFollowUpReading(
 			},
 			parameters: {
 				temperature: 0.25,
-				max_tokens: 8000,
+				max_tokens: 12000,
 				top_p: 0.85
 			}
 		};
@@ -1237,6 +1237,14 @@ function buildFaceMatchPrompt(locale: AppLocale): string {
   "shortTermTrendEn": "-",
   "midTermTrend": "-",
   "midTermTrendEn": "-",
+  "palaceMatch": "-",
+  "palaceMatchEn": "-",
+  "communicationStyle": "-",
+  "communicationStyleEn": "-",
+  "longTermTrend": "-",
+  "longTermTrendEn": "-",
+  "wealthTogether": "-",
+  "wealthTogetherEn": "-",
   "conflictPoints": [],
   "conflictPointsEn": [],
   "advice": [],
@@ -1247,27 +1255,44 @@ function buildFaceMatchPrompt(locale: AppLocale): string {
   "disclaimerEn": "-"
 }`;
 
-	return `🪬 你是一位精通面相合婚的传统命理师，正在根据【两张正面人脸照片】分析情侣/夫妻合婚指数。
+	return `🪬 你是一位精通麻衣神相、柳庄相法与合婚推演的资深命理师，拥有三十年合婚实战经验。你正在为【付费合婚深度报告】撰写内容，用户已付费解锁，必须感受到明显超出免费预览的信息增量与专业深度。
 
 【语言与输出】${localeHint}
 【任务类型】analysis_type: face_match（面相合婚，NOT 手相）
 
 ⚠️ 第一步：校验两张图是否均为清晰正面人脸。若任一不合格，仅返回：${invalidStub}
 
-🔍 第二步：基于传统面相学（夫妻宫、五官互补、三停均衡、气色相合等）输出 JSON：
+🔍 第二步：基于传统面相学（夫妻宫/奸门、五官互补、三停均衡、气色相合、五行脸型、十二宫对照等）输出 JSON。
 
+【付费深度写作要求——必须严格遵守】
+1. 这是付费解锁内容，禁止写两三句敷衍了事；每个字段都要像「私人定制合婚报告」一样详实。
+2. 必须引用具体面相术语并与现实相处场景结合，例如：夫妻宫饱满度、鼻梁高低互补、眼型神光、法令纹深浅、上中下停比例、气色明暗等。
+3. 禁止重复 previewSummary 已有表述；深度字段要比预览更长、更细、更可执行。
+4. 禁止医疗/法律/投资保证；用「倾向/更适合/可能/建议」表达；禁止手相内容。
+
+【各字段字数与结构要求】
 - compatibilityScore：0-100 整数合婚指数
-- compatibilityLevel / compatibilityLevelEn：如「天作之合」「相辅相成」「需磨合」等
-- previewSummary：60-90字免费预览摘要（可分享）
-- complementarity：120-180字，五官与气质互补分析
-- domesticLeader / careerLeader：谁更适合主内/主外（中文名或「均衡」）
-- shortTermTrend / midTermTrend：短期3个月与中期1-3年相处趋势
-- conflictPoints：3-5条潜在摩擦点（数组）
-- advice：3-5条相处建议（数组）
-- shareTeaser：30-50字朋友圈分享文案
-- disclaimer：民俗文化娱乐参考免责声明
+- compatibilityLevel / compatibilityLevelEn：如「天作之合」「相辅相成」「需磨合」等，附一句 15-25 字评级理由
+- previewSummary：60-90 字免费预览摘要（可分享，略写即可）
+- complementarity：550-800 字。必须分 4 段（可用换行分隔）：
+  ① A 方可见面相要点与性格气质（120-180 字）
+  ② B 方可见面相要点与性格气质（120-180 字）
+  ③ 宫位/五行/五官互补推演——为何相合或需互补（160-220 字）
+  ④ 日常相处中这种互补如何落地（120-180 字）
+- palaceMatch / palaceMatchEn：280-420 字。对照夫妻宫/奸门、子女宫、财帛宫、官禄宫，说明双方宫位是否相合、谁补谁、对婚恋与家庭的影响
+- domesticLeader / domesticLeaderEn：100-180 字，说明谁更适合主内、依据哪些面相特征、家庭分工建议
+- careerLeader / careerLeaderEn：100-180 字，说明主外担当的面相依据与协作方式
+- communicationStyle / communicationStyleEn：250-380 字。基于眼型、嘴型、眉神、法令纹分析沟通风格、表达偏好、冲突时的说话方式与最佳沟通策略
+- shortTermTrend / shortTermTrendEn：250-380 字，覆盖未来 3 个月：感情节奏、沟通窗口、宜做/忌做之事、2-3 个具体行动建议
+- midTermTrend / midTermTrendEn：320-450 字，覆盖 1-3 年：关系深化路径、事业与家庭平衡、潜在转折节点、长期经营策略
+- longTermTrend / longTermTrendEn：320-450 字，覆盖 3-5 年：长期关系走向、婚姻/同居时机窗口、家庭结构演变、需提前布局之事
+- wealthTogether / wealthTogetherEn：250-380 字。共建财运、消费互补、理财分工、宜共同或宜各自独立的领域
+- conflictPoints / conflictPointsEn：5-7 条数组，每条 60-100 字，须含「摩擦场景 + 面相根源 + 化解方向」
+- advice / adviceEn：5-7 条数组，每条 60-100 字，须含「可执行动作 + 适用时机 + 预期效果」
+- shareTeaser / shareTeaserEn：30-50 字朋友圈分享文案
+- disclaimer / disclaimerEn：民俗文化娱乐参考免责声明
 
-禁止医疗/法律/投资保证；禁止手相内容。只返回纯 JSON，无 markdown。`;
+只返回纯 JSON，无 markdown，无代码块。`;
 }
 
 function buildFaceMatchWithReportPrompt(locale: AppLocale, reportJson: string): string {
@@ -1295,6 +1320,14 @@ function buildFaceMatchWithReportPrompt(locale: AppLocale, reportJson: string): 
   "shortTermTrendEn": "-",
   "midTermTrend": "-",
   "midTermTrendEn": "-",
+  "palaceMatch": "-",
+  "palaceMatchEn": "-",
+  "communicationStyle": "-",
+  "communicationStyleEn": "-",
+  "longTermTrend": "-",
+  "longTermTrendEn": "-",
+  "wealthTogether": "-",
+  "wealthTogetherEn": "-",
   "conflictPoints": [],
   "conflictPointsEn": [],
   "advice": [],
@@ -1305,7 +1338,7 @@ function buildFaceMatchWithReportPrompt(locale: AppLocale, reportJson: string): 
   "disclaimerEn": "-"
 }`;
 
-	return `🪬 你是一位精通面相合婚的传统命理师。
+	return `🪬 你是一位精通麻衣神相、柳庄相法与合婚推演的资深命理师，拥有三十年合婚实战经验。你正在为【付费合婚深度报告】撰写内容，用户已付费解锁，必须感受到明显超出免费预览的信息增量与专业深度。
 
 【语言与输出】${localeHint}
 【任务类型】analysis_type: face_match_report（基于已有面相报告 + 对方照片合婚）
@@ -1317,18 +1350,37 @@ ${reportJson}
 
 ⚠️ 第一步：校验 B 方照片是否为清晰正面人脸。若不合格，仅返回：${invalidStub}
 
-🔍 第二步：结合 A 方报告 + B 方照片面相，输出合婚 JSON（字段与双图合婚一致）：
+🔍 第二步：结合 A 方报告 + B 方照片面相，输出合婚 JSON（字段与双图合婚一致）。
 
+【付费深度写作要求——必须严格遵守】
+1. 这是付费解锁内容，禁止写两三句敷衍了事；必须像「私人定制合婚报告」一样详实。
+2. complementarity 须明确引用 A 方报告中的具体字段（如脸型、夫妻宫、三停、五官评分）与 B 方可见特征对照，不得泛泛而谈。
+3. 必须引用具体面相术语：夫妻宫/奸门、财帛宫、官禄宫、监察官、人中等，并与现实相处场景结合。
+4. 禁止重复 previewSummary；深度字段要比预览更长、更细、更可执行。
+5. 禁止医疗/法律/投资保证；禁止手相内容。
+
+【各字段字数与结构要求】
 - compatibilityScore：0-100 整数
-- compatibilityLevel / compatibilityLevelEn
-- previewSummary：60-90字免费预览
-- complementarity：120-180字，A/B 互补分析（须引用 A 方报告要点与 B 方可见特征）
-- domesticLeader / careerLeader
-- shortTermTrend / midTermTrend
-- conflictPoints / advice：各 3-5 条数组
+- compatibilityLevel / compatibilityLevelEn：附 15-25 字评级理由
+- previewSummary：60-90 字免费预览
+- complementarity：550-800 字，分 4 段（可用换行分隔）：
+  ① A 方报告要点摘要（引用报告中的脸型/宫位/婚恋结论，120-180 字）
+  ② B 方照片面相识别（120-180 字）
+  ③ 双方宫位/五行/五官互补推演（160-220 字）
+  ④ 日常相处互补如何落地（120-180 字）
+- palaceMatch / palaceMatchEn：280-420 字，夫妻宫/子女宫/财帛宫/官禄宫对照与家庭运势互动
+- domesticLeader / domesticLeaderEn：100-180 字，含面相依据与家庭分工建议
+- careerLeader / careerLeaderEn：100-180 字，含面相依据与协作方式
+- communicationStyle / communicationStyleEn：250-380 字，沟通风格、表达偏好、冲突沟通策略
+- shortTermTrend / shortTermTrendEn：250-380 字（未来 3 个月节奏、沟通、宜忌、行动建议）
+- midTermTrend / midTermTrendEn：320-450 字（1-3 年关系路径、转折、长期策略）
+- longTermTrend / longTermTrendEn：320-450 字（3-5 年走向、婚姻窗口、家庭结构演变）
+- wealthTogether / wealthTogetherEn：250-380 字（共建财运、理财分工、宜共同/宜独立领域）
+- conflictPoints / conflictPointsEn：5-7 条，每条 60-100 字（摩擦场景 + 面相根源 + 化解方向）
+- advice / adviceEn：5-7 条，每条 60-100 字（可执行动作 + 时机 + 预期效果）
 - shareTeaser / disclaimer
 
-禁止手相内容；禁止医疗/法律/投资保证。只返回纯 JSON，无 markdown。`;
+只返回纯 JSON，无 markdown，无代码块。`;
 }
 
 function buildFaceImprovementPrompt(locale: AppLocale, reportJson: string): string {
@@ -1337,7 +1389,7 @@ function buildFaceImprovementPrompt(locale: AppLocale, reportJson: string): stri
 			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
 			: '用户界面偏好为中文，但你仍必须为所有主字段同时提供对应的英文 *En 字段，便于双语展示。';
 
-	return `🪬 你是一位面相开运顾问。用户已完成首次面相分析，现需要【形象开运深度方案】（第二次解读）。
+	return `🪬 你是一位精通麻衣神相、五行开运与形象命理的资深顾问，专做「面相 → 形象 → 运势」一体化定制方案。用户已完成首次面相分析并【付费解锁形象开运完整方案】，你必须给出远超首报的增量内容，让用户感到物有所值。
 
 【语言与输出】${localeHint}
 【任务类型】analysis_type: face_improvement
@@ -1345,22 +1397,39 @@ function buildFaceImprovementPrompt(locale: AppLocale, reportJson: string): stri
 【用户已有面相报告 JSON】
 ${reportJson}
 
-请基于上述报告中的脸型、五官、宫位与运势结论，输出可执行的「形象开运」方案 JSON（勿重复首报原文，要给出增量、具体、可落地建议）：
+请基于上述报告中的脸型、五行属性、三停比例、五官特征、关键宫位（印堂/财帛/夫妻宫等）与运势结论，输出可执行的「形象开运深度方案」JSON。
 
+【付费深度写作要求——必须严格遵守】
+1. 禁止重复首报原文或只做同义改写；每个模块必须给出首报未覆盖的具体方案。
+2. 每个模块正文必须足够长，建议 220-320 个中文字符，不得少于 200 字；禁止只写 2-3 句。
+3. 每个模块必须包含三段逻辑（可用自然段或分号衔接）：
+   - 面相/五行依据：引用报告中与该模块相关的具体特征（如「水型脸」「上停偏长」「眉尾散」等）
+   - 定制方案：发型长度/卷度/分缝、眉形角度、材质色号、方位度数、摆放物品等可执行细节
+   - 开运逻辑：为何这样调整能「补不足、扬优势、聚气/护财/增人缘」
+4. 语言要专业但不晦涩，像私人形象顾问 + 传统相学顾问的结合体。
+5. 禁止医疗/法律/投资保证；用「倾向/更适合/可能/建议」表达。
+
+【输出 JSON 结构】
 {
-  "hairstyle": "发型建议，60-100字",
+  "hairstyle": "发型建议，220-320字，含长度/卷度/分缝/发色/避坑",
   "hairstyleEn": "...",
-  "eyebrow": "眉形/修眉建议",
+  "eyebrow": "眉形/修眉建议，220-320字，含眉峰/眉尾角度/眉色/与脸型关系",
   "eyebrowEn": "...",
-  "accessories": "眼镜/饰品/穿搭建议",
+  "accessories": "眼镜/饰品/穿搭建议，220-320字，含材质/版型/色系/佩戴位置",
   "accessoriesEn": "...",
-  "makeupAndColor": "妆容与幸运色",
+  "makeupAndColor": "妆容与幸运色，220-320字，含底妆/眼妆/唇色/幸运色运用场景",
   "makeupAndColorEn": "...",
-  "deskDirection": "办公/学习方位",
+  "deskDirection": "办公/学习方位，220-320字，含坐向、桌面布局、绿植/摆件、青龙白虎位",
   "deskDirectionEn": "...",
-  "bedroomDirection": "睡眠/卧室布局",
+  "bedroomDirection": "睡眠/卧室布局，220-320字，含床头朝向、镜位忌宜、色调、杂物收纳",
   "bedroomDirectionEn": "...",
-  "avoidItems": ["忌用色或形象雷区1", "..."],
+  "behaviorCharm": "神态气场修炼，220-320字，含眼神、微笑、站姿坐姿、说话节奏与相学「气」的养成",
+  "behaviorCharmEn": "...",
+  "socialStyle": "社交场合形象，220-320字，含初次见面、职场社交、聚会穿搭与谈吐要点",
+  "socialStyleEn": "...",
+  "dailyRitual": "日常开运习惯，220-320字，含晨起/睡前仪式、幸运色运用、宜坚持的小习惯",
+  "dailyRitualEn": "...",
+  "avoidItems": ["忌用色或形象雷区1（40-70字，含原因）", "..."],
   "avoidItemsEn": ["...", "..."],
   "premiumSummary": "80-120字免费预览摘要，概括最核心3条开运要点",
   "premiumSummaryEn": "...",
@@ -1368,7 +1437,7 @@ ${reportJson}
   "disclaimerEn": "..."
 }
 
-只返回纯 JSON，无 markdown。`;
+【重要】avoidItems 须 4-6 条；每条须说明「忌什么 + 为何忌 + 替代方案」。只返回纯 JSON，无 markdown，无代码块。`;
 }
 
 function createFailedFaceMatchResult(message: string, messageEn: string): FaceMatchResult {
@@ -1391,6 +1460,14 @@ function createFailedFaceMatchResult(message: string, messageEn: string): FaceMa
 		shortTermTrendEn: messageEn,
 		midTermTrend: message,
 		midTermTrendEn: messageEn,
+		palaceMatch: message,
+		palaceMatchEn: messageEn,
+		communicationStyle: message,
+		communicationStyleEn: messageEn,
+		longTermTrend: message,
+		longTermTrendEn: messageEn,
+		wealthTogether: message,
+		wealthTogetherEn: messageEn,
 		conflictPoints: [message],
 		conflictPointsEn: [messageEn],
 		advice: [message],
@@ -1416,6 +1493,12 @@ function createFailedFaceImprovementResult(message: string, messageEn: string): 
 		deskDirectionEn: messageEn,
 		bedroomDirection: message,
 		bedroomDirectionEn: messageEn,
+		behaviorCharm: message,
+		behaviorCharmEn: messageEn,
+		socialStyle: message,
+		socialStyleEn: messageEn,
+		dailyRitual: message,
+		dailyRitualEn: messageEn,
 		avoidItems: [message],
 		avoidItemsEn: [messageEn],
 		premiumSummary: message,
@@ -1447,6 +1530,18 @@ function parseFaceMatchResponse(content: string | any): FaceMatchResult {
 		if (result.advice == null) {
 			result.advice = [];
 		}
+		if (result.palaceMatch == null) {
+			result.palaceMatch = '-';
+		}
+		if (result.communicationStyle == null) {
+			result.communicationStyle = '-';
+		}
+		if (result.longTermTrend == null) {
+			result.longTermTrend = '-';
+		}
+		if (result.wealthTogether == null) {
+			result.wealthTogether = '-';
+		}
 		return result;
 	} catch (error) {
 		console.error('合婚 JSON 解析失败:', error);
@@ -1472,6 +1567,15 @@ function parseFaceImprovementResponse(content: string | any): FaceImprovementRes
 		}
 		if (result.avoidItems == null) {
 			result.avoidItems = [];
+		}
+		if (result.behaviorCharm == null) {
+			result.behaviorCharm = '-';
+		}
+		if (result.socialStyle == null) {
+			result.socialStyle = '-';
+		}
+		if (result.dailyRitual == null) {
+			result.dailyRitual = '-';
 		}
 		return result;
 	} catch (error) {
@@ -1562,7 +1666,7 @@ export async function analyzeFaceMatch(request: FaceMatchAnalyzeRequest): Promis
 			},
 			parameters: {
 				temperature: 0.15,
-				max_tokens: 8000,
+				max_tokens: 12000,
 				top_p: 0.85
 			}
 		};
@@ -1587,7 +1691,7 @@ export async function analyzeFaceMatch(request: FaceMatchAnalyzeRequest): Promis
 		},
 		parameters: {
 			temperature: 0.15,
-			max_tokens: 8000,
+			max_tokens: 12000,
 			top_p: 0.85
 		}
 	};
@@ -1613,7 +1717,7 @@ export async function analyzeFaceImprovement(request: FaceImprovementAnalyzeRequ
 		},
 		parameters: {
 			temperature: 0.2,
-			max_tokens: 6000,
+			max_tokens: 12000,
 			top_p: 0.85
 		}
 	};

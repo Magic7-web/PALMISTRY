@@ -354,6 +354,14 @@ export interface FaceMatchResult {
 	shortTermTrendEn?: string;
 	midTermTrend: string;
 	midTermTrendEn?: string;
+	palaceMatch: string;
+	palaceMatchEn?: string;
+	communicationStyle: string;
+	communicationStyleEn?: string;
+	longTermTrend: string;
+	longTermTrendEn?: string;
+	wealthTogether: string;
+	wealthTogetherEn?: string;
 	conflictPoints: string[];
 	conflictPointsEn?: string[];
 	advice: string[];
@@ -380,6 +388,12 @@ export interface FaceImprovementResult {
 	deskDirectionEn?: string;
 	bedroomDirection: string;
 	bedroomDirectionEn?: string;
+	behaviorCharm: string;
+	behaviorCharmEn?: string;
+	socialStyle: string;
+	socialStyleEn?: string;
+	dailyRitual: string;
+	dailyRitualEn?: string;
 	avoidItems: string[];
 	avoidItemsEn?: string[];
 	premiumSummary: string;

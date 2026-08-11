@@ -4,7 +4,9 @@
     <string name="status_enabled">监听状态：已开启通知使用权</string>
     <string name="status_disabled">监听状态：未开启通知使用权</string>
     <string name="open_listener_settings">打开通知使用权设置</string>
-    <string name="refresh_status">刷新状态</string>
+    <string name="refresh_status">刷新并扫描通知</string>
+    <string name="rescan_and_report">重新扫描并上报</string>
+    <string name="retry_last_report">重试上报最近收款</string>
     <string name="clear_records">清空记录</string>
     <string name="recent_records_title">最近支付宝通知</string>
     <string name="summary_format">本地记录 %1$d 条，其中支付匹配 %2$d 条</string>

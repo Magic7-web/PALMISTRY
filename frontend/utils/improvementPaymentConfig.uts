@@ -4,8 +4,8 @@
 
 export const IMPROVEMENT_PAYMENT = {
 	moduleId: 'face_improvement',
-	priceCny: '4.90',
-	priceUsd: '1.99',
+	priceCny: '6.90',
+	priceUsd: '2.79',
 	titleZh: '形象开运完整方案',
 	titleEn: 'Full Image Enhancement Plan'
 };
@@ -14,5 +14,9 @@ export function formatImprovementPriceLabel(locale: string): string {
 	if (locale === 'en') {
 		return `$${IMPROVEMENT_PAYMENT.priceUsd}`;
 	}
-	return '¥4.9';
+	const num = parseFloat(IMPROVEMENT_PAYMENT.priceCny);
+	if (num < 10 && IMPROVEMENT_PAYMENT.priceCny.endsWith('0')) {
+		return `¥${num.toFixed(1)}`;
+	}
+	return `¥${IMPROVEMENT_PAYMENT.priceCny}`;
 }

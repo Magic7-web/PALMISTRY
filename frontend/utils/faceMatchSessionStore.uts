@@ -16,6 +16,8 @@ export interface FaceMatchSessionSnapshot {
 	unlockedModuleIds?: string[] | null;
 	/** 是否已生成合婚报告（报告正文单独存储，避免大图撑爆 localStorage） */
 	hasGeneratedReport?: boolean;
+	/** 分析进行中离开页面时为 true，返回后可继续分析 */
+	analysisPending?: boolean;
 	createdAt: number;
 }
 
@@ -122,6 +124,69 @@ export function createMatchId(): string {
 	return `match_${Date.now()}`;
 }
 
+/** 列出本地所有合婚相关 storage 的 matchId */
+function listMatchStorageIds(): { sessionIds: string[]; reportOnlyIds: string[] } {
+	const sessionIds: string[] = [];
+	const reportOnlyIds: string[] = [];
+	const reportIdSet: Record<string, boolean> = {};
+	try {
+		const info = uni.getStorageInfoSync();
+		const keys = info.keys != null ? info.keys : [];
+		for (let i = 0; i < keys.length; i += 1) {
+			const key = keys[i];
+			if (key.startsWith(MATCH_SESSION_PREFIX)) {
+				sessionIds.push(key.substring(MATCH_SESSION_PREFIX.length));
+			} else if (key.startsWith(MATCH_REPORT_PREFIX)) {
+				const id = key.substring(MATCH_REPORT_PREFIX.length);
+				reportIdSet[id] = true;
+			}
+		}
+		for (const id in reportIdSet) {
+			let hasSession = false;
+			for (let i = 0; i < sessionIds.length; i += 1) {
+				if (sessionIds[i] === id) {
+					hasSession = true;
+					break;
+				}
+			}
+			if (!hasSession) {
+				reportOnlyIds.push(id);
+			}
+		}
+	} catch (error) {
+		console.warn('枚举合婚 storage 失败', error);
+	}
+	return { sessionIds, reportOnlyIds };
+}
+
+/**
+ * 清理非当前合婚会话，避免 localStorage 堆积大量 face_match_session_match_xxx
+ * 仅保留 keepMatchId 对应的 session + report
+ */
+export function pruneStaleMatchSessions(keepMatchId: string): void {
+	if (keepMatchId == null || keepMatchId.length === 0) {
+		return;
+	}
+	const { sessionIds, reportOnlyIds } = listMatchStorageIds();
+	for (let i = 0; i < sessionIds.length; i += 1) {
+		const id = sessionIds[i];
+		if (id !== keepMatchId) {
+			try {
+				uni.removeStorageSync(getMatchKey(id));
+			} catch (error) {
+				console.warn('清理旧合婚会话失败', id, error);
+			}
+			clearFaceMatchReport(id);
+		}
+	}
+	for (let i = 0; i < reportOnlyIds.length; i += 1) {
+		const id = reportOnlyIds[i];
+		if (id !== keepMatchId) {
+			clearFaceMatchReport(id);
+		}
+	}
+}
+
 /** @returns 是否至少保存了会话元数据；报告单独 key 保存成功时 hasGeneratedReport 为 true */
 export function saveFaceMatchSession(snapshot: FaceMatchSessionSnapshot): boolean {
 	const hasReport = snapshot.reportData != null && snapshot.reportData.fullData != null;
@@ -144,12 +209,14 @@ export function saveFaceMatchSession(snapshot: FaceMatchSessionSnapshot): boolea
 		matchUnlocked: snapshot.matchUnlocked,
 		unlockedModuleIds: snapshot.unlockedModuleIds,
 		hasGeneratedReport: hasReport || snapshot.hasGeneratedReport === true || keepHasReport,
+		analysisPending: snapshot.analysisPending === true,
 		createdAt: snapshot.createdAt
 	};
 
 	try {
 		uni.setStorageSync(getMatchKey(snapshot.matchId), sessionPayload);
 		uni.setStorageSync('face_match_active_id', snapshot.matchId);
+		pruneStaleMatchSessions(snapshot.matchId);
 		return reportSaved;
 	} catch (error) {
 		console.error('保存合婚会话失败（含图片），尝试精简保存', error);
@@ -163,6 +230,7 @@ export function saveFaceMatchSession(snapshot: FaceMatchSessionSnapshot): boolea
 		};
 		uni.setStorageSync(getMatchKey(snapshot.matchId), slimPayload);
 		uni.setStorageSync('face_match_active_id', snapshot.matchId);
+		pruneStaleMatchSessions(snapshot.matchId);
 		return reportSaved;
 	} catch (error) {
 		console.error('保存合婚会话失败', error);

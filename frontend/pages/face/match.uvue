@@ -6,7 +6,7 @@
 
 		<view class="match-content-wrapper">
 			<!-- 上传 / 邀请流程 -->
-			<template v-if="reportData == null && !isAnalyzing">
+			<template v-if="reportData == null && !showAnalyzingScreen">
 				<view class="upload-flow" :class="{ 'flow-ready': bothReady }">
 				<view class="match-header compact-header">
 					<view class="header-main">
@@ -64,7 +64,7 @@
 								:class="{
 									filled: personAHasReady,
 									empty: !personAHasReady,
-									tappable: needsSelfUpload
+									tappable: needsSelfUpload || canChangeSelfPhoto
 								}"
 								@click="handleTapSelfSlot"
 							>
@@ -86,6 +86,11 @@
 								</view>
 							</view>
 							<text class="couple-label">{{ ui.labelMe }}</text>
+							<text
+								v-if="canChangeSelfPhoto"
+								class="change-photo-link"
+								@click.stop="handleChangeSelfPhoto"
+							>{{ ui.changeSelfPhoto }}</text>
 						</view>
 
 						<view class="couple-bridge">
@@ -136,8 +141,9 @@
 
 					<!-- 双方就绪：按钮内嵌卡片 -->
 					<view v-if="bothReady" class="inline-ready-actions">
+						<text v-if="showResumeAnalyzeHint" class="resume-analyze-hint">{{ ui.resumeAnalyzeHint }}</text>
 						<button class="match-btn btn-primary btn-lg" @click.stop="handleStartAnalyze">
-							<text class="btn-primary-text">{{ ui.startAnalyze }}</text>
+							<text class="btn-primary-text">{{ showResumeAnalyzeHint ? ui.resumeAnalyzeBtn : ui.startAnalyze }}</text>
 						</button>
 						<button class="match-btn btn-outline btn-sm" @click.stop="handleChangePartnerPhoto">
 							<text class="btn-outline-text">{{ ui.changePartnerPhoto }}</text>
@@ -177,7 +183,7 @@
 			</template>
 
 			<!-- 分析中 -->
-			<template v-else-if="reportData == null && isAnalyzing">
+			<template v-else-if="reportData == null && showAnalyzingScreen">
 				<view class="match-header analyzing-header">
 					<text class="header-title">{{ ui.analyzingMain }}</text>
 				</view>
@@ -244,6 +250,20 @@
 								</view>
 							</view>
 
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('palaceMatch') }"
+								@click="onModuleCardTap('palaceMatch')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.palaceMatch }}</text>
+									<text v-if="!isModuleUnlocked('palaceMatch')" class="module-price-tag">{{ getModulePriceLabel('palaceMatch') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('palaceMatch') }">
+									<text class="detail-text">{{ pickTxt(reportData.fullData.palaceMatch, reportData.fullData.palaceMatchEn) }}</text>
+								</view>
+							</view>
+
 							<view class="detail-card-row">
 								<view
 									class="detail-card-item half match-module-card"
@@ -298,6 +318,48 @@
 								</view>
 								<view class="module-content" :class="{ locked: !isModuleUnlocked('midTrend') }">
 									<text class="detail-text">{{ pickTxt(reportData.fullData.midTermTrend, reportData.fullData.midTermTrendEn) }}</text>
+								</view>
+							</view>
+
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('communication') }"
+								@click="onModuleCardTap('communication')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.communicationStyle }}</text>
+									<text v-if="!isModuleUnlocked('communication')" class="module-price-tag">{{ getModulePriceLabel('communication') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('communication') }">
+									<text class="detail-text">{{ pickTxt(reportData.fullData.communicationStyle, reportData.fullData.communicationStyleEn) }}</text>
+								</view>
+							</view>
+
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('longTrend') }"
+								@click="onModuleCardTap('longTrend')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.longTrend }}</text>
+									<text v-if="!isModuleUnlocked('longTrend')" class="module-price-tag">{{ getModulePriceLabel('longTrend') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('longTrend') }">
+									<text class="detail-text">{{ pickTxt(reportData.fullData.longTermTrend, reportData.fullData.longTermTrendEn) }}</text>
+								</view>
+							</view>
+
+							<view
+								class="detail-card-item match-module-card"
+								:class="{ 'is-locked': !isModuleUnlocked('wealthTogether') }"
+								@click="onModuleCardTap('wealthTogether')"
+							>
+								<view class="detail-card-head">
+									<text class="detail-card-title">{{ ui.wealthTogether }}</text>
+									<text v-if="!isModuleUnlocked('wealthTogether')" class="module-price-tag">{{ getModulePriceLabel('wealthTogether') }}</text>
+								</view>
+								<view class="module-content" :class="{ locked: !isModuleUnlocked('wealthTogether') }">
+									<text class="detail-text">{{ pickTxt(reportData.fullData.wealthTogether, reportData.fullData.wealthTogetherEn) }}</text>
 								</view>
 							</view>
 
@@ -427,8 +489,7 @@
 
 <script lang="uts">
 	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
-	import type { FaceMatchReport } from '@/types/index';
-	import { analyzeFaceMatch } from '@/utils/qwenApi';
+	import type { FaceMatchReport, FaceMatchResult } from '@/types/index';
 	import { resolveImageForApi, compressImageForStorage, isEphemeralImagePath } from '@/utils/imageHelper';
 	import {
 		createMatchId,
@@ -460,6 +521,11 @@
 		getMatchPaymentModuleById,
 		formatMatchPriceLabel
 	} from '@/utils/matchPaymentModules';
+	import {
+		startFaceMatchAnalysis,
+		isFaceMatchAnalysisRunning,
+		getActiveFaceMatchAnalysisJob
+	} from '@/utils/faceMatchAnalysisRunner';
 
 	type PaymentMethod = 'paypal' | 'alipay';
 
@@ -475,6 +541,7 @@
 		fromFaceReport: boolean;
 		personAReportJson: string | null;
 		unlockedModuleIds: string[];
+		analysisPending: boolean;
 		isUploading: boolean;
 		analyzeProgress: number;
 		analyzingStatusText: string;
@@ -516,6 +583,7 @@
 				fromFaceReport: false,
 				personAReportJson: null,
 				unlockedModuleIds: [],
+				analysisPending: false,
 				isUploading: false,
 				analyzeProgress: 0,
 				analyzingStatusText: '',
@@ -592,6 +660,12 @@
 			needsSelfUpload(): boolean {
 				return !this.fromFaceReport && !this.isPartnerFlow && this.personAImage == null;
 			},
+			canChangeSelfPhoto(): boolean {
+				if (this.fromFaceReport || this.isPartnerFlow || this.reportData != null) {
+					return false;
+				}
+				return this.personAImage != null && this.personAImage.length > 0;
+			},
 			needsPartnerUpload(): boolean {
 				if (this.bothReady) {
 					return false;
@@ -616,6 +690,18 @@
 				}
 				return this.personAImage != null && this.personBImage != null;
 			},
+			showResumeAnalyzeHint(): boolean {
+				return this.analysisPending && this.bothReady && this.reportData == null && !this.isAnalyzing && !isFaceMatchAnalysisRunning(this.matchId);
+			},
+			showAnalyzingScreen(): boolean {
+				if (this.reportData != null) {
+					return false;
+				}
+				if (this.isAnalyzing) {
+					return true;
+				}
+				return this.analysisPending && isFaceMatchAnalysisRunning(this.matchId);
+			},
 			headerSubtitleText(): string {
 				if (this.fromFaceReport) {
 					return this.ui.fromReportHint;
@@ -636,6 +722,12 @@
 			},
 			uploadHintText(): string {
 				if (this.fromFaceReport) {
+					return this.ui.uploadPartnerFromReport;
+				}
+				if (this.isPartnerFlow) {
+					return this.ui.uploadPartner;
+				}
+				if (this.personAImage != null && this.personBImage == null) {
 					return this.ui.uploadPartnerFromReport;
 				}
 				if (this.needsPartnerUpload) {
@@ -677,14 +769,20 @@
 			this.repairReportImages();
 			this.syncUploadTarget();
 			this.syncMatchUrl();
+			if (this.reportData == null && (this.analysisPending || isFaceMatchAnalysisRunning(this.matchId))) {
+				void this.resumePendingAnalysis();
+			}
 		},
 		onHide() {
-			this.persistSession();
+			if (this.isAnalyzing || isFaceMatchAnalysisRunning(this.matchId)) {
+				this.analysisPending = true;
+			}
+			void this.ensureImagesPersisted().then(() => this.persistSession({ analysisPending: this.analysisPending }));
 			this.stopPaymentPolling();
 		},
 		onUnload() {
 			this.unbindPageLifecyclePersist();
-			this.persistSession();
+			void this.ensureImagesPersisted().then(() => this.persistSession());
 			this.stopPaymentPolling();
 			clearPayPalButtonContainer('match-paypal-button-container');
 		},
@@ -870,6 +968,7 @@
 				} else {
 					this.unlockedModuleIds = [];
 				}
+				this.analysisPending = snapshot.analysisPending === true;
 			},
 			refreshSession(): void {
 				if (this.matchId.length === 0) {
@@ -908,7 +1007,45 @@
 					this.reportData.personBImage = this.personBImage;
 				}
 			},
-			async persistSession(): Promise<boolean> {
+			async normalizeImageForStorage(imagePath: string): Promise<string | null> {
+				if (imagePath == null || imagePath.length === 0) {
+					return null;
+				}
+				if (imagePath.startsWith('data:image/')) {
+					const compressed = await compressImageForStorage(imagePath);
+					return compressed.length > 0 ? compressed : imagePath;
+				}
+				if (isEphemeralImagePath(imagePath) || !imagePath.startsWith('http')) {
+					try {
+						const converted = await resolveImageForApi(imagePath);
+						if (converted.startsWith('data:image/')) {
+							const compressed = await compressImageForStorage(converted);
+							return compressed.length > 0 ? compressed : converted;
+						}
+						return converted;
+					} catch (error) {
+						console.warn('合婚图片持久化转换失败', error);
+						return null;
+					}
+				}
+				return imagePath;
+			},
+			async ensureImagesPersisted(): Promise<void> {
+				if (this.personAImage != null && this.personAImage.length > 0) {
+					const normalizedA = await this.normalizeImageForStorage(this.personAImage);
+					if (normalizedA != null) {
+						this.personAImage = normalizedA;
+					}
+				}
+				if (this.personBImage != null && this.personBImage.length > 0) {
+					const normalizedB = await this.normalizeImageForStorage(this.personBImage);
+					if (normalizedB != null) {
+						this.personBImage = normalizedB;
+					}
+				}
+			},
+			async persistSession(options?: { analysisPending?: boolean }): Promise<boolean> {
+				await this.ensureImagesPersisted();
 				let personA = this.personAImage;
 				let personB = this.personBImage;
 				if (personA != null && isEphemeralImagePath(personA)) {
@@ -917,17 +1054,11 @@
 				if (personB != null && isEphemeralImagePath(personB)) {
 					personB = null;
 				}
-				if (personA != null && personA.startsWith('data:image/')) {
-					personA = await compressImageForStorage(personA);
-					if (personA.length === 0) {
-						personA = null;
-					}
-				}
-				if (personB != null && personB.startsWith('data:image/')) {
-					personB = await compressImageForStorage(personB);
-					if (personB.length === 0) {
-						personB = null;
-					}
+				const analysisPending = options != null && options.analysisPending != null
+					? options.analysisPending
+					: this.analysisPending;
+				if (options != null && options.analysisPending != null) {
+					this.analysisPending = options.analysisPending;
 				}
 				const saved = saveFaceMatchSession({
 					matchId: this.matchId,
@@ -940,6 +1071,7 @@
 					matchUnlocked: this.isAllModulesUnlocked(),
 					unlockedModuleIds: this.unlockedModuleIds.slice(),
 					hasGeneratedReport: this.reportData != null ? true : undefined,
+					analysisPending: analysisPending,
 					createdAt: Date.now()
 				});
 				if (this.reportData != null && !saved) {
@@ -981,8 +1113,9 @@
 					}
 				});
 			},
-			handleGoBack(): void {
-				this.persistSession();
+			async handleGoBack(): Promise<void> {
+				await this.ensureImagesPersisted();
+				await this.persistSession();
 				this.stopPaymentPolling();
 				const pages = getCurrentPages();
 				if (pages.length > 1) {
@@ -992,6 +1125,11 @@
 				uni.switchTab({ url: '/pages/face/face' });
 			},
 			handleTapSelfSlot(): void {
+				if (this.canChangeSelfPhoto) {
+					this.uploadTarget = 'self';
+					this.handleChooseFromAlbum();
+					return;
+				}
 				if (!this.needsSelfUpload) {
 					return;
 				}
@@ -1014,6 +1152,13 @@
 				this.pendingUploadImage = null;
 				this.uploadTarget = 'partner';
 				this.persistSession();
+			},
+			handleChangeSelfPhoto(): void {
+				this.personAImage = null;
+				this.pendingUploadImage = null;
+				this.uploadTarget = 'self';
+				void this.persistSession();
+				this.handleChooseFromAlbum();
 			},
 			handleTakePhoto(): void {
 				this.pickImage(['camera']);
@@ -1051,7 +1196,7 @@
 						this.personBImage = apiReady;
 					}
 					this.pendingUploadImage = null;
-					this.persistSession();
+					await this.persistSession({ analysisPending: false });
 					this.syncUploadTarget();
 					uni.showToast({
 						title: this.locale === 'en' ? 'Photo ready' : '照片已就绪',
@@ -1079,6 +1224,99 @@
 					}
 				}, 600) as unknown as number;
 			},
+			async applyAnalysisResult(result: FaceMatchResult): Promise<void> {
+				if (result.isInvalid === true) {
+					uni.showToast({
+						title: pickLocaleText(this.locale, result.errorMsg || '请上传清晰正脸', result.errorMsgEn),
+						icon: 'none',
+						duration: 5000
+					});
+					await this.persistSession({ analysisPending: false });
+					return;
+				}
+				this.analyzeProgress = 100;
+				const now = new Date();
+				const timeString = `${now.getFullYear()}-${this.formatNumber(now.getMonth() + 1)}-${this.formatNumber(now.getDate())} ${this.formatNumber(now.getHours())}:${this.formatNumber(now.getMinutes())}`;
+				this.reportData = {
+					id: `face_match_${Date.now()}`,
+					matchId: this.matchId,
+					analyzeTime: timeString,
+					personAImage: this.resolvePersonAImageForReport(),
+					personBImage: this.personBImage != null ? this.personBImage : '',
+					fullData: result
+				};
+				const saved = await this.persistSession({ analysisPending: false });
+				this.syncMatchUrl();
+				if (!saved) {
+					const recovered = loadFaceMatchReport(
+						this.matchId,
+						this.reportData.personAImage,
+						this.reportData.personBImage
+					);
+					if (recovered == null) {
+						uni.showToast({
+							title: this.locale === 'en'
+								? 'Report generated but save failed — do not refresh'
+								: '报告已生成但保存失败，请勿刷新页面',
+							icon: 'none',
+							duration: 5000
+						});
+					}
+				}
+				uni.showToast({ title: this.ui.toastSuccess, icon: 'success' });
+			},
+			async runAnalysisUi(analysisPromise: Promise<FaceMatchResult>): Promise<void> {
+				if (this.isAnalyzing) {
+					return;
+				}
+				this.isAnalyzing = true;
+				const progressTimer = this.startAnalyzeProgress();
+				try {
+					const result = await analysisPromise;
+					if (this.reportData == null) {
+						await this.applyAnalysisResult(result);
+					} else {
+						this.analysisPending = false;
+						await this.persistSession({ analysisPending: false });
+					}
+				} catch (error: any) {
+					uni.showToast({
+						title: error.message || (this.locale === 'en' ? 'Analysis failed' : '分析失败'),
+						icon: 'none'
+					});
+					await this.persistSession({ analysisPending: this.bothReady });
+				} finally {
+					clearInterval(progressTimer);
+					this.isAnalyzing = false;
+					this.analyzeProgress = 0;
+					this.analyzingStatusText = '';
+				}
+			},
+			async resumePendingAnalysis(): Promise<void> {
+				if (this.reportData != null) {
+					if (this.analysisPending) {
+						this.analysisPending = false;
+						await this.persistSession({ analysisPending: false });
+					}
+					return;
+				}
+				if (isFaceMatchAnalysisRunning(this.matchId)) {
+					const job = getActiveFaceMatchAnalysisJob();
+					if (job != null) {
+						this.analysisPending = true;
+						await this.runAnalysisUi(job.promise);
+						return;
+					}
+				}
+				if (!this.analysisPending) {
+					return;
+				}
+				this.refreshSession();
+				if (this.reportData != null) {
+					this.analysisPending = false;
+					return;
+				}
+			},
 			async handleStartAnalyze(): Promise<void> {
 				if (this.personBImage == null) {
 					uni.showToast({ title: this.ui.toastNeedBoth, icon: 'none' });
@@ -1088,81 +1326,40 @@
 					uni.showToast({ title: this.ui.toastNeedBoth, icon: 'none' });
 					return;
 				}
-				this.isAnalyzing = true;
-				const progressTimer = this.startAnalyzeProgress();
+				if (isFaceMatchAnalysisRunning(this.matchId)) {
+					await this.runAnalysisUi(getActiveFaceMatchAnalysisJob()!.promise);
+					return;
+				}
+				await this.ensureImagesPersisted();
+				await this.persistSession({ analysisPending: true });
 				try {
-					const imageB = await resolveImageForApi(this.personBImage);
+					const imageB = await resolveImageForApi(this.personBImage!);
 					this.personBImage = imageB;
-					let result;
-					if (this.fromFaceReport && this.personAReportJson != null && this.personAReportJson.length > 0) {
-						result = await analyzeFaceMatch({
-							personBImage: imageB,
-							personAReportJson: this.personAReportJson,
-							locale: this.locale,
-							analysis_type: 'face_match_report'
-						});
-					} else {
-						if (this.personAImage == null) {
+					let imageA = this.personAImage;
+					if (!this.fromFaceReport) {
+						if (imageA == null) {
 							uni.showToast({ title: this.ui.toastNeedBoth, icon: 'none' });
 							return;
 						}
-						const imageA = await resolveImageForApi(this.personAImage);
+						imageA = await resolveImageForApi(imageA);
 						this.personAImage = imageA;
-						result = await analyzeFaceMatch({
-							personAImage: imageA,
-							personBImage: imageB,
-							locale: this.locale
-						});
 					}
-					this.persistSession();
-					if (result.isInvalid === true) {
-						uni.showToast({
-							title: pickLocaleText(this.locale, result.errorMsg || '请上传清晰正脸', result.errorMsgEn),
-							icon: 'none',
-							duration: 5000
-						});
-						return;
-					}
-					this.analyzeProgress = 100;
-					const now = new Date();
-					const timeString = `${now.getFullYear()}-${this.formatNumber(now.getMonth() + 1)}-${this.formatNumber(now.getDate())} ${this.formatNumber(now.getHours())}:${this.formatNumber(now.getMinutes())}`;
-					this.reportData = {
-						id: `face_match_${Date.now()}`,
+					await this.persistSession({ analysisPending: true });
+					const analysisPromise = startFaceMatchAnalysis({
 						matchId: this.matchId,
-						analyzeTime: timeString,
-						personAImage: this.resolvePersonAImageForReport(),
-						personBImage: this.personBImage,
-						fullData: result
-					};
-					const saved = await this.persistSession();
-					this.syncMatchUrl();
-					if (!saved) {
-						const recovered = loadFaceMatchReport(
-							this.matchId,
-							this.reportData.personAImage,
-							this.reportData.personBImage
-						);
-						if (recovered == null) {
-							uni.showToast({
-								title: this.locale === 'en'
-									? 'Report generated but save failed — do not refresh'
-									: '报告已生成但保存失败，请勿刷新页面',
-								icon: 'none',
-								duration: 5000
-							});
-						}
-					}
-					uni.showToast({ title: this.ui.toastSuccess, icon: 'success' });
+						personBImage: imageB,
+						personAImage: imageA,
+						personAReportJson: this.personAReportJson,
+						fromFaceReport: this.fromFaceReport,
+						locale: this.locale
+					});
+					await this.runAnalysisUi(analysisPromise);
 				} catch (error: any) {
 					uni.showToast({
 						title: error.message || (this.locale === 'en' ? 'Analysis failed' : '分析失败'),
 						icon: 'none'
 					});
-				} finally {
-					clearInterval(progressTimer);
-					this.isAnalyzing = false;
-					this.analyzeProgress = 0;
-					this.analyzingStatusText = '';
+					await this.persistSession({ analysisPending: this.bothReady });
 				}
 			},
 			formatNumber(num: number): string {
@@ -1180,10 +1377,14 @@
 			getModuleTitle(moduleId: string): string {
 				const map: Record<string, string> = {
 					complementarity: this.ui.complementarity,
+					palaceMatch: this.ui.palaceMatch,
 					domestic: this.ui.domesticLeader,
 					career: this.ui.careerLeader,
+					communication: this.ui.communicationStyle,
 					shortTrend: this.ui.shortTrend,
 					midTrend: this.ui.midTrend,
+					longTrend: this.ui.longTrend,
+					wealthTogether: this.ui.wealthTogether,
 					conflict: this.ui.conflictTitle,
 					advice: this.ui.adviceTitle
 				};
@@ -1201,7 +1402,10 @@
 					if (typeof document !== 'undefined') {
 						const visibilityHandler = (): void => {
 							if (document.visibilityState === 'hidden') {
-								this.persistSession();
+								if (this.isAnalyzing || isFaceMatchAnalysisRunning(this.matchId)) {
+									this.analysisPending = true;
+								}
+								void this.persistSession({ analysisPending: this.analysisPending });
 							}
 						};
 						const pageShowHandler = (): void => {
@@ -1611,6 +1815,7 @@
 				this.personBImage = null;
 				this.pendingUploadImage = null;
 				this.reportData = null;
+				this.analysisPending = false;
 				this.unlockedModuleIds = [];
 				this.isPartnerFlow = false;
 				this.fromFaceReport = keepFromReport;
@@ -1980,6 +2185,14 @@
 		gap: 16rpx;
 	}
 
+	.resume-analyze-hint {
+		font-size: 26rpx;
+		color: #8c5a2b;
+		text-align: center;
+		line-height: 1.5;
+		padding: 0 12rpx;
+	}
+
 	.match-footer.footer-compact {
 		margin-top: 0;
 		padding-top: 8rpx;
@@ -2129,6 +2342,13 @@
 		font-size: 28rpx;
 		color: #5a3e2b;
 		font-weight: bold;
+	}
+
+	.change-photo-link {
+		margin-top: 8rpx;
+		font-size: 22rpx;
+		color: #8c7662;
+		text-decoration: underline;
 	}
 
 	.couple-bridge {
