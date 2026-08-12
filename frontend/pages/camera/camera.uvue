@@ -651,12 +651,10 @@
 			</view>
 		</view>
 
-		<app-tab-bar current="palm"></app-tab-bar>
 </view>
 </template>
 
 <script lang="uts">
-	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
 	import type {
 		PalmistryReport,
 		ReportResult,
@@ -764,9 +762,6 @@
 
 	export default {
 		name: 'CameraPage',
-		components: {
-			AppTabBar
-		},
 		data(): CameraPageData {
 			return {
 				locale: getAppLocale(),

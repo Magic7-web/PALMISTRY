@@ -588,12 +588,10 @@
 			</view>
 		</view>
 
-		<app-tab-bar current="face"></app-tab-bar>
 	</view>
 </template>
 
 <script lang="uts">
-	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
 	import type { FaceReport, FaceAnalysisResult, FaceThreeSection, FaceFortuneScore, FaceImprovementResult } from '@/types/index';
 	import { analyzeFace, analyzeFaceImprovement } from '@/utils/qwenApi';
 	import { convertImageToBase64ForApi } from '@/utils/imageHelper';
@@ -701,9 +699,6 @@
 
 	export default {
 		name: 'FacePage',
-		components: {
-			AppTabBar
-		},
 		data(): FacePageData {
 			return {
 				locale: getAppLocale(),

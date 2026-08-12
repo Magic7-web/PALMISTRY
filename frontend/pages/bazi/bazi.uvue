@@ -23,19 +23,14 @@
 			</view>
 		</view>
 
-		<app-tab-bar current="bazi"></app-tab-bar>
 	</view>
 </template>
 
 <script lang="uts">
-	import AppTabBar from '@/components/app-tab-bar/app-tab-bar.uvue';
 	import { getAppLocale, type AppLocale } from '@/utils/locale';
 
 	export default {
 		name: 'BaziPage',
-		components: {
-			AppTabBar
-		},
 		data() {
 			return {
 				locale: getAppLocale() as AppLocale
