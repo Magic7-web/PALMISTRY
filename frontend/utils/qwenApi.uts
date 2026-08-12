@@ -1295,7 +1295,30 @@ function buildFaceMatchPrompt(locale: AppLocale): string {
 只返回纯 JSON，无 markdown，无代码块。`;
 }
 
+/** 合婚 prompt 只需 A 方报告核心字段，去掉双语冗余以缩短输入 */
+function slimPersonAReportForMatch(reportJson: string): string {
+	try {
+		const parsed = JSON.parse(reportJson) as FaceAnalysisResult;
+		const slim = {
+			archive: parsed.archive != null ? {
+				faceElement: parsed.archive.faceElement,
+				spiritScore: parsed.archive.spiritScore,
+				complexionOverview: parsed.archive.complexionOverview
+			} : null,
+			threeSections: parsed.threeSections,
+			fiveOfficials: parsed.fiveOfficials,
+			keyPalaces: parsed.keyPalaces,
+			coreFortunes: parsed.coreFortunes
+		};
+		return JSON.stringify(slim);
+	} catch (error) {
+		console.warn('合婚报告 JSON 精简失败，使用截断原文', error);
+		return reportJson.length > 16000 ? reportJson.substring(0, 16000) : reportJson;
+	}
+}
+
 function buildFaceMatchWithReportPrompt(locale: AppLocale, reportJson: string): string {
+	const slimReportJson = slimPersonAReportForMatch(reportJson);
 	const localeHint =
 		locale === 'en'
 			? 'The user prefers English UI, but you MUST still output Chinese in the main fields AND fill every *En field with natural English.'
@@ -1344,7 +1367,7 @@ function buildFaceMatchWithReportPrompt(locale: AppLocale, reportJson: string): 
 【任务类型】analysis_type: face_match_report（基于已有面相报告 + 对方照片合婚）
 
 【A 方（用户本人）已有完整面相报告 JSON】
-${reportJson}
+${slimReportJson}
 
 【B 方】请根据随附的【一张正面人脸照片】识别其面相特征，并与 A 方报告中的脸型、五官、宫位、婚恋运等结论进行合婚推演。
 
@@ -1670,6 +1693,7 @@ export async function analyzeFaceMatch(request: FaceMatchAnalyzeRequest): Promis
 				top_p: 0.85
 			}
 		};
+		console.log('合婚分析请求(face_match_report)，大小:', JSON.stringify(apiRequest).length);
 		return callQwenTextOrVision(apiRequest, parseFaceMatchResponse);
 	}
 
@@ -1695,6 +1719,7 @@ export async function analyzeFaceMatch(request: FaceMatchAnalyzeRequest): Promis
 			top_p: 0.85
 		}
 	};
+	console.log('合婚分析请求(face_match)，大小:', JSON.stringify(apiRequest).length);
 	return callQwenTextOrVision(apiRequest, parseFaceMatchResponse);
 }
 

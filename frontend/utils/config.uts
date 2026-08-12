@@ -7,5 +7,5 @@ export const QWEN_CONFIG = {
 	/** H5 开发与生产均走 /api/qwen（Vite proxy 或 Nginx 反代到 server） */
 	endpoint: '/api/qwen',
 	model: 'qwen3.7-flash',
-	timeout: 120000 // 手相多模态分析 + 长输出，预留 2 分钟
+	timeout: 180000 // 合婚等长输出场景预留 3 分钟
 };

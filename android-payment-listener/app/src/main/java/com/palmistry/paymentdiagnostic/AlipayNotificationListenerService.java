@@ -15,6 +15,7 @@ public class AlipayNotificationListenerService extends NotificationListenerServi
     public void onListenerConnected() {
         super.onListenerConnected();
         NotifyConfig.saveListenerConnected(getApplicationContext(), true);
+        HeartbeatScheduler.start(getApplicationContext());
         PaymentNotifyClient.sendHeartbeat(getApplicationContext());
         scanActiveNotifications(reportOnNextScan);
         reportOnNextScan = false;
@@ -26,6 +27,7 @@ public class AlipayNotificationListenerService extends NotificationListenerServi
         super.onListenerDisconnected();
         NotifyConfig.saveListenerConnected(getApplicationContext(), false);
         PaymentNotifyClient.sendHeartbeat(getApplicationContext());
+        HeartbeatScheduler.stop();
         RecordUpdateNotifier.notifyUpdated(getApplicationContext());
     }
 

@@ -78,6 +78,13 @@ app.post('/api/qwen', qwenRateLimiter, async (req, res) => {
     return;
   }
 
+  const analysisType = req.body?.analysis_type || 'unknown';
+  const bodySize = JSON.stringify(req.body || {}).length;
+  console.log(`[qwen] type=${analysisType} bodySize=${bodySize}`);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 180000);
+
   try {
     const upstream = await fetch(DASHSCOPE_ENDPOINT, {
       method: 'POST',
@@ -86,7 +93,8 @@ app.post('/api/qwen', qwenRateLimiter, async (req, res) => {
         'Content-Type': 'application/json',
         'X-DashScope-SSE': 'disable'
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(req.body),
+      signal: controller.signal
     });
 
     const rawText = await upstream.text();
@@ -115,11 +123,21 @@ app.post('/api/qwen', qwenRateLimiter, async (req, res) => {
 
     res.status(upstream.status).json(payload);
   } catch (error) {
+    if (error && error.name === 'AbortError') {
+      console.error('DashScope proxy timeout:', analysisType);
+      res.status(504).json({
+        success: false,
+        message: 'AI 分析超时，请稍后重试'
+      });
+      return;
+    }
     console.error('DashScope proxy error:', error);
     res.status(503).json({
       success: false,
       message: 'AI service temporarily unavailable'
     });
+  } finally {
+    clearTimeout(timeoutId);
   }
 });
 

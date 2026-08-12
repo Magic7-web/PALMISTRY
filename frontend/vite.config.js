@@ -7,11 +7,13 @@ export default defineConfig({
     proxy: {
       '/api/qwen': {
         target: 'http://localhost:3000',
-        changeOrigin: true
+        changeOrigin: true,
+        timeout: 180000
       },
       '/api/payment': {
         target: 'http://localhost:3000',
-        changeOrigin: true
+        changeOrigin: true,
+        timeout: 60000
       }
     }
   }
