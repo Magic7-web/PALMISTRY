@@ -27,7 +27,6 @@ public class AlipayNotificationListenerService extends NotificationListenerServi
         super.onListenerDisconnected();
         NotifyConfig.saveListenerConnected(getApplicationContext(), false);
         PaymentNotifyClient.sendHeartbeat(getApplicationContext());
-        HeartbeatScheduler.stop();
         RecordUpdateNotifier.notifyUpdated(getApplicationContext());
     }
 

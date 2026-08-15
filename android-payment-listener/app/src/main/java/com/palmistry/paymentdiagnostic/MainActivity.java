@@ -1,13 +1,17 @@
 package com.palmistry.paymentdiagnostic;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
@@ -26,8 +30,11 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
 
+    private static final int REQUEST_POST_NOTIFICATIONS = 2001;
+
     private TextView statusView;
     private TextView summaryView;
+    private TextView batteryStatusView;
     private TextView notifyStatusView;
     private TextView recordsView;
     private EditText backendUrlInput;
@@ -47,7 +54,9 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(buildLayout());
         loadNotifyConfig();
+        requestPostNotificationsIfNeeded();
         refreshUi();
+        maybePromptBatteryWhitelist(false);
     }
 
     @Override
@@ -66,7 +75,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshUi();
-        HeartbeatScheduler.start(this);
+        KeepAliveManager.start(this);
     }
 
     @Override
@@ -115,8 +124,16 @@ public class MainActivity extends Activity {
         summaryView = new TextView(this);
         summaryView.setTextSize(14);
         summaryView.setTextColor(Color.DKGRAY);
-        summaryView.setPadding(0, 0, 0, 16);
+        summaryView.setPadding(0, 0, 0, 8);
         root.addView(summaryView);
+
+        batteryStatusView = new TextView(this);
+        batteryStatusView.setTextSize(13);
+        batteryStatusView.setTextColor(Color.DKGRAY);
+        batteryStatusView.setPadding(0, 0, 0, 8);
+        root.addView(batteryStatusView);
+
+        root.addView(createButton(R.string.request_battery_whitelist, v -> requestBatteryWhitelist()));
 
         TextView notifyTitle = new TextView(this);
         notifyTitle.setText(R.string.notify_config_title);
@@ -210,7 +227,7 @@ public class MainActivity extends Activity {
                 notifySecretInput.getText().toString()
         );
         Toast.makeText(this, R.string.notify_config_saved, Toast.LENGTH_SHORT).show();
-        HeartbeatScheduler.start(this);
+        KeepAliveManager.start(this);
         refreshUi();
     }
 
@@ -270,6 +287,14 @@ public class MainActivity extends Activity {
         int matched = countMatchedRecords();
         summaryView.setText(getString(R.string.summary_format, total, matched));
 
+        if (isIgnoringBatteryOptimizations()) {
+            batteryStatusView.setText(R.string.battery_status_whitelisted);
+            batteryStatusView.setTextColor(Color.parseColor("#1B7F3A"));
+        } else {
+            batteryStatusView.setText(R.string.battery_status_restricted);
+            batteryStatusView.setTextColor(Color.parseColor("#C0392B"));
+        }
+
         String lastStatus = NotifyConfig.getLastNotifyStatus(this);
         long lastAt = NotifyConfig.getLastNotifyAt(this);
         if (lastStatus.isEmpty()) {
@@ -297,16 +322,60 @@ public class MainActivity extends Activity {
     }
 
     private boolean isNotificationListenerEnabled() {
-        String enabled = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
-        if (enabled == null || enabled.isEmpty()) {
-            return false;
+        return KeepAliveManager.isNotificationListenerEnabled(this);
+    }
+
+    private boolean isIgnoringBatteryOptimizations() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
         }
-        String pkg = getPackageName();
-        for (String name : enabled.split(":")) {
-            if (name.contains(pkg)) {
-                return true;
-            }
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        return powerManager != null && powerManager.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    private void requestBatteryWhitelist() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            Toast.makeText(this, R.string.battery_status_whitelisted, Toast.LENGTH_SHORT).show();
+            return;
         }
-        return false;
+        if (isIgnoringBatteryOptimizations()) {
+            Toast.makeText(this, R.string.battery_status_whitelisted, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+        } catch (Exception error) {
+            Toast.makeText(this, "无法打开电池优化设置: " + error.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** 首次进入且未加白名单时提示一次 */
+    private void maybePromptBatteryWhitelist(boolean force) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+        if (isIgnoringBatteryOptimizations()) {
+            return;
+        }
+        if (!force && !isNotificationListenerEnabled()) {
+            return;
+        }
+        requestBatteryWhitelist();
+    }
+
+    private void requestPostNotificationsIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        requestPermissions(
+                new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                REQUEST_POST_NOTIFICATIONS
+        );
     }
 }

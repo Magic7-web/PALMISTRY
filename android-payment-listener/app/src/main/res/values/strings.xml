@@ -19,4 +19,11 @@
     <string name="notify_config_saved">上报配置已保存</string>
     <string name="default_notify_backend_url">http://192.168.1.100:3001</string>
     <string name="default_notify_secret">dev-payment-secret</string>
+    <string name="battery_status_whitelisted">电池优化：已加入白名单</string>
+    <string name="battery_status_restricted">电池优化：未加入白名单（建议授权，否则熄屏后可能被系统杀进程）</string>
+    <string name="request_battery_whitelist">加入电池优化白名单</string>
+    <string name="keep_alive_channel_name">收款监听保活</string>
+    <string name="keep_alive_channel_desc">保持后台心跳与支付宝通知监听</string>
+    <string name="keep_alive_notification_title">支付通知监听运行中</string>
+    <string name="keep_alive_notification_text">熄屏/后台仍会上报心跳并监听支付宝收款</string>
 </resources>

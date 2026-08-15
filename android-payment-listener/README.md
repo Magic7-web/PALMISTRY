@@ -41,8 +41,18 @@
 ## vivo / OriginOS
 
 - 开启通知使用权
-- 电池 → 不限制
+- 电池 → 不限制（App 内可点「加入电池优化白名单」）
 - 允许自启动 / 后台运行
+- 安装后会在通知栏显示「支付通知监听运行中」常驻通知（前台 Service 保活）
+- 熄屏/后台每 10 秒上报心跳（前台 Service 内 Handler）
+- 进程被杀后 START_STICKY 自动重启；开机自启恢复
+
+## 保活机制（v1.1.0+）
+
+- **前台 Service + WakeLock**：维持进程，熄屏仍心跳
+- **START_STICKY**：内存不足被杀后系统自动重启 Service
+- **开机自启**：`BOOT_COMPLETED` 后自动恢复（需已保存后端配置）
+- **电池白名单**：App 内一键申请忽略电池优化
 
 ## 项目结构
 
@@ -50,6 +60,9 @@
 app/src/main/java/com/palmistry/paymentdiagnostic/
 ├── MainActivity.java
 ├── AlipayNotificationListenerService.java
+├── ForegroundKeepAliveService.java
+├── KeepAliveManager.java
+├── BootReceiver.java
 ├── NotificationStorage.java
 ├── PaymentNotifyClient.java
 ├── NotifyConfig.java
