@@ -245,8 +245,8 @@ public class MainActivity extends Activity {
             AlipayNotificationListenerService.scanActiveNotificationsFromApp(this, reportMatched);
         }
         refreshUi();
-        statusView.postDelayed(this::refreshUi, 600);
-        statusView.postDelayed(this::refreshUi, 1500);
+        statusView.postDelayed(this::refreshUi, 400);
+        statusView.postDelayed(this::refreshUi, 1200);
     }
 
     private void retryLastMatchedReport() {
@@ -273,7 +273,7 @@ public class MainActivity extends Activity {
         boolean enabled = isNotificationListenerEnabled();
         boolean connected = NotifyConfig.isListenerConnected(this);
         if (enabled && connected) {
-            statusView.setText("监听状态：已开启且服务已连接");
+            statusView.setText("监听状态：已开启且服务已连接（系统自动监听，每 10 秒扫描，无需手动点击）");
             statusView.setTextColor(Color.parseColor("#1B7F3A"));
         } else if (enabled) {
             statusView.setText("监听状态：权限已开，但服务未连接（请点「重新扫描并上报」）");
@@ -305,6 +305,11 @@ public class MainActivity extends Activity {
                     ? new SimpleDateFormat("HH:mm:ss", Locale.CHINA).format(new Date(lastAt))
                     : "";
             notifyStatusView.setText(getString(R.string.notify_last_result, lastStatus + " " + timeText));
+        }
+
+        String lastScan = NotifyConfig.getLastScanResult(this);
+        if (!lastScan.isEmpty()) {
+            notifyStatusView.setText(notifyStatusView.getText() + "\n最近扫描：" + lastScan);
         }
 
         String display = NotificationStorage.formatForDisplay(this);

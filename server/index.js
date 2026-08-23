@@ -85,6 +85,15 @@ app.post('/api/qwen', qwenRateLimiter, async (req, res) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 180000);
 
+  const upstreamBody = {
+    ...req.body,
+    parameters: {
+      ...(req.body?.parameters || {}),
+      result_format: req.body?.parameters?.result_format || 'message',
+      response_format: req.body?.parameters?.response_format || { type: 'json_object' }
+    }
+  };
+
   try {
     const upstream = await fetch(DASHSCOPE_ENDPOINT, {
       method: 'POST',
@@ -93,7 +102,7 @@ app.post('/api/qwen', qwenRateLimiter, async (req, res) => {
         'Content-Type': 'application/json',
         'X-DashScope-SSE': 'disable'
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(upstreamBody),
       signal: controller.signal
     });
 

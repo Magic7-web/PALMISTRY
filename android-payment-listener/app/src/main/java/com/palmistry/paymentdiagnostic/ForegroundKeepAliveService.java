@@ -168,12 +168,15 @@ public class ForegroundKeepAliveService extends Service {
                     return;
                 }
                 PaymentNotifyClient.sendHeartbeat(getApplicationContext());
+                AlipayNotificationListenerService.periodicScanFromKeepAlive(getApplicationContext());
                 if (workerHandler != null) {
                     workerHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS);
                 }
             }
         };
         workerHandler.postDelayed(heartbeatTask, HEARTBEAT_INTERVAL_MS);
+        // 启动后立即扫一次，避免错过刚到的收款通知
+        workerHandler.post(() -> AlipayNotificationListenerService.periodicScanFromKeepAlive(getApplicationContext()));
     }
 
     private void stopHeartbeatLoop() {

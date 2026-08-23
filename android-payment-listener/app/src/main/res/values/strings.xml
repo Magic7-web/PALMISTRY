@@ -10,7 +10,7 @@
     <string name="clear_records">清空记录</string>
     <string name="recent_records_title">最近支付宝通知</string>
     <string name="summary_format">本地记录 %1$d 条，其中支付匹配 %2$d 条</string>
-    <string name="empty_records_hint">暂无支付宝通知。\n\n请先点击上方按钮开启通知使用权，再用另一支付宝账号支付一笔测试金额，然后点“刷新状态”。</string>
+    <string name="empty_records_hint">暂无支付宝通知。\n\n系统会自动监听并每 10 秒扫描通知栏，收到收款后会自动上报，无需手动点击按钮。\n\n若长时间无记录，请检查通知使用权与 vivo 自启动/后台权限。</string>
     <string name="notify_config_title">后端上报配置</string>
     <string name="notify_backend_url_label">后端地址</string>
     <string name="notify_secret_label">上报密钥</string>

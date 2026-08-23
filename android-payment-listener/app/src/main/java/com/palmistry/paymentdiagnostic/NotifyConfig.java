@@ -13,6 +13,7 @@ public final class NotifyConfig {
     private static final String KEY_NOTIFY_SECRET = "notify_secret";
     private static final String KEY_LAST_STATUS = "last_notify_status";
     private static final String KEY_LAST_AT = "last_notify_at";
+    private static final String KEY_LAST_SCAN = "last_scan_status";
     private static final String KEY_LAST_REPORT_SIGNATURE = "last_report_signature";
     private static final String KEY_LISTENER_CONNECTED = "listener_connected";
 
@@ -45,6 +46,16 @@ public final class NotifyConfig {
                 .putString(KEY_LAST_STATUS, status)
                 .putLong(KEY_LAST_AT, System.currentTimeMillis())
                 .apply();
+    }
+
+    static void saveLastScanResult(Context context, String status) {
+        prefs(context).edit()
+                .putString(KEY_LAST_SCAN, status)
+                .apply();
+    }
+
+    static String getLastScanResult(Context context) {
+        return prefs(context).getString(KEY_LAST_SCAN, "");
     }
 
     static String getLastNotifyStatus(Context context) {

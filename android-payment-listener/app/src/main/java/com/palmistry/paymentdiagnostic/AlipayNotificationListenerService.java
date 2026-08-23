@@ -6,14 +6,20 @@ import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.os.Bundle;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 public class AlipayNotificationListenerService extends NotificationListenerService {
 
     private static final String ALIPAY_PACKAGE = "com.eg.android.AlipayGphone";
     private static volatile boolean reportOnNextScan = false;
+    private static volatile AlipayNotificationListenerService activeInstance;
 
     @Override
     public void onListenerConnected() {
         super.onListenerConnected();
+        activeInstance = this;
         NotifyConfig.saveListenerConnected(getApplicationContext(), true);
         HeartbeatScheduler.start(getApplicationContext());
         PaymentNotifyClient.sendHeartbeat(getApplicationContext());
@@ -25,6 +31,9 @@ public class AlipayNotificationListenerService extends NotificationListenerServi
     @Override
     public void onListenerDisconnected() {
         super.onListenerDisconnected();
+        if (activeInstance == this) {
+            activeInstance = null;
+        }
         NotifyConfig.saveListenerConnected(getApplicationContext(), false);
         PaymentNotifyClient.sendHeartbeat(getApplicationContext());
         RecordUpdateNotifier.notifyUpdated(getApplicationContext());
@@ -43,8 +52,25 @@ public class AlipayNotificationListenerService extends NotificationListenerServi
         }
     }
 
-    /** 主动扫描通知栏；reportMatched=true 时会尝试上报收款匹配通知 */
+    @Override
+    public void onNotificationRemoved(StatusBarNotification sbn) {
+        // 部分 vivo 机型只在通知被移除时才回调，补扫一次当前通知栏
+        if (isAlipayPackage(sbn.getPackageName())) {
+            scanActiveNotifications(true);
+        }
+    }
+
+    /**
+     * 主动扫描通知栏。已连接时直接扫，避免 requestRebind 在 vivo 上不触发 onListenerConnected。
+     */
     static void scanActiveNotificationsFromApp(android.content.Context context, boolean reportMatched) {
+        AlipayNotificationListenerService instance = activeInstance;
+        if (instance != null) {
+            instance.scanActiveNotifications(reportMatched);
+            RecordUpdateNotifier.notifyUpdated(context.getApplicationContext());
+            return;
+        }
+
         reportOnNextScan = reportMatched;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             android.content.ComponentName component = new android.content.ComponentName(
@@ -55,18 +81,49 @@ public class AlipayNotificationListenerService extends NotificationListenerServi
         }
     }
 
+    /** 前台 Service 定时调用：主动扫通知栏，弥补 onNotificationPosted 未回调 */
+    static void periodicScanFromKeepAlive(android.content.Context context) {
+        AlipayNotificationListenerService instance = activeInstance;
+        if (instance == null) {
+            return;
+        }
+        instance.scanActiveNotifications(true);
+    }
+
+    static boolean isListenerBound() {
+        return activeInstance != null;
+    }
+
     private void scanActiveNotifications(boolean reportIfMatched) {
+        int total = 0;
+        int alipay = 0;
         try {
             StatusBarNotification[] active = getActiveNotifications();
             if (active == null) {
+                saveScanDiagnostic(0, 0, "通知栏为空");
                 return;
             }
+            total = active.length;
             for (StatusBarNotification sbn : active) {
+                if (isAlipayPackage(sbn.getPackageName())) {
+                    alipay += 1;
+                }
                 handleNotification(sbn, reportIfMatched);
             }
-        } catch (SecurityException ignored) {
-            // 监听尚未完全绑定时可能无权限
+            saveScanDiagnostic(total, alipay, "扫描完成");
+        } catch (SecurityException error) {
+            saveScanDiagnostic(total, alipay, "扫描失败: " + error.getMessage());
+        } catch (Exception error) {
+            saveScanDiagnostic(total, alipay, "扫描异常: " + error.getMessage());
         }
+    }
+
+    private void saveScanDiagnostic(int total, int alipayCount, String status) {
+        String time = new SimpleDateFormat("HH:mm:ss", Locale.CHINA).format(new Date());
+        NotifyConfig.saveLastScanResult(
+                getApplicationContext(),
+                time + " " + status + "（通知栏 " + total + " 条，支付宝 " + alipayCount + " 条）"
+        );
     }
 
     private void handleNotification(StatusBarNotification sbn, boolean reportIfMatched) {
@@ -124,8 +181,10 @@ public class AlipayNotificationListenerService extends NotificationListenerServi
         if (packageName == null) {
             return false;
         }
+        String normalized = packageName.toLowerCase(Locale.ROOT);
         return ALIPAY_PACKAGE.equals(packageName)
-                || packageName.startsWith("com.eg.android.AlipayGphone");
+                || packageName.startsWith("com.eg.android.AlipayGphone")
+                || normalized.contains("alipay");
     }
 
     private static String pickTitle(Bundle extras) {
